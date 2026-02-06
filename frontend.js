@@ -370,7 +370,8 @@ function canGoPrev() {
 
 function disp(e, k, y, m, d) {
   const lv = D.lv[e.id + '-' + k];
-  if (lv) return { isL: true, ...(LEAVE[lv.t] || LEAVE.sick), st: lv.s, lid: lv.id, lt: lv.t };
+  if (lv && lv.s === 'approved') return { isL: true, ...(LEAVE[lv.t] || LEAVE.sick), st: lv.s, lid: lv.id, lt: lv.t };
+  if (lv && lv.s === 'pending') return { isL: true, isPending: true, ...(LEAVE[lv.t] || LEAVE.sick), st: lv.s, lid: lv.id, lt: lv.t };
   const s = D.sh[e.id + '-' + k];
   if (s) return { isL: false, ...SHIFT[s], ty: s };
   if (isOff(e, y, m, d)) return { isL: false, ...SHIFT.off, ty: 'off' };
@@ -634,12 +635,15 @@ function rCal() {
     ce().forEach(emp => {
       const inf = disp(emp, k, D.y, D.m, d);
       const isOff = inf.ty === 'off';
-      if (!isOff && !inf.isL) workCount++;
+      const isPendingLeave = inf.isL && inf.isPending;
+      // Pending leave = ยังไม่อนุมัติ → นับเป็นทำงาน
+      if (!isOff && (!inf.isL || isPendingLeave)) workCount++;
       const cls = 'et' + (inf.isL ? ' lv' : '') + (isOff ? ' off' : '');
-      const sty = inf.isL ? { background: inf.b, color: inf.c, borderColor: inf.c }
+      const sty = isPendingLeave ? { background: inf.b, color: inf.c, borderColor: inf.c, opacity: 0.5, border: '2px dashed ' + inf.c }
+        : inf.isL ? { background: inf.b, color: inf.c, borderColor: inf.c }
         : isOff ? { background: '#fff1f2', color: '#dc2626', borderColor: '#fca5a5', border: '2px dashed #f87171' }
         : { background: inf.b, color: inf.c };
-      const txt = inf.i + ' ' + dn(emp) + (inf.isL ? ' (' + inf.l + ')' : '') + (isOff ? ' (หยุด)' : '');
+      const txt = inf.i + ' ' + dn(emp) + (inf.isL ? ' (' + inf.l + (isPendingLeave ? ' ⏳' : '') + ')' : '') + (isOff ? ' (หยุด)' : '');
       dy.appendChild(h('div', { className: cls, style: sty }, txt));
     });
     // Headcount badge
@@ -735,11 +739,17 @@ function rRos() {
         }
         const inf = disp(emp, k, D.y, D.m, d);
         const isOffDay = inf.ty === 'off';
+        const isPendingLeave = inf.isL && inf.isPending;
         const cellStyle = {
           textAlign: 'center', padding: '4px', borderBottom: '1px solid #f1f5f9',
           background: td ? '#f0f7ff' : 'transparent'
         };
-        const tagStyle = inf.isL ? {
+        const tagStyle = isPendingLeave ? {
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+          background: inf.b, color: inf.c, border: '1.5px dashed ' + inf.c,
+          whiteSpace: 'nowrap', opacity: 0.5
+        } : inf.isL ? {
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
           background: inf.b, color: inf.c, border: '1.5px solid ' + inf.c,
@@ -752,7 +762,7 @@ function rRos() {
           border: isOffDay ? '1.5px dashed #f87171' : 'none',
           whiteSpace: 'nowrap'
         };
-        const label = inf.isL ? inf.i + ' ' + inf.l : isOffDay ? '🏖️ หยุด' : inf.i + ' ' + inf.l;
+        const label = inf.isL ? inf.i + ' ' + inf.l + (isPendingLeave ? ' ⏳' : '') : isOffDay ? '🏖️ หยุด' : inf.i + ' ' + inf.l;
         r.appendChild(h('td', { style: cellStyle }, h('span', { style: tagStyle, title: inf.l || '' }, label)));
       });
       bd.appendChild(r);
@@ -773,7 +783,7 @@ function rSta() {
   const empStats = [];
   allEmps.forEach(emp => {
     const sc = { day: 0, evening: 0, off: 0 };
-    for (let d = 1; d <= dm; d++) { const k = dk(D.y, D.m, d); if (isBlackout(k)) continue; const inf = disp(emp, k, D.y, D.m, d); if (!inf.isL) sc[inf.ty] = (sc[inf.ty] || 0) + 1; }
+    for (let d = 1; d <= dm; d++) { const k = dk(D.y, D.m, d); if (isBlackout(k)) continue; const inf = disp(emp, k, D.y, D.m, d); if (!inf.isL || inf.isPending) sc[inf.ty || emp.default_shift] = (sc[inf.ty || emp.default_shift] || 0) + 1; }
     const yl = D.yl[emp.id] || {};
     totalDay += sc.day; totalEvening += sc.evening; totalOff += sc.off;
     totalSick += (yl.sick || 0); totalPersonal += (yl.personal || 0); totalVacation += (yl.vacation || 0);
