@@ -868,11 +868,11 @@ function rHist() {
   const tb = h('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } });
   const thd = h('thead');
   thd.appendChild(h('tr', {},
-    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'สถานะ'),
-    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'ประเภท'),
-    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'พนักงาน'),
     h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'วันที่'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'พนักงาน'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'ประเภท'),
     h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'รายละเอียด'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'สถานะ'),
     h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'ผู้อนุมัติ'),
   ));
   tb.appendChild(thd);
@@ -903,11 +903,11 @@ function rHist() {
     }
 
     bd.appendChild(h('tr', {},
-      h('td', { style: cs }, h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isA ? '#dcfce7' : '#fee2e2', color: isA ? '#16a34a' : '#dc2626' } }, isA ? '✅ อนุมัติ' : '❌ ปฏิเสธ')),
-      h('td', { style: cs }, typeBadge),
-      h('td', { style: cs }, empName),
       h('td', { style: { ...cs, whiteSpace: 'nowrap' } }, dateStr),
+      h('td', { style: cs }, empName),
+      h('td', { style: cs }, typeBadge),
       h('td', { style: { ...cs, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' } }, detail),
+      h('td', { style: cs }, h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isA ? '#dcfce7' : '#fee2e2', color: isA ? '#16a34a' : '#dc2626' } }, isA ? '✅ อนุมัติ' : '❌ ปฏิเสธ')),
       h('td', { style: cs }, approver),
     ));
   });
@@ -1345,7 +1345,18 @@ function rKpiAdd() {
     } }, c.name)));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '📂 หมวดหมู่'), catEl));
   // Detail dropdown
-  const detSelect = h('select', { className: 'fi', id: 'kdet' }); detSelect.appendChild(h('option', { value: '' }, '-- เลือกรายละเอียด --'));
+  // Detail dropdown — auto-fill points on change
+  const detSelect = h('select', { className: 'fi', id: 'kdet' });
+  detSelect.appendChild(h('option', { value: '' }, '-- เลือกรายละเอียด --'));
+  detSelect.addEventListener('change', function() {
+    const detId = this.value;
+    if (detId) {
+      const det = (D.kpi?.dets || []).find(d => String(d.id) === String(detId));
+      if (det) { const ptsInput = document.getElementById('kpts'); if (ptsInput) { ptsInput.value = det.points; } }
+    } else {
+      const ptsInput = document.getElementById('kpts'); if (ptsInput) ptsInput.value = '1';
+    }
+  });
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '📋 รายละเอียด'), detSelect));
   // Points
   m.appendChild(h('div', { className: 'fg', style: { display: 'flex', gap: '10px' } },
