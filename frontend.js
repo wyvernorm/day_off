@@ -780,48 +780,12 @@ function rSta() {
     empStats.push({ emp, sc, yl });
   });
 
-  // === TOP ROW: Overview + Donut ===
-  const topRow = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' } });
-
-  // Left: Shift summary cards
-  const shiftBox = h('div', { style: { background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)', borderRadius: '16px', padding: '24px', color: '#fff' } });
-  shiftBox.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 600, opacity: 0.7, marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' } }, '📊 สรุปกะเดือนนี้'));
-  const shiftGrid = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' } });
-  [[totalDay, '☀️', 'กลางวัน', '#fbbf24'], [totalEvening, '🌙', 'กลางคืน', '#818cf8'], [totalOff, '🏖️', 'วันหยุด', '#34d399']].forEach(([v, ic, lb, cl]) => {
-    shiftGrid.appendChild(h('div', { style: { background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '16px', textAlign: 'center', backdropFilter: 'blur(4px)' } },
-      h('div', { style: { fontSize: '28px', marginBottom: '4px' } }, ic),
-      h('div', { style: { fontSize: '28px', fontWeight: 800, color: cl } }, String(v)),
-      h('div', { style: { fontSize: '11px', opacity: 0.7 } }, lb)));
-  });
-  shiftBox.appendChild(shiftGrid);
-  topRow.appendChild(shiftBox);
-
-  // Right: Donut chart
-  const totalShifts = totalDay + totalEvening + totalOff || 1;
-  const dayPct = (totalDay / totalShifts * 100).toFixed(1);
-  const evePct = (totalEvening / totalShifts * 100).toFixed(1);
-  const offPct = (totalOff / totalShifts * 100).toFixed(1);
-  const gradient = 'conic-gradient(#fbbf24 0% ' + dayPct + '%, #818cf8 ' + dayPct + '% ' + (parseFloat(dayPct)+parseFloat(evePct)) + '%, #34d399 ' + (parseFloat(dayPct)+parseFloat(evePct)) + '% 100%)';
-  const donutBox = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } });
-  donutBox.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#64748b', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' } }, '🔄 สัดส่วนกะ'));
-  donutBox.appendChild(h('div', { style: { width: '160px', height: '160px', borderRadius: '50%', background: gradient, position: 'relative', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' } },
-    h('div', { style: { position: 'absolute', top: '25px', left: '25px', right: '25px', bottom: '25px', borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
-      h('div', { style: { fontSize: '26px', fontWeight: 800, color: '#1e293b' } }, String(totalShifts)),
-      h('div', { style: { fontSize: '11px', color: '#94a3b8' } }, 'กะทั้งหมด'))));
-  const donutLeg = h('div', { style: { display: 'flex', gap: '16px', marginTop: '16px' } });
-  [['#fbbf24', '☀️ ' + dayPct + '%'], ['#818cf8', '🌙 ' + evePct + '%'], ['#34d399', '🏖️ ' + offPct + '%']].forEach(([c, l]) =>
-    donutLeg.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '50%', background: c } }), l)));
-  donutBox.appendChild(donutLeg);
-  topRow.appendChild(donutBox);
-  w.appendChild(topRow);
-
-  // === Leave Racing Chart 🏎️ ===
+  // === Leave Racing Chart 🏎️ (Animated) ===
   const chartBox = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', borderRadius: '16px', padding: '24px', marginBottom: '20px', color: '#fff' } });
   chartBox.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' } },
     h('div', { style: { fontSize: '24px' } }, '🏎️'),
     h('div', {}, h('div', { style: { fontSize: '15px', fontWeight: 700 } }, 'วันลาแต่ละคน (ทั้งปี)'),
       h('div', { style: { fontSize: '11px', opacity: 0.5 } }, 'โควต้า ' + (empStats[0]?.emp.max_leave_per_year || 20) + ' วัน'))));
-  // Sort by total leave descending for racing position
   const raceData = [...empStats].map(({ emp, yl }) => {
     const sick = yl.sick || 0, personal = yl.personal || 0, vacation = yl.vacation || 0;
     return { emp, sick, personal, vacation, total: sick + personal + vacation, maxLv: emp.max_leave_per_year || 20 };
@@ -831,34 +795,40 @@ function rSta() {
     const pct = Math.min((r.total / r.maxLv) * 100, 100);
     const posColor = raceColors[idx] || '#475569';
     const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: idx < raceData.length - 1 ? '14px' : '0', position: 'relative' } });
-    // Position badge
     row.appendChild(h('div', { style: { width: '28px', height: '28px', borderRadius: '50%', background: idx < 3 ? posColor : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: idx < 3 ? '#0f172a' : '#94a3b8', flexShrink: 0 } }, String(idx + 1)));
-    // Avatar + name
     row.appendChild(h('div', { style: { width: '90px', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 } },
       r.emp.profile_image ? h('img', { src: r.emp.profile_image, style: { width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + posColor } }) : h('span', { style: { fontSize: '18px' } }, r.emp.avatar),
       h('span', { style: { fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp))));
-    // Racing track
     const track = h('div', { style: { flex: 1, position: 'relative', height: '32px' } });
-    // Track background with lane lines
     track.appendChild(h('div', { style: { position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' } }));
-    // Checkered finish line
     track.appendChild(h('div', { style: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '3px', background: 'repeating-linear-gradient(180deg, #fff 0px, #fff 3px, transparent 3px, transparent 6px)', opacity: 0.3 } }));
-    // Stacked colored bars
-    const barWrap = h('div', { style: { position: 'absolute', top: '3px', bottom: '3px', left: '3px', display: 'flex', borderRadius: '6px', overflow: 'hidden', transition: 'width 1s cubic-bezier(0.4,0,0.2,1)', width: Math.max(pct, r.total > 0 ? 5 : 0) + '%' } });
-    if (r.sick > 0) barWrap.appendChild(h('div', { style: { width: (r.sick/r.total*100) + '%', background: 'linear-gradient(90deg, #ef4444, #f87171)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.sick > 1 ? String(r.sick) : ''));
-    if (r.personal > 0) barWrap.appendChild(h('div', { style: { width: (r.personal/r.total*100) + '%', background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.personal > 1 ? String(r.personal) : ''));
-    if (r.vacation > 0) barWrap.appendChild(h('div', { style: { width: (r.vacation/r.total*100) + '%', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.vacation > 1 ? String(r.vacation) : ''));
+    // Animated bar — starts at 0%, CSS transitions to target
+    const barWrap = h('div', { style: { position: 'absolute', top: '3px', bottom: '3px', left: '3px', display: 'flex', borderRadius: '6px', overflow: 'hidden', width: '0%', transition: 'width 1.2s cubic-bezier(0.25,0.46,0.45,0.94) ' + (idx * 0.15) + 's' } });
+    if (r.sick > 0) barWrap.appendChild(h('div', { style: { width: (r.sick/Math.max(r.total,1)*100) + '%', background: 'linear-gradient(90deg, #ef4444, #f87171)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.sick > 1 ? String(r.sick) : ''));
+    if (r.personal > 0) barWrap.appendChild(h('div', { style: { width: (r.personal/Math.max(r.total,1)*100) + '%', background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.personal > 1 ? String(r.personal) : ''));
+    if (r.vacation > 0) barWrap.appendChild(h('div', { style: { width: (r.vacation/Math.max(r.total,1)*100) + '%', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.vacation > 1 ? String(r.vacation) : ''));
     if (r.total === 0) barWrap.appendChild(h('div', { style: { fontSize: '10px', padding: '0 8px', color: '#34d399', display: 'flex', alignItems: 'center' } }, '✨'));
     track.appendChild(barWrap);
+    // Trigger animation after paint
+    requestAnimationFrame(() => { requestAnimationFrame(() => { barWrap.style.width = Math.max(pct, r.total > 0 ? 5 : 0) + '%'; }); });
     row.appendChild(track);
-    // Score
+    // Animated score counter
     const scoreColor = r.total === 0 ? '#34d399' : r.total >= r.maxLv * 0.8 ? '#ef4444' : r.total >= r.maxLv * 0.5 ? '#fbbf24' : '#94a3b8';
+    const scoreEl = h('div', { style: { fontSize: '16px', fontWeight: 800, color: scoreColor } }, '0');
     row.appendChild(h('div', { style: { width: '60px', textAlign: 'right', flexShrink: 0 } },
-      h('div', { style: { fontSize: '16px', fontWeight: 800, color: scoreColor } }, String(r.total)),
+      scoreEl,
       h('div', { style: { fontSize: '9px', opacity: 0.5 } }, '/ ' + r.maxLv)));
+    // Animate number count-up
+    if (r.total > 0) {
+      const delay = idx * 150;
+      setTimeout(() => {
+        let cur = 0; const target = r.total;
+        const step = () => { cur += Math.ceil(target / 20); if (cur >= target) { scoreEl.textContent = String(target); return; } scoreEl.textContent = String(cur); requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+      }, delay + 200);
+    }
     chartBox.appendChild(row);
   });
-  // Legend
   chartBox.appendChild(h('div', { style: { display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '11px', opacity: 0.7 } },
     h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#ef4444' } }), 'ป่วย'),
     h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#8b5cf6' } }), 'กิจ'),
