@@ -244,9 +244,9 @@ const SHIFT = {
 };
 
 const LEAVE = {
-  sick:      { l:'ลาป่วย',      c:'#ef4444', b:'#fee2e2', i:'🏥' },
-  personal:  { l:'ลากิจ',       c:'#8b5cf6', b:'#ede9fe', i:'📋' },
-  vacation:  { l:'ลาพักร้อน',   c:'#06b6d4', b:'#cffafe', i:'✈️' },
+  sick:      { l:'ลาป่วย',      c:'#dc2626', b:'#fef2f2', i:'🏥' },
+  personal:  { l:'ลากิจ',       c:'#ef4444', b:'#fee2e2', i:'📋' },
+  vacation:  { l:'ลาพักร้อน',   c:'#f87171', b:'#fff1f2', i:'✈️' },
 };
 
 const MIN_YEAR = 2026, MIN_MONTH = 0; // ม.ค. 2569 เป็นต้นไป
@@ -393,10 +393,10 @@ function datePicker(id, initVal) {
     pop.appendChild(hdr);
 
     const grid = h('div', { className: 'dp-grid' });
-    ['จ','อ','พ','พฤ','ศ','ส','อา'].forEach(d => grid.appendChild(h('div', { className: 'dp-dow' }, d)));
+    ['อา','จ','อ','พ','พฤ','ศ','ส'].forEach(d => grid.appendChild(h('div', { className: 'dp-dow' }, d)));
 
     const first = new Date(viewY, viewM, 1).getDay();
-    const offset = first === 0 ? 6 : first - 1;
+    const offset = first; // Sunday=0, no offset needed
     for (let i = 0; i < offset; i++) grid.appendChild(h('div', { className: 'dp-day empty' }));
 
     const dim = new Date(viewY, viewM + 1, 0).getDate();
@@ -483,9 +483,10 @@ function render() {
 
 // === HEADER ===
 function rHdr() {
-  const pc = D.pl.length + D.ps.length;
   const tabs = ['calendar', 'roster', 'stats'];
-  if (isO) tabs.push('pending');
+  const myPendingCount = isO ? D.pl.length + D.ps.length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
+  const hasPendingForMe = D.ps.some(sw => sw.to_employee_id === U.id);
+  if (isO || hasPendingForMe) tabs.push('pending');
   tabs.push('history');
   tabs.push('kpi');
   return h('div', { className: 'hdr' },
@@ -493,7 +494,7 @@ function rHdr() {
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
         const lb = { calendar: '📅 ปฏิทิน', roster: '📋 ตารางกะ', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
-        let t = lb[v]; if (v === 'pending' && pc > 0) t += ' (' + pc + ')';
+        let t = lb[v]; if (v === 'pending' && myPendingCount > 0) t += ' (' + myPendingCount + ')';
         return h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); } }, t);
       })),
       h('div', { className: 'ub' },
@@ -556,7 +557,7 @@ function rCal() {
       const isOff = inf.ty === 'off';
       const cls = 'et' + (inf.isL ? ' lv' : '') + (isOff ? ' off' : '');
       const sty = inf.isL ? { background: inf.b, color: inf.c, borderColor: inf.c }
-        : isOff ? { background: '#d1fae5', color: '#059669', borderColor: '#10b981', border: '2px dashed #10b981' }
+        : isOff ? { background: '#fff1f2', color: '#dc2626', borderColor: '#fca5a5', border: '2px dashed #f87171' }
         : { background: inf.b, color: inf.c };
       const txt = inf.i + ' ' + dn(emp) + (inf.isL ? ' (' + inf.l + ')' : '') + (isOff ? ' (หยุด)' : '');
       dy.appendChild(h('div', { className: cls, style: sty }, txt));
@@ -643,9 +644,11 @@ function rSta() {
 // === PENDING ===
 function rPnd() {
   const s = h('div', { className: 'ps' });
-  s.appendChild(h('div', { className: 'pt' }, '📋 วันลารออนุมัติ (' + D.pl.length + ')'));
-  if (!D.pl.length) s.appendChild(h('p', { style: { color: '#94a3b8', fontSize: '14px', marginBottom: '20px' } }, 'ไม่มีรายการ ✅'));
-  D.pl.forEach(l => { const i = LEAVE[l.leave_type] || LEAVE.sick;
+  const myLeaves = isO ? D.pl : [];
+  const mySwaps = isO ? D.ps : D.ps.filter(sw => sw.to_employee_id === U.id);
+  s.appendChild(h('div', { className: 'pt' }, '📋 วันลารออนุมัติ (' + myLeaves.length + ')'));
+  if (!myLeaves.length) s.appendChild(h('p', { style: { color: '#94a3b8', fontSize: '14px', marginBottom: '20px' } }, 'ไม่มีรายการ ✅'));
+  myLeaves.forEach(l => { const i = LEAVE[l.leave_type] || LEAVE.sick;
     s.appendChild(h('div', { className: 'pc' },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } }, h('span', { style: { fontSize: '26px' } }, l.avatar),
         h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '14px' } }, l.nickname || l.employee_name), h('div', { style: { fontSize: '13px', color: '#64748b' } }, i.i + ' ' + i.l + ' — ' + fmtDate(l.date) + (l.reason ? ' (' + l.reason + ')' : '')))),
@@ -654,9 +657,9 @@ function rPnd() {
         h('button', { className: 'br', onClick: async () => { try { await api('/api/leaves/' + l.id + '/reject', 'PUT'); toast('❌ ปฏิเสธ'); load(); } catch (e) { toast(e.message, true); } } }, '❌ ปฏิเสธ')),
     ));
   });
-  s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔄 สลับกะ/วันหยุดรออนุมัติ (' + D.ps.length + ')'));
-  if (!D.ps.length) s.appendChild(h('p', { style: { color: '#94a3b8', fontSize: '14px' } }, 'ไม่มีรายการ ✅'));
-  D.ps.forEach(sw => {
+  s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔄 สลับกะ/วันหยุดรออนุมัติ (' + mySwaps.length + ')'));
+  if (!mySwaps.length) s.appendChild(h('p', { style: { color: '#94a3b8', fontSize: '14px' } }, 'ไม่มีรายการ ✅'));
+  mySwaps.forEach(sw => {
     const canApprove = isO || U.id === sw.to_employee_id;
     const isDayoff = sw.swap_type === 'dayoff';
     const typeLabel = isDayoff ? '📅 สลับวันหยุด' : '🔄 สลับกะ';
