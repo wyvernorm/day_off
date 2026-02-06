@@ -45,6 +45,19 @@ export async function handleAPI(request, env, url, currentUser) {
   if (pathname === '/api/employees' && method === 'POST') {
     if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
+    // เช็ค email ซ้ำ
+    if (b.email) {
+      const existing = await DB.prepare('SELECT id, is_active FROM employees WHERE email=?').bind(b.email).first();
+      if (existing) {
+        if (existing.is_active === 0) {
+          // เปิดใช้งานอีกครั้ง
+          await DB.prepare("UPDATE employees SET is_active=1, name=?, nickname=?, default_shift=?, shift_start=?, shift_end=?, default_off_day=?, updated_at=datetime('now') WHERE id=?")
+            .bind(b.name, b.nickname || b.name, b.default_shift || 'day', b.shift_start || '09:00', b.shift_end || '17:00', b.default_off_day ?? '6', existing.id).run();
+          return json({ data: { id: existing.id }, message: 'เปิดใช้งานพนักงานอีกครั้งสำเร็จ' }, 201);
+        }
+        return json({ error: 'อีเมลนี้มีในระบบแล้ว' }, 400);
+      }
+    }
     const r = await DB.prepare(
       `INSERT INTO employees (name,nickname,email,role,default_shift,shift_start,shift_end,default_off_day,avatar,show_in_calendar,max_leave_per_year) VALUES (?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(b.name, b.nickname || null, b.email || null, b.role || 'staff', b.default_shift || 'day',

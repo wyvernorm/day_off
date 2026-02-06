@@ -199,7 +199,7 @@ textarea.fi { resize: vertical; min-height: 60px; }
 .dp-wrap { position: relative; }
 .dp-input { width: 100%; padding: 10px 14px; border: 1px solid var(--bd); border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; cursor: pointer; background: #fff; transition: border-color .15s; }
 .dp-input:focus { border-color: var(--pr); }
-.dp-pop { position: absolute; top: 100%; left: 0; z-index: 100; background: #fff; border-radius: 12px; box-shadow: var(--sl); border: 1px solid var(--bd); padding: 12px; margin-top: 4px; min-width: 280px; }
+.dp-pop { position: absolute; top: 100%; left: 0; z-index: 1100; background: #fff; border-radius: 12px; box-shadow: var(--sl); border: 1px solid var(--bd); padding: 12px; margin-top: 4px; min-width: 280px; }
 .dp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .dp-header span { font-size: 14px; font-weight: 700; }
 .dp-nav { border: none; background: #f1f5f9; width: 28px; height: 28px; border-radius: 6px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -422,8 +422,10 @@ function datePicker(id, initVal) {
   return wrap;
 }
 
-// Close date pickers on outside click
-document.addEventListener('click', () => {
+// Close date pickers on outside click (but don't close modal)
+document.addEventListener('click', (e) => {
+  // ไม่ปิด modal เมื่อคลิกปิด date picker
+  if (e.target.closest('.dp-wrap')) return;
   document.querySelectorAll('.dp-pop').forEach(p => p.remove());
 });
 
@@ -581,6 +583,11 @@ function rSta() {
       h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, '🏥 ลาป่วย (ไม่จำกัด)'), h('span', { style: { fontWeight: 700, color: '#ef4444' } }, sickUsed + ' วัน'))),
       // รวมทั้งหมด
       h('div', { style: { marginTop: '8px', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', justifyContent: 'space-between' } }, h('span', {}, 'รวมวันลาทั้งหมด'), h('span', {}, totalAll + ' วัน')),
+      // สถิติสลับกะ
+      h('div', { style: { marginTop: '10px', padding: '10px 14px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fde68a' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+          h('span', { style: { fontSize: '13px', fontWeight: 700, color: '#92400e' } }, '🔄 สลับกะ/วันหยุด'),
+          h('span', { style: { fontSize: '16px', fontWeight: 800, color: '#d97706' } }, (emp.swap_count || 0) + ' ครั้ง'))),
     ));
   });
   return g;
@@ -737,32 +744,27 @@ function rSwp() {
   const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', onClick: e => e.stopPropagation() });
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '🔄 สลับกะ'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
 
-  // หมายเหตุ: คู่สลับต้องอนุมัติ
   m.appendChild(h('div', { style: { padding: '10px 14px', background: '#fffbeb', borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '16px', border: '1px solid #fde68a' } },
     '⚠️ คู่สลับจะเป็นผู้อนุมัติ — ต้องมีคนทำงานทุกช่วงเวลาอย่างน้อย 1 คน'));
 
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันที่'), datePicker('sd', D.sd || '')));
 
-  // Auto-select ตัวเองเป็นคนที่ 1 ถ้าไม่ใช่ owner
-  const myEmp = ce().find(e => e.id === U.id);
-  let sf = (!isO && myEmp) ? myEmp.id : null;
+  // Auto-select ตัวเองเสมอ
+  const myEmp = D.emp.find(e => e.id === U.id);
+  let sf = myEmp ? myEmp.id : null;
   let st = null;
   const emps = ce();
 
-  if (!isO && myEmp) {
+  if (myEmp) {
     m.appendChild(h('div', { className: 'fg' },
       h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
       h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
         av(myEmp), h('div', {}, h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
           h('span', { style: { fontSize: '12px', color: '#92400e', marginLeft: '8px' } }, '🔄 สลับแล้ว ' + (myEmp.swap_count || 0) + ' ครั้ง')))));
-  } else {
-    m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'คนที่ 1'),
-      h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'sf-' + e.id,
-        onClick: () => { sf = e.id; document.querySelectorAll('[id^=sf-]').forEach(el => { const a = el.id === 'sf-' + e.id; el.style.borderColor = a ? '#f59e0b' : 'transparent'; el.style.background = a ? '#fef3c7' : '#f8fafc'; el.style.color = a ? '#f59e0b' : '#64748b'; }); } },
-        e.avatar + ' ' + dn(e) + (e.swap_count ? ' (' + e.swap_count + ')' : ''))))));
   }
 
   m.appendChild(h('div', { style: { textAlign: 'center', fontSize: '22px', margin: '6px 0' } }, '⇅'));
+  // แสดงเฉพาะคนอื่น (ไม่รวมตัวเอง)
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'สลับกับ (ผู้อนุมัติ)'),
     h('div', { className: 'pg' }, ...emps.filter(e => e.id !== sf).map(e => h('button', { className: 'pl', id: 'st-' + e.id,
       onClick: () => { st = e.id; document.querySelectorAll('[id^=st-]').forEach(el => { const a = el.id === 'st-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } },
@@ -771,8 +773,7 @@ function rSwp() {
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'sr', placeholder: '...' })));
   m.appendChild(h('button', { className: 'btn', style: { background: '#16a34a' }, onClick: async () => {
     const d = dpVal('sd'), r = document.getElementById('sr').value;
-    if (!sf || !st) { toast('เลือกทั้ง 2 คน', true); return; }
-    if (sf === st) { toast('ต้องคนละคน', true); return; }
+    if (!sf || !st) { toast('เลือกคู่สลับ', true); return; }
     if (!d) { toast('เลือกวันที่', true); return; }
     try { await api('/api/swaps', 'POST', { date: d, from_employee_id: sf, to_employee_id: st, reason: r || null }); toast('✅ ส่งคำขอแล้ว — รอคู่สลับอนุมัติ'); closeModal(); load(); } catch (er) { toast(er.message, true); }
   } }, 'ส่งคำขอสลับกะ'));
@@ -787,23 +788,18 @@ function rDayoffSwp() {
   m.appendChild(h('div', { style: { padding: '10px 14px', background: '#fef3c7', borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '16px', border: '1px solid #fde68a', lineHeight: '1.6' } },
     '💡 สลับวันหยุดระหว่าง 2 คน เช่น น้ำตาลหยุดเสาร์ ปุ้ยหยุดอาทิตย์ → น้ำตาลมาทำเสาร์แทน+หยุดอาทิตย์ ปุ้ยมาทำอาทิตย์แทน+หยุดเสาร์'));
 
-  // Auto-select ตัวเอง
-  const myEmp = ce().find(e => e.id === U.id);
-  let sf = (!isO && myEmp) ? myEmp.id : null;
+  // Auto-select ตัวเองเสมอ
+  const myEmp = D.emp.find(e => e.id === U.id);
+  let sf = myEmp ? myEmp.id : null;
   let st = null;
   const emps = ce();
 
-  if (!isO && myEmp) {
+  if (myEmp) {
     m.appendChild(h('div', { className: 'fg' },
       h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
       h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
         av(myEmp), h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
         h('span', { style: { fontSize: '12px', color: '#92400e', marginLeft: '6px' } }, 'หยุด: ' + offD(myEmp).map(d => DAYF[d]).join(', ')))));
-  } else {
-    m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'คนที่ 1'),
-      h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'dsf-' + e.id,
-        onClick: () => { sf = e.id; document.querySelectorAll('[id^=dsf-]').forEach(el => { const a = el.id === 'dsf-' + e.id; el.style.borderColor = a ? '#d97706' : 'transparent'; el.style.background = a ? '#fef3c7' : '#f8fafc'; el.style.color = a ? '#d97706' : '#64748b'; }); } },
-        e.avatar + ' ' + dn(e) + ' (หยุด ' + offD(e).map(d => DAYF[d]).join(',') + ')')))));
   }
 
   m.appendChild(h('div', { style: { textAlign: 'center', fontSize: '22px', margin: '6px 0' } }, '⇅'));
@@ -821,7 +817,7 @@ function rDayoffSwp() {
 
   m.appendChild(h('button', { className: 'btn', style: { background: '#d97706' }, onClick: async () => {
     const d1 = dpVal('ds1'), d2 = dpVal('ds2'), r = document.getElementById('dsr').value;
-    if (!sf || !st) { toast('เลือกทั้ง 2 คน', true); return; }
+    if (!sf || !st) { toast('เลือกคู่สลับ', true); return; }
     if (!d1 || !d2) { toast('เลือกวันที่ทั้ง 2 วัน', true); return; }
     if (d1 === d2) { toast('วันที่ต้องไม่ซ้ำกัน', true); return; }
     try {
