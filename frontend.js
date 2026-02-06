@@ -524,7 +524,7 @@ function rHdr() {
   tabs.push('history');
   tabs.push('kpi');
   return h('div', { className: 'hdr' },
-    h('div', {}, h('h1', {}, '📅 ระบบจัดการกะ & วันลา'), h('p', {}, 'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
+    h('div', {}, h('h1', {}, (D.set.company_name || '📅 ระบบจัดการกะ & วันลา')), h('p', {}, 'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
         const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
@@ -728,45 +728,96 @@ function rRos() {
 // === STATS ===
 function rSta() {
   const g = h('div', { className: 'sg' }), dm = gdim(D.y, D.m);
-  // ผู้ใช้ที่ล็อกอินอยู่จะแสดงอันแรก
-  const sorted = [...ce()].sort((a, b) => (a.id === U.id ? -1 : b.id === U.id ? 1 : 0));
-  sorted.forEach(emp => {
+
+  // สรุปภาพรวมเดือน
+  const allEmps = ce();
+  let totalDay = 0, totalEvening = 0, totalOff = 0, totalSick = 0, totalPersonal = 0, totalVacation = 0;
+  const empStats = [];
+  allEmps.forEach(emp => {
     const sc = { day: 0, evening: 0, off: 0 };
     for (let d = 1; d <= dm; d++) { const k = dk(D.y, D.m, d); if (isBlackout(k)) continue; const inf = disp(emp, k, D.y, D.m, d); if (!inf.isL) sc[inf.ty] = (sc[inf.ty] || 0) + 1; }
     const yl = D.yl[emp.id] || {};
-    const sickUsed = yl.sick || 0;
-    const personalUsed = yl.personal || 0;
-    const vacationUsed = yl.vacation || 0;
+    totalDay += sc.day; totalEvening += sc.evening; totalOff += sc.off;
+    totalSick += (yl.sick || 0); totalPersonal += (yl.personal || 0); totalVacation += (yl.vacation || 0);
+    empStats.push({ emp, sc, yl });
+  });
+
+  // Dashboard cards
+  const cards = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: '10px', marginBottom: '20px' } });
+  const mkCard = (icon, label, val, color) => h('div', { style: { background: '#fff', borderRadius: '12px', padding: '14px', border: '1px solid #e2e8f0', textAlign: 'center' } },
+    h('div', { style: { fontSize: '20px', marginBottom: '4px' } }, icon),
+    h('div', { style: { fontSize: '22px', fontWeight: 800, color } }, String(val)),
+    h('div', { style: { fontSize: '11px', color: '#94a3b8' } }, label));
+  cards.appendChild(mkCard('☀️', 'กลางวัน', totalDay, '#f59e0b'));
+  cards.appendChild(mkCard('🌙', 'กลางคืน', totalEvening, '#6366f1'));
+  cards.appendChild(mkCard('🏖️', 'วันหยุด', totalOff, '#10b981'));
+  cards.appendChild(mkCard('🏥', 'ลาป่วย', totalSick, '#ef4444'));
+  cards.appendChild(mkCard('📋', 'ลากิจ', totalPersonal, '#8b5cf6'));
+  cards.appendChild(mkCard('✈️', 'ลาพักร้อน', totalVacation, '#06b6d4'));
+  g.appendChild(cards);
+
+  // Bar chart — วันลาแต่ละคน
+  g.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '10px' } }, '📊 วันลาแต่ละคน (ทั้งปี)'));
+  const chartWrap = h('div', { style: { background: '#fff', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0', marginBottom: '20px' } });
+  const maxLeave = Math.max(...empStats.map(e => (e.yl.sick||0) + (e.yl.personal||0) + (e.yl.vacation||0)), 1);
+  empStats.forEach(({ emp, yl }) => {
+    const sick = yl.sick || 0, personal = yl.personal || 0, vacation = yl.vacation || 0;
+    const total = sick + personal + vacation;
+    const maxLv = emp.max_leave_per_year || 20;
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' } });
+    row.appendChild(h('div', { style: { width: '80px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, emp.avatar + ' ' + dn(emp)));
+    const barContainer = h('div', { style: { flex: 1, height: '22px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden', display: 'flex', position: 'relative' } });
+    if (sick > 0) barContainer.appendChild(h('div', { style: { width: (sick/maxLv*100) + '%', background: '#ef4444', height: '100%' }, title: '🏥 ลาป่วย ' + sick + ' วัน' }));
+    if (personal > 0) barContainer.appendChild(h('div', { style: { width: (personal/maxLv*100) + '%', background: '#8b5cf6', height: '100%' }, title: '📋 ลากิจ ' + personal + ' วัน' }));
+    if (vacation > 0) barContainer.appendChild(h('div', { style: { width: (vacation/maxLv*100) + '%', background: '#06b6d4', height: '100%' }, title: '✈️ ลาพักร้อน ' + vacation + ' วัน' }));
+    row.appendChild(barContainer);
+    row.appendChild(h('div', { style: { width: '60px', fontSize: '12px', fontWeight: 700, textAlign: 'right', color: total > 0 ? '#ef4444' : '#10b981' } }, total + '/' + maxLv));
+    chartWrap.appendChild(row);
+  });
+  // Legend
+  chartWrap.appendChild(h('div', { style: { display: 'flex', gap: '14px', marginTop: '10px', fontSize: '11px', color: '#64748b' } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#ef4444' } }), 'ลาป่วย'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#8b5cf6' } }), 'ลากิจ'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#06b6d4' } }), 'ลาพักร้อน')));
+  g.appendChild(chartWrap);
+
+  // Shift distribution pie (CSS donut)
+  g.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '10px' } }, '🔄 สัดส่วนกะเดือนนี้'));
+  const pieWrap = h('div', { style: { display: 'flex', gap: '20px', alignItems: 'center', background: '#fff', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0', marginBottom: '20px', flexWrap: 'wrap' } });
+  const totalShifts = totalDay + totalEvening + totalOff || 1;
+  const dayPct = (totalDay / totalShifts * 100).toFixed(1);
+  const evePct = (totalEvening / totalShifts * 100).toFixed(1);
+  const offPct = (totalOff / totalShifts * 100).toFixed(1);
+  const gradient = 'conic-gradient(#f59e0b 0% ' + dayPct + '%, #6366f1 ' + dayPct + '% ' + (parseFloat(dayPct)+parseFloat(evePct)) + '%, #10b981 ' + (parseFloat(dayPct)+parseFloat(evePct)) + '% 100%)';
+  pieWrap.appendChild(h('div', { style: { width: '120px', height: '120px', borderRadius: '50%', background: gradient, position: 'relative', flexShrink: 0 } },
+    h('div', { style: { position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#475569' } }, totalShifts + ' กะ')));
+  pieWrap.appendChild(h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, h('div', { style: { width: '14px', height: '14px', borderRadius: '4px', background: '#f59e0b' } }), '☀️ กลางวัน ' + totalDay + ' (' + dayPct + '%)'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, h('div', { style: { width: '14px', height: '14px', borderRadius: '4px', background: '#6366f1' } }), '🌙 กลางคืน ' + totalEvening + ' (' + evePct + '%)'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, h('div', { style: { width: '14px', height: '14px', borderRadius: '4px', background: '#10b981' } }), '🏖️ วันหยุด ' + totalOff + ' (' + offPct + '%)')));
+  g.appendChild(pieWrap);
+
+  // รายละเอียดแต่ละคน
+  g.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '10px' } }, '👥 รายละเอียดพนักงาน'));
+  const sorted = [...empStats].sort((a, b) => (a.emp.id === U.id ? -1 : b.emp.id === U.id ? 1 : 0));
+  sorted.forEach(({ emp, sc, yl }) => {
+    const sickUsed = yl.sick || 0, personalUsed = yl.personal || 0, vacationUsed = yl.vacation || 0;
     const quotaUsed = personalUsed + vacationUsed;
     const maxLv = emp.max_leave_per_year || 20;
     const pct = maxLv > 0 ? (quotaUsed / maxLv) * 100 : 0;
     const totalAll = sickUsed + personalUsed + vacationUsed;
-    // ข้อมูลติดต่อ
-    const contactItems = [];
-    if (emp.phone) contactItems.push('📞 ' + emp.phone);
-    if (emp.line_id) contactItems.push('💬 ' + emp.line_id);
-    const lastLogin = emp.last_login ? fmtDateTime(emp.last_login) : 'ยังไม่เคยเข้าสู่ระบบ';
     g.appendChild(h('div', { className: 'stc' },
       h('div', { className: 'sth' }, av(emp, true), h('div', {}, h('div', { className: 'stn' }, dn(emp)), h('div', { className: 'str' }, stime(emp) + ' | หยุด: ' + offD(emp).map(d => DAYF[d]).join(', ')))),
-      // ข้อมูลติดต่อฉุกเฉิน
-      h('div', { style: { padding: '10px 14px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd', marginBottom: '12px' } },
-        h('div', { style: { fontSize: '12px', fontWeight: 700, color: '#0369a1', marginBottom: '4px' } }, '📇 ข้อมูลติดต่อฉุกเฉิน'),
-        h('div', { style: { fontSize: '13px', color: '#0c4a6e' } }, contactItems.length ? contactItems.join('  |  ') : '— ยังไม่ได้กรอก —'),
-        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '4px' } }, '🕐 เข้าสู่ระบบล่าสุด: ' + lastLogin)),
       h('div', { className: 'stl' }, 'กะทำงานเดือนนี้'),
       h('div', { className: 'sts' }, ...Object.entries(sc).filter(([, v]) => v > 0).map(([t, c]) => { const i = SHIFT[t]; return i ? h('div', { className: 'stt', style: { background: i.b, color: i.c } }, i.i + ' ' + i.l + ' ' + c + ' วัน') : null; }).filter(Boolean)),
       h('div', { className: 'total-bar' },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between' } }, h('span', { className: 'tbl' }, '📋 ลากิจ + ✈️ ลาพักร้อน (ลิมิตรวม)'), h('span', { style: { fontSize: '14px', fontWeight: 700 } }, quotaUsed + '/' + maxLv + ' วัน')),
+        h('div', { style: { display: 'flex', justifyContent: 'space-between' } }, h('span', { className: 'tbl' }, '📋 ลากิจ + ✈️ ลาพักร้อน'), h('span', { style: { fontSize: '14px', fontWeight: 700 } }, quotaUsed + '/' + maxLv + ' วัน')),
         h('div', { className: 'tbb' }, h('div', { className: 'tbf', style: { width: Math.min(pct, 100) + '%' } }))),
-      h('div', { className: 'stl' }, 'รายละเอียดการลาทั้งปี'),
-      h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, '📋 ลากิจ'), h('span', { style: { fontWeight: 700, color: '#8b5cf6' } }, personalUsed + ' วัน'))),
-      h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, '✈️ ลาพักร้อน'), h('span', { style: { fontWeight: 700, color: '#06b6d4' } }, vacationUsed + ' วัน'))),
-      h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, '🏥 ลาป่วย (ไม่จำกัด)'), h('span', { style: { fontWeight: 700, color: '#ef4444' } }, sickUsed + ' วัน'))),
-      h('div', { style: { marginTop: '8px', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', justifyContent: 'space-between' } }, h('span', {}, 'รวมวันลาทั้งหมด'), h('span', {}, totalAll + ' วัน')),
-      h('div', { style: { marginTop: '10px', padding: '10px 14px', background: '#fffbeb', borderRadius: '8px', border: '1px solid #fde68a' } },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-          h('span', { style: { fontSize: '13px', fontWeight: 700, color: '#92400e' } }, '🔄 สลับกะ/วันหยุด'),
-          h('span', { style: { fontSize: '16px', fontWeight: 800, color: '#d97706' } }, (emp.swap_count || 0) + ' ครั้ง'))),
+      h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '6px' } },
+        h('div', { style: { fontSize: '12px' } }, '🏥 ป่วย ' + sickUsed),
+        h('div', { style: { fontSize: '12px' } }, '📋 กิจ ' + personalUsed),
+        h('div', { style: { fontSize: '12px' } }, '✈️ ร้อน ' + vacationUsed),
+        h('div', { style: { fontSize: '12px' } }, '🔄 สลับ ' + (emp.swap_count || 0))),
     ));
   });
   return g;
@@ -1017,10 +1068,18 @@ function rKpi() {
             h('b', {}, er.emp_nick || er.emp_name),
             h('span', { style: { fontSize: '11px', padding: '1px 6px', borderRadius: '4px', background: er.cat_color + '20', color: er.cat_color } }, er.cat_name)),
           h('div', { style: { color: '#64748b', marginTop: '1px' } }, (er.detail_desc || er.note || '—') + ' | 🔢' + er.points + (er.damage_cost > 0 ? ' | 💰' + er.damage_cost + '฿' : '') + ' | ' + fmtDate(er.date))),
-        h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#ef4444' }, onClick: async () => {
-          if (!confirm('ลบ?')) return;
-          try { await api('/api/kpi/errors/' + er.id, 'DELETE'); toast('ลบแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
-        } }, '🗑️')));
+        h('div', { style: { display: 'flex', gap: '4px' } },
+          h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#3b82f6' }, onClick: async () => {
+            const newNote = prompt('แก้ไขหมายเหตุ:', er.note || er.detail_desc || '');
+            if (newNote === null) return;
+            const newPts = parseInt(prompt('จำนวนแต้ม:', er.points)) || er.points;
+            const newDmg = parseFloat(prompt('ค่าเสียหาย (฿):', er.damage_cost || 0));
+            try { await api('/api/kpi/errors/' + er.id, 'PUT', { note: newNote, points: newPts, damage_cost: isNaN(newDmg) ? er.damage_cost : newDmg }); toast('✅ แก้ไขแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
+          } }, '✏️'),
+          h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#ef4444' }, onClick: async () => {
+            if (!confirm('ลบ?')) return;
+            try { await api('/api/kpi/errors/' + er.id, 'DELETE'); toast('ลบแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
+          } }, '🗑️'))));
     });
   } else if (D.kpiTab === 'settings') {
     w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px' } }, '⚙️ ตั้งค่าหมวดหมู่ & รายละเอียด'));

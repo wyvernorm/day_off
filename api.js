@@ -486,6 +486,20 @@ export async function handleAPI(request, env, url, currentUser) {
     await tgSend(tgKpiError(emp?.nickname||emp?.name, cat?.name, b.date, b.points||1, b.damage_cost||0, b.note));
     return json({ data: { id: r.meta.last_row_id }, message: 'บันทึกสำเร็จ' }, 201);
   }
+  if (pathname.match(/^\/api\/kpi\/errors\/\d+$/) && method === 'PUT') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const id = pathname.split('/').pop();
+    const b = await getBody();
+    const sets = [], vals = [];
+    if (b.note !== undefined) { sets.push('note=?'); vals.push(b.note); }
+    if (b.points !== undefined) { sets.push('points=?'); vals.push(b.points); }
+    if (b.damage_cost !== undefined) { sets.push('damage_cost=?'); vals.push(b.damage_cost); }
+    if (!sets.length) return json({ error: 'ไม่มีข้อมูลที่จะแก้ไข' }, 400);
+    sets.push("updated_at=datetime('now')");
+    vals.push(id);
+    await DB.prepare('UPDATE kpi_errors SET ' + sets.join(',') + ' WHERE id=?').bind(...vals).run();
+    return json({ message: 'แก้ไขสำเร็จ' });
+  }
   if (pathname.match(/^\/api\/kpi\/errors\/\d+$/) && method === 'DELETE') {
     if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     await DB.prepare('DELETE FROM kpi_errors WHERE id=?').bind(pathname.split('/').pop()).run();
