@@ -1144,7 +1144,7 @@ function rKpi() {
     sortedEmps.forEach((emp, idx) => {
       const d = em[emp.id] || { error_count: 0, total_points: 0, total_damage: 0 };
       const ok = d.total_points === 0, me = emp.id === U.id;
-      const medal = idx === 0 && !ok ? '🥇' : idx === 1 && !ok ? '🥈' : idx === 2 && !ok ? '🥉' : ok ? '🏆' : '';
+      const medal = ok ? '🏆' : idx === 0 ? '💀' : idx === 1 ? '😱' : idx === 2 ? '😬' : '';
       const borderCol = ok ? '#10b981' : d.total_points >= 10 ? '#ef4444' : d.total_points >= 5 ? '#f59e0b' : '#e2e8f0';
       empBox.appendChild(h('div', { style: { background: me ? '#eff6ff' : '#fff', borderRadius: '14px', padding: '16px', border: '2px solid ' + borderCol, position: 'relative' } },
         medal ? h('div', { style: { position: 'absolute', top: '8px', right: '10px', fontSize: '20px' } }, medal) : '',
@@ -1180,27 +1180,61 @@ function rKpi() {
   } else if (D.kpiTab === 'manage') {
     w.appendChild(h('button', { className: 'btn', style: { background: '#6366f1', marginBottom: '16px' }, onClick: () => openModal('kpiAdd') }, '+ บันทึกข้อผิดพลาดใหม่'));
     w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '8px' } }, '📋 รายการทั้งหมด (' + errs.length + ')'));
-    errs.slice(0, 50).forEach(er => {
-      w.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#fff', borderRadius: '8px', marginBottom: '4px', border: '1px solid #e2e8f0', borderLeft: '4px solid ' + (er.cat_color || '#6366f1'), fontSize: '13px' } },
-        h('span', { style: { fontSize: '18px' } }, er.emp_avatar || '👤'),
-        h('div', { style: { flex: 1 } },
-          h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } },
-            h('b', {}, er.emp_nick || er.emp_name),
-            h('span', { style: { fontSize: '11px', padding: '1px 6px', borderRadius: '4px', background: er.cat_color + '20', color: er.cat_color } }, er.cat_name)),
-          h('div', { style: { color: '#64748b', marginTop: '1px' } }, (er.detail_desc || er.note || '—') + ' | 🔢' + er.points + (er.damage_cost > 0 ? ' | 💰' + er.damage_cost + '฿' : '') + ' | ' + fmtDate(er.date))),
-        h('div', { style: { display: 'flex', gap: '4px' } },
-          h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#3b82f6' }, onClick: async () => {
-            const newNote = prompt('แก้ไขหมายเหตุ:', er.note || er.detail_desc || '');
-            if (newNote === null) return;
-            const newPts = parseInt(prompt('จำนวนแต้ม:', er.points)) || er.points;
-            const newDmg = parseFloat(prompt('ค่าเสียหาย (฿):', er.damage_cost || 0));
-            try { await api('/api/kpi/errors/' + er.id, 'PUT', { note: newNote, points: newPts, damage_cost: isNaN(newDmg) ? er.damage_cost : newDmg }); toast('✅ แก้ไขแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
-          } }, '✏️'),
-          h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#ef4444' }, onClick: async () => {
-            if (!confirm('ลบ?')) return;
-            try { await api('/api/kpi/errors/' + er.id, 'DELETE'); toast('ลบแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
-          } }, '🗑️'))));
+    // Table layout
+    const tw = h('div', { style: { overflowX: 'auto', borderRadius: '12px', border: '1px solid #e2e8f0', background: '#fff' } });
+    const tb = h('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } });
+    const ths = { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e2e8f0', fontWeight: 700, fontSize: '12px', color: '#64748b' };
+    tb.appendChild(h('thead', {}, h('tr', {},
+      h('th', { style: ths }, 'วันที่'),
+      h('th', { style: ths }, 'พนักงาน'),
+      h('th', { style: ths }, 'หมวด'),
+      h('th', { style: ths }, 'รายละเอียด'),
+      h('th', { style: { ...ths, textAlign: 'center' } }, 'แต้ม'),
+      h('th', { style: { ...ths, textAlign: 'center' } }, 'ค่าเสียหาย'),
+      h('th', { style: { ...ths, textAlign: 'center' } }, 'จัดการ'))));
+    const bod = h('tbody');
+    errs.slice(0, 50).forEach((er, i) => {
+      const cs = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', background: i % 2 === 0 ? '#fff' : '#fafbfc', verticalAlign: 'middle' };
+      bod.appendChild(h('tr', {},
+        h('td', { style: { ...cs, whiteSpace: 'nowrap', fontSize: '12px' } }, fmtDate(er.date)),
+        h('td', { style: cs }, h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, h('span', {}, er.emp_avatar || '👤'), h('span', { style: { fontWeight: 600 } }, er.emp_nick || er.emp_name))),
+        h('td', { style: cs }, h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: (er.cat_color||'#6366f1') + '15', color: er.cat_color } }, er.cat_name)),
+        h('td', { style: { ...cs, maxWidth: '200px' } }, er.detail_desc || er.note || '—'),
+        h('td', { style: { ...cs, textAlign: 'center', fontWeight: 700, color: '#ef4444' } }, String(er.points)),
+        h('td', { style: { ...cs, textAlign: 'center', color: '#d97706' } }, er.damage_cost > 0 ? er.damage_cost + '฿' : '—'),
+        h('td', { style: { ...cs, textAlign: 'center' } },
+          h('div', { style: { display: 'flex', gap: '4px', justifyContent: 'center' } },
+            h('button', { style: { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer', padding: '4px 10px', fontSize: '12px', color: '#3b82f6', fontWeight: 600 }, onClick: () => {
+              // Edit modal
+              const popup = h('div', { style: { position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.35)', backdropFilter: 'blur(4px)' }, onClick: (ev) => { if (ev.target === popup) document.body.removeChild(popup); } });
+              const box = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', minWidth: '360px', maxWidth: '460px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }, onClick: ev => ev.stopPropagation() });
+              box.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' } },
+                h('div', { style: { fontWeight: 700, fontSize: '16px' } }, '✏️ แก้ไขข้อผิดพลาด'),
+                h('button', { style: { border: 'none', background: '#f1f5f9', width: '28px', height: '28px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }, onClick: () => document.body.removeChild(popup) }, '✕')));
+              box.appendChild(h('div', { style: { padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', marginBottom: '14px', fontSize: '13px' } },
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' } }, h('span', {}, er.emp_avatar || '👤'), h('b', {}, er.emp_nick || er.emp_name), h('span', { style: { color: '#94a3b8' } }, '— ' + fmtDate(er.date))),
+                h('div', { style: { fontSize: '11px', color: er.cat_color } }, er.cat_name + (er.detail_desc ? ' > ' + er.detail_desc : ''))));
+              box.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '📝 หมายเหตุ'), h('input', { className: 'fi', id: 'edit-note', value: er.note || '' })));
+              box.appendChild(h('div', { style: { display: 'flex', gap: '10px' } },
+                h('div', { className: 'fg', style: { flex: 1 } }, h('label', { className: 'fl' }, '🔢 แต้ม'), h('input', { className: 'fi', id: 'edit-pts', type: 'number', value: String(er.points) })),
+                h('div', { className: 'fg', style: { flex: 1 } }, h('label', { className: 'fl' }, '💰 ค่าเสียหาย'), h('input', { className: 'fi', id: 'edit-dmg', type: 'number', value: String(er.damage_cost || 0), step: '0.01' }))));
+              box.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => {
+                const note = document.getElementById('edit-note').value;
+                const pts = parseInt(document.getElementById('edit-pts').value) || er.points;
+                const dmg = parseFloat(document.getElementById('edit-dmg').value);
+                try { await api('/api/kpi/errors/' + er.id, 'PUT', { note, points: pts, damage_cost: isNaN(dmg) ? er.damage_cost : dmg }); document.body.removeChild(popup); toast('✅ แก้ไขแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
+              } }, '💾 บันทึก'));
+              popup.appendChild(box);
+              document.body.appendChild(popup);
+            } }, '✏️ แก้ไข'),
+            h('button', { style: { background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', padding: '4px 10px', fontSize: '12px', color: '#ef4444', fontWeight: 600 }, onClick: async () => {
+              if (!confirm('ลบรายการนี้?')) return;
+              try { await api('/api/kpi/errors/' + er.id, 'DELETE'); toast('ลบแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
+            } }, '🗑️ ลบ')))));
     });
+    tb.appendChild(bod);
+    tw.appendChild(tb);
+    w.appendChild(tw);
   } else if (D.kpiTab === 'settings') {
     w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px' } }, '⚙️ ตั้งค่าหมวดหมู่ & รายละเอียด'));
     w.appendChild(h('div', { style: { padding: '12px 16px', background: '#eff6ff', borderRadius: '10px', marginBottom: '16px', border: '1px solid #bfdbfe' } },
