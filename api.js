@@ -117,6 +117,13 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname === '/api/leaves' && method === 'POST') {
     const b = await getBody();
+    // ตรวจสอบว่าวันที่ไม่ใช่วันหยุดของพนักงาน
+    const empChk = await DB.prepare('SELECT default_off_day FROM employees WHERE id=?').bind(b.employee_id).first();
+    if (empChk) {
+      const empOffs = (empChk.default_off_day || '6').split(',').map(Number);
+      const dow = new Date(b.date).getDay();
+      if (empOffs.includes(dow)) return json({ error: 'วันนี้เป็นวันหยุดของคุณอยู่แล้ว ไม่ต้องลา' }, 400);
+    }
     const yr = b.date.substring(0, 4);
     if (b.leave_type !== 'sick') {
       const q = await getQuotaLeaveUsed(DB, b.employee_id, yr);
@@ -134,20 +141,28 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname === '/api/leaves/range' && method === 'POST') {
     const b = await getBody();
-    const dates = dateRange(b.start_date, b.end_date), yr = b.start_date.substring(0, 4);
+    const emp = await DB.prepare('SELECT * FROM employees WHERE id=?').bind(b.employee_id).first();
+    if (!emp) return json({ error: 'ไม่พบพนักงาน' }, 404);
+    const empOffs = (emp.default_off_day || '6').split(',').map(Number);
+
+    // กรองเฉพาะวันทำงาน (ข้ามวันหยุดของพนักงาน)
+    const allDates = dateRange(b.start_date, b.end_date);
+    const workDates = allDates.filter(d => !empOffs.includes(new Date(d).getDay()));
+    if (!workDates.length) return json({ error: 'ทุกวันที่เลือกเป็นวันหยุดของคุณ ไม่ต้องลา' }, 400);
+
+    const yr = b.start_date.substring(0, 4);
     if (b.leave_type !== 'sick') {
       const q = await getQuotaLeaveUsed(DB, b.employee_id, yr);
-      const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(b.employee_id).first();
       const max = emp?.max_leave_per_year || 20;
-      if (q + dates.length > max) return json({ error: `โควต้าไม่พอ (เหลือ ${max - q} วัน, ขอ ${dates.length} วัน)` }, 400);
+      if (q + workDates.length > max) return json({ error: `โควต้าไม่พอ (เหลือ ${max - q} วัน, ขอ ${workDates.length} วัน)` }, 400);
     }
     const stmt = DB.prepare(`INSERT INTO leaves (employee_id,date,leave_type,reason,status) VALUES (?,?,?,?,'pending')
        ON CONFLICT(employee_id,date) DO UPDATE SET leave_type=excluded.leave_type,reason=excluded.reason,status='pending',updated_at=datetime('now')`);
-    await DB.batch(dates.map(d => stmt.bind(b.employee_id, d, b.leave_type, b.reason || null)));
-    const LT2 = {sick:'ลาป่วย',personal:'ลากิจ',vacation:'ลาพักร้อน'};
+    await DB.batch(workDates.map(d => stmt.bind(b.employee_id, d, b.leave_type, b.reason || null)));
     const empN2 = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(b.employee_id).first();
-    await tgSend(tgLeaveRequest(empN2?.nickname||empN2?.name, b.leave_type, b.start_date, b.end_date, dates.length, b.reason));
-    return json({ message: `บันทึก ${dates.length} วันสำเร็จ` }, 201);
+    const skipped = allDates.length - workDates.length;
+    await tgSend(tgLeaveRequest(empN2?.nickname||empN2?.name, b.leave_type, b.start_date, b.end_date, workDates.length, b.reason ? b.reason + (skipped > 0 ? ' (ข้ามวันหยุด ' + skipped + ' วัน)' : '') : (skipped > 0 ? 'ข้ามวันหยุด ' + skipped + ' วัน' : null)));
+    return json({ message: `บันทึก ${workDates.length} วันสำเร็จ${skipped > 0 ? ' (ข้ามวันหยุด ' + skipped + ' วัน)' : ''}` }, 201);
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/approve$/) && method === 'PUT') {
     const leaveId = pathname.split('/')[3];

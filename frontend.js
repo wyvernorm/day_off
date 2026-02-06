@@ -781,7 +781,7 @@ function rPnd() {
         h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '14px' } }, l.nickname || l.employee_name), h('div', { style: { fontSize: '13px', color: '#64748b' } }, i.i + ' ' + i.l + ' — ' + fmtDate(l.date) + (l.reason ? ' (' + l.reason + ')' : '')))),
       h('div', { style: { display: 'flex', gap: '6px' } },
         h('button', { className: 'ba', onClick: async () => { try { await api('/api/leaves/' + l.id + '/approve', 'PUT'); toast('✅ อนุมัติ'); load(); } catch (e) { toast(e.message, true); } } }, '✅ อนุมัติ'),
-        h('button', { className: 'br', onClick: async () => { try { await api('/api/leaves/' + l.id + '/reject', 'PUT'); toast('❌ ปฏิเสธ'); load(); } catch (e) { toast(e.message, true); } } }, '❌ ปฏิเสธ')),
+        h('button', { className: 'br', onClick: async () => { const reason = prompt('กรุณาระบุเหตุผลที่ปฏิเสธ:'); if (reason === null) return; if (!reason.trim()) { toast('กรุณาระบุเหตุผล', true); return; } try { await api('/api/leaves/' + l.id + '/reject', 'PUT', { reject_reason: reason.trim() }); toast('❌ ปฏิเสธ'); load(); } catch (e) { toast(e.message, true); } } }, '❌ ปฏิเสธ')),
     ));
   });
   s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔄 สลับกะ/วันหยุดรออนุมัติ (' + mySwaps.length + ')'));
@@ -803,7 +803,7 @@ function rPnd() {
           h('div', { style: { fontSize: '11px', color: '#f59e0b', fontWeight: 600, marginTop: '2px' } }, '👤 รออนุมัติจาก: ' + (sw.to_nickname || sw.to_name)))),
       canApprove ? h('div', { style: { display: 'flex', gap: '6px' } },
         h('button', { className: 'ba', onClick: async () => { try { await api('/api/swaps/' + sw.id + '/approve', 'PUT'); toast('✅ อนุมัติ'); load(); } catch (e) { toast(e.message, true); } } }, '✅ อนุมัติ'),
-        h('button', { className: 'br', onClick: async () => { try { await api('/api/swaps/' + sw.id + '/reject', 'PUT'); toast('❌ ปฏิเสธ'); load(); } catch (e) { toast(e.message, true); } } }, '❌ ปฏิเสธ'))
+        h('button', { className: 'br', onClick: async () => { const reason = prompt('กรุณาระบุเหตุผลที่ปฏิเสธ:'); if (reason === null) return; if (!reason.trim()) { toast('กรุณาระบุเหตุผล', true); return; } try { await api('/api/swaps/' + sw.id + '/reject', 'PUT', { reject_reason: reason.trim() }); toast('❌ ปฏิเสธ'); load(); } catch (e) { toast(e.message, true); } } }, '❌ ปฏิเสธ'))
         : h('div', { style: { fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' } }, 'รอคู่สลับอนุมัติ'),
     ));
   });
@@ -824,79 +824,92 @@ function rHist() {
   const hf = D.histFilter;
   const PER_PAGE = 20;
 
-  // รวมทุกอย่างเป็น 1 timeline
   const all = [];
   D.hist.leaves.forEach(l => all.push({ kind: 'leave', status: l.status, date: l.date, approvedAt: l.approved_at, data: l }));
   D.hist.swaps.forEach(s => all.push({ kind: s.swap_type === 'dayoff' ? 'dayoff' : 'swap', status: s.status, date: s.date, approvedAt: s.approved_at, data: s }));
   all.sort((a, b) => (b.approvedAt || '').localeCompare(a.approvedAt || ''));
 
-  // filter
   let filtered = all;
   if (hf.type !== 'all') filtered = filtered.filter(i => i.kind === hf.type);
   if (hf.status !== 'all') filtered = filtered.filter(i => i.status === hf.status);
 
-  // Header + Stats
   const approved = all.filter(i => i.status === 'approved').length;
   const rejected = all.filter(i => i.status === 'rejected').length;
-  w.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' } },
-    h('div', { className: 'pt' }, '📜 ประวัติ (' + (D.y+543) + ')'),
-    h('div', { style: { display: 'flex', gap: '8px' } },
-      h('div', { style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, background: '#dcfce7', color: '#16a34a' } }, '✅ ' + approved),
-      h('div', { style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, background: '#fee2e2', color: '#dc2626' } }, '❌ ' + rejected),
-      h('div', { style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, background: '#f1f5f9', color: '#64748b' } }, 'ทั้งหมด ' + all.length),
-    )));
 
-  // Compact filter
-  const fb = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px', alignItems: 'center' } });
-  fb.appendChild(h('span', { style: { fontSize: '12px', color: '#94a3b8', fontWeight: 600 } }, 'ประเภท:'));
+  // Header
+  w.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' } },
+    h('div', { className: 'pt', style: { margin: 0 } }, '📜 ประวัติ (' + (D.y+543) + ')'),
+    h('div', { style: { display: 'flex', gap: '6px' } },
+      h('div', { style: { padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, background: '#dcfce7', color: '#16a34a' } }, '✅ ' + approved),
+      h('div', { style: { padding: '5px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, background: '#fee2e2', color: '#dc2626' } }, '❌ ' + rejected))));
+
+  // Filter pills
+  const fb = h('div', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '12px' } });
   [['all','ทั้งหมด'],['leave','วันลา'],['swap','สลับกะ'],['dayoff','สลับวันหยุด']].forEach(([v,l]) => {
-    fb.appendChild(h('button', { style: { padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600, border: 'none', background: hf.type === v ? '#6366f1' : '#f1f5f9', color: hf.type === v ? '#fff' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.type = v; hf.page = 0; render(); } }, l));
+    fb.appendChild(h('button', { style: { padding: '4px 10px', borderRadius: '16px', fontSize: '11px', fontWeight: 600, border: 'none', background: hf.type === v ? '#6366f1' : '#f1f5f9', color: hf.type === v ? '#fff' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.type = v; hf.page = 0; render(); } }, l));
   });
-  fb.appendChild(h('span', { style: { width: '1px', height: '16px', background: '#e2e8f0', margin: '0 4px' } }));
-  fb.appendChild(h('span', { style: { fontSize: '12px', color: '#94a3b8', fontWeight: 600 } }, 'สถานะ:'));
+  fb.appendChild(h('span', { style: { width: '1px', height: '14px', background: '#e2e8f0' } }));
   [['all','ทั้งหมด'],['approved','✅'],['rejected','❌']].forEach(([v,l]) => {
-    fb.appendChild(h('button', { style: { padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600, border: 'none', background: hf.status === v ? '#6366f1' : '#f1f5f9', color: hf.status === v ? '#fff' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.status = v; hf.page = 0; render(); } }, l));
+    fb.appendChild(h('button', { style: { padding: '4px 10px', borderRadius: '16px', fontSize: '11px', fontWeight: 600, border: 'none', background: hf.status === v ? '#6366f1' : '#f1f5f9', color: hf.status === v ? '#fff' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.status = v; hf.page = 0; render(); } }, l));
   });
   w.appendChild(fb);
 
   const LTH = {sick:'🏥 ลาป่วย',personal:'📋 ลากิจ',vacation:'✈️ ลาพักร้อน'};
   const page = filtered.slice(hf.page * PER_PAGE, (hf.page + 1) * PER_PAGE);
-  if (!page.length) w.appendChild(h('div', { style: { textAlign: 'center', padding: '40px', color: '#94a3b8' } }, '📭 ไม่มีรายการ'));
 
-  // Compact list
-  const list = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } });
-  page.forEach(item => {
+  if (!page.length) { w.appendChild(h('div', { style: { textAlign: 'center', padding: '40px', color: '#94a3b8' } }, '📭 ไม่มีรายการ')); return w; }
+
+  // Table
+  const tw = h('div', { style: { overflowX: 'auto', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff' } });
+  const tb = h('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } });
+  const thd = h('thead');
+  thd.appendChild(h('tr', {},
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'สถานะ'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'ประเภท'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'พนักงาน'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'วันที่'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'รายละเอียด'),
+    h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'ผู้อนุมัติ'),
+  ));
+  tb.appendChild(thd);
+
+  const bd = h('tbody');
+  page.forEach((item, i) => {
     const isA = item.status === 'approved';
-    const statusDot = h('div', { style: { width: '8px', height: '8px', borderRadius: '50%', background: isA ? '#22c55e' : '#ef4444', flexShrink: 0, marginTop: '6px' } });
+    const rowBg = i % 2 === 0 ? '#fff' : '#fafbfc';
+    const cs = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', background: rowBg, verticalAlign: 'middle' };
 
-    let icon, title, detail, meta;
+    let typeBadge, empName, dateStr, detail, approver;
     if (item.kind === 'leave') {
       const l = item.data;
-      icon = (LEAVE[l.leave_type]||LEAVE.sick).i;
-      title = (l.emp_nick || l.emp_name);
-      detail = (LTH[l.leave_type] || l.leave_type) + '  ·  ' + fmtDate(l.date);
-      meta = (l.reason ? l.reason + '  ·  ' : '') + (l.approver_nick || l.approver_name || '—') + '  ·  ' + fmtDateTime(l.approved_at);
+      const ltColor = l.leave_type === 'sick' ? '#ef4444' : l.leave_type === 'personal' ? '#8b5cf6' : '#06b6d4';
+      typeBadge = h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: ltColor + '15', color: ltColor } }, LTH[l.leave_type] || l.leave_type);
+      empName = h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } }, h('span', {}, l.emp_avatar || '👤'), h('span', { style: { fontWeight: 600 } }, l.emp_nick || l.emp_name));
+      dateStr = fmtDate(l.date);
+      detail = l.reason || '—';
+      approver = (l.approver_nick || l.approver_name || '—');
     } else {
       const s = item.data;
       const isDO = item.kind === 'dayoff';
-      icon = isDO ? '📅' : '🔄';
-      title = (s.from_nick || s.from_name) + ' ↔ ' + (s.to_nick || s.to_name);
-      detail = (isDO ? 'สลับวันหยุด' : 'สลับกะ') + '  ·  ' + fmtDate(s.date) + (s.date2 ? ' ↔ ' + fmtDate(s.date2) : '');
-      meta = (s.approver_nick || s.approver_name || '—') + '  ·  ' + fmtDateTime(s.approved_at);
+      typeBadge = h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isDO ? '#fef3c7' : '#d1fae5', color: isDO ? '#d97706' : '#10b981' } }, isDO ? '📅 สลับวันหยุด' : '🔄 สลับกะ');
+      empName = h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' } }, h('span', {}, s.from_avatar || '👤'), h('span', { style: { fontWeight: 600 } }, (s.from_nick || s.from_name)), h('span', { style: { color: '#94a3b8' } }, '↔'), h('span', { style: { fontWeight: 600 } }, (s.to_nick || s.to_name)));
+      dateStr = fmtDate(s.date) + (s.date2 ? ' ↔ ' + fmtDate(s.date2) : '');
+      detail = s.reason || '—';
+      approver = (s.approver_nick || s.approver_name || '—');
     }
 
-    list.appendChild(h('div', { style: { display: 'flex', gap: '10px', padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #f1f5f9' } },
-      statusDot,
-      h('div', { style: { flex: 1, minWidth: 0 } },
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' } },
-          h('span', { style: { fontSize: '14px' } }, icon),
-          h('span', { style: { fontWeight: 700, fontSize: '14px' } }, title),
-          h('span', { style: { fontSize: '11px', padding: '1px 8px', borderRadius: '10px', fontWeight: 600, background: isA ? '#dcfce7' : '#fee2e2', color: isA ? '#16a34a' : '#dc2626' } }, isA ? 'อนุมัติ' : 'ปฏิเสธ')),
-        h('div', { style: { fontSize: '12px', color: '#64748b', marginTop: '2px' } }, detail),
-        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '1px' } }, '✍️ ' + meta)),
+    bd.appendChild(h('tr', {},
+      h('td', { style: cs }, h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isA ? '#dcfce7' : '#fee2e2', color: isA ? '#16a34a' : '#dc2626' } }, isA ? '✅ อนุมัติ' : '❌ ปฏิเสธ')),
+      h('td', { style: cs }, typeBadge),
+      h('td', { style: cs }, empName),
+      h('td', { style: { ...cs, whiteSpace: 'nowrap' } }, dateStr),
+      h('td', { style: { ...cs, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' } }, detail),
+      h('td', { style: cs }, approver),
     ));
   });
-  w.appendChild(list);
+  tb.appendChild(bd);
+  tw.appendChild(tb);
+  w.appendChild(tw);
 
   // Pagination
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
@@ -1154,10 +1167,40 @@ function rLv() {
     if (!D.se) { toast('เลือกพนักงาน', true); return; }
     const s = dpVal('ls'), e = dpVal('le'), r = document.getElementById('lr').value;
     if (!s) { toast('เลือกวันที่', true); return; }
-    try {
-      if (s === e || !e) await api('/api/leaves', 'POST', { employee_id: D.se, date: s, leave_type: slt, reason: r || null });
-      else await api('/api/leaves/range', 'POST', { employee_id: D.se, start_date: s, end_date: e, leave_type: slt, reason: r || null });
-      toast('✅ บันทึกสำเร็จ'); closeModal(); load();
+    const selEmp = ce().find(emp => emp.id === D.se);
+    const empOffs = selEmp ? offD(selEmp) : [];
+
+    // ตรวจสอบวันเดียว — ห้ามลาในวันหยุดของผู้ใช้
+    if (s === e || !e) {
+      const dow = new Date(s).getDay();
+      if (empOffs.includes(dow)) { toast('📅 วันที่ ' + fmtDate(s) + ' เป็นวันหยุดของคุณอยู่แล้ว ไม่ต้องลา', true); return; }
+      try { await api('/api/leaves', 'POST', { employee_id: D.se, date: s, leave_type: slt, reason: r || null }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); }
+    } else {
+      // ลาหลายวัน — กรองวันหยุดออก แล้วส่งเฉพาะวันทำงาน
+      const allDates = [];
+      const cur = new Date(s);
+      const end = new Date(e);
+      const skippedDates = [];
+      while (cur <= end) {
+        const iso = cur.toISOString().split('T')[0];
+        const dow = cur.getDay();
+        if (empOffs.includes(dow)) {
+          skippedDates.push(iso);
+        } else {
+          allDates.push(iso);
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      if (!allDates.length) { toast('ทุกวันที่เลือกเป็นวันหยุดของคุณ ไม่ต้องลา', true); return; }
+      const msg = skippedDates.length > 0
+        ? 'จะลาเฉพาะวันทำงาน ' + allDates.length + ' วัน (ข้ามวันหยุด ' + skippedDates.length + ' วัน) ยืนยัน?'
+        : 'ยืนยันลา ' + allDates.length + ' วัน?';
+      if (!confirm(msg)) return;
+      try {
+        await api('/api/leaves/range', 'POST', { employee_id: D.se, start_date: s, end_date: e, leave_type: slt, reason: r || null });
+        toast('✅ บันทึก ' + allDates.length + ' วันสำเร็จ'); closeModal(); load();
+      } catch (er) { toast(er.message, true); }
+    }
     } catch (er) { toast(er.message, true); }
   } }, 'บันทึกวันลา'));
   o.appendChild(m); return o;
@@ -1184,15 +1227,15 @@ function rSwp() {
       h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
       h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
         av(myEmp), h('div', {}, h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
-          h('span', { style: { fontSize: '12px', color: '#92400e', marginLeft: '8px' } }, '🔄 สลับแล้ว ' + (myEmp.swap_count || 0) + ' ครั้ง')))));
+          h('div', { style: { fontSize: '12px', color: '#92400e', marginTop: '2px' } }, SHIFT[myEmp.default_shift]?.i + ' ' + stime(myEmp) + ' | สลับแล้ว ' + (myEmp.swap_count || 0) + ' ครั้ง')))));
   }
 
   m.appendChild(h('div', { style: { textAlign: 'center', fontSize: '22px', margin: '6px 0' } }, '⇅'));
-  // แสดงเฉพาะคนอื่น (ไม่รวมตัวเอง)
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'สลับกับ (ผู้อนุมัติ)'),
-    h('div', { className: 'pg' }, ...emps.filter(e => e.id !== sf).map(e => h('button', { className: 'pl', id: 'st-' + e.id,
+    h('div', { className: 'pg' }, ...emps.filter(e => e.id !== sf).map(e => h('button', { className: 'pl', id: 'st-' + e.id, style: { flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', gap: '2px' },
       onClick: () => { st = e.id; document.querySelectorAll('[id^=st-]').forEach(el => { const a = el.id === 'st-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } },
-      e.avatar + ' ' + dn(e) + (e.swap_count ? ' (' + e.swap_count + ')' : ''))))));
+      h('div', {}, e.avatar + ' ' + dn(e)),
+      h('div', { style: { fontSize: '11px', opacity: 0.8 } }, SHIFT[e.default_shift]?.i + ' ' + stime(e)))))));}
 
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'sr', placeholder: '...' })));
   m.appendChild(h('button', { className: 'btn', style: { background: '#16a34a' }, onClick: async () => {
@@ -1468,7 +1511,7 @@ function rSet() {
   m.appendChild(h('div', { style: { background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px' } },
     h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '8px' } }, '📊 สรุป'),
     h('div', { style: { fontSize: '14px' } }, 'วันหยุดนักขัตฤกษ์เดือนนี้: ' + Object.keys(D.hol).length + ' วัน')));
-  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim() }); toast('✅ บันทึกสำเร็จ'); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
+  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
   o.appendChild(m); return o;
 }
 
