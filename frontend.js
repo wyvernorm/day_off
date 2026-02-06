@@ -233,7 +233,7 @@ textarea.fi { resize: vertical; min-height: 60px; }
 <script>
 // === CONSTANTS ===
 const U = ${UJ};
-const DAYS = ['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
+const DAYS = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
 const DAYF = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
 const MON = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
@@ -258,6 +258,7 @@ const D = {
   emp: [], sh: {}, lv: {}, hol: {}, set: {}, yl: {},
   pl: [], ps: [], sd: null, se: null, modal: null,
   hist: null, histLoaded: false,
+  kpi: null, kpiLoaded: false,
 };
 
 // === API ===
@@ -296,7 +297,8 @@ async function load() {
     D.lv = {}; o.data.leaves.forEach(l => { D.lv[l.employee_id + '-' + l.date] = { t: l.leave_type, s: l.status, id: l.id }; });
     D.hol = {}; o.data.holidays.forEach(h => { D.hol[h.date] = h.name; });
     D.pl = pl.data; D.ps = ps.data;
-    D.hist = null; D.histLoaded = false; // reset history on month change
+    D.hist = null; D.histLoaded = false;
+    D.kpi = null; D.kpiLoaded = false;
   } catch (e) { toast('โหลดไม่สำเร็จ: ' + e.message, true); }
   render();
 }
@@ -309,7 +311,7 @@ function dk(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + S
 function itd(y, m, d) { const t = new Date(); return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d; }
 function gdow(y, m, d) { return new Date(y, m, d).getDay(); }
 function gdim(y, m) { return new Date(y, m + 1, 0).getDate(); }
-function fdm(y, m) { const d = new Date(y, m, 1).getDay(); return d === 0 ? 6 : d - 1; }
+function fdm(y, m) { return new Date(y, m, 1).getDay(); }
 function ce() { return D.emp.filter(e => e.show_in_calendar === 1); }
 function offD(e) { return (e.default_off_day || '6').split(',').map(Number); }
 function isOff(e, y, m, d) { return offD(e).includes(gdow(y, m, d)); }
@@ -461,6 +463,7 @@ function render() {
   else if (D.v === 'stats') a.appendChild(rSta());
   else if (D.v === 'pending') a.appendChild(rPnd());
   else if (D.v === 'history') a.appendChild(rHist());
+  else if (D.v === 'kpi') a.appendChild(rKpi());
   if (D.modal) a.appendChild(rModal());
 }
 
@@ -470,11 +473,12 @@ function rHdr() {
   const tabs = ['calendar', 'roster', 'stats'];
   if (isO) tabs.push('pending');
   tabs.push('history');
+  if (isO) tabs.push('kpi');
   return h('div', { className: 'hdr' },
     h('div', {}, h('h1', {}, '📅 ระบบจัดการกะ & วันลา'), h('p', {}, 'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
-        const lb = { calendar: '📅 ปฏิทิน', roster: '📋 ตารางกะ', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ' };
+        const lb = { calendar: '📅 ปฏิทิน', roster: '📋 ตารางกะ', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
         let t = lb[v]; if (v === 'pending' && pc > 0) t += ' (' + pc + ')';
         return h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); } }, t);
       })),
@@ -516,7 +520,7 @@ function rLgd() {
 // === CALENDAR ===
 function rCal() {
   const g = h('div', { className: 'cg' });
-  DAYS.forEach((d, i) => g.appendChild(h('div', { className: 'ch' + (i >= 5 ? ' we' : '') }, d)));
+  DAYS.forEach((d, i) => g.appendChild(h('div', { className: 'ch' + (i === 0 || i === 6 ? ' we' : '') }, d)));
   for (let i = 0; i < fdm(D.y, D.m); i++) g.appendChild(h('div'));
   const dm = gdim(D.y, D.m);
   for (let d = 1; d <= dm; d++) {
@@ -535,7 +539,13 @@ function rCal() {
     if (hl) dy.appendChild(h('div', { className: 'hn' }, '🔴 ' + hl));
     ce().forEach(emp => {
       const inf = disp(emp, k, D.y, D.m, d);
-      dy.appendChild(h('div', { className: 'et' + (inf.isL ? ' lv' : ''), style: inf.isL ? { background: inf.b, color: inf.c, borderColor: inf.c } : { background: inf.b, color: inf.c } }, inf.i + ' ' + dn(emp) + (inf.isL ? ' (' + inf.l + ')' : '')));
+      const isOff = inf.ty === 'off';
+      const cls = 'et' + (inf.isL ? ' lv' : '') + (isOff ? ' off' : '');
+      const sty = inf.isL ? { background: inf.b, color: inf.c, borderColor: inf.c }
+        : isOff ? { background: '#d1fae5', color: '#059669', borderColor: '#10b981', border: '2px dashed #10b981' }
+        : { background: inf.b, color: inf.c };
+      const txt = inf.i + ' ' + dn(emp) + (inf.isL ? ' (' + inf.l + ')' : '') + (isOff ? ' (หยุด)' : '');
+      dy.appendChild(h('div', { className: cls, style: sty }, txt));
     });
     g.appendChild(dy);
   }
@@ -550,8 +560,8 @@ function rRos() {
   for (let d = 1; d <= dm; d++) {
     const k = dk(D.y, D.m, d), td = itd(D.y, D.m, d), hl = D.hol[k];
     let c = td ? 'tc' : hl ? 'hc' : '';
-    const dw = gdow(D.y, D.m, d), di = dw === 0 ? 6 : dw - 1;
-    hr.appendChild(h('th', { className: c, style: { minWidth: '40px' } }, h('div', {}, String(d)), h('div', { className: 'dl' }, DAYS[di])));
+    const dw = gdow(D.y, D.m, d);
+    hr.appendChild(h('th', { className: c, style: { minWidth: '40px' } }, h('div', {}, String(d)), h('div', { className: 'dl' }, DAYS[dw])));
   }
   thd.appendChild(hr); tb.appendChild(thd);
   const bd = h('tbody');
@@ -705,9 +715,94 @@ function rHist() {
   return w;
 }
 
+// === KPI ERROR TRACKING ===
+function rKpi() {
+  const w = h('div', { className: 'ps' });
+  if (!D.kpiLoaded) {
+    D.kpiLoaded = true;
+    Promise.all([
+      api('/api/kpi/summary?year=' + D.y),
+      api('/api/kpi/categories'),
+      api('/api/kpi/details'),
+      api('/api/kpi/errors?year=' + D.y),
+    ]).then(([sum, cats, dets, errs]) => {
+      D.kpi = { sum: sum.data, cats: cats.data, dets: dets.data, errs: errs.data };
+      render();
+    });
+    w.appendChild(h('p', { style: { color: '#94a3b8' } }, '⏳ กำลังโหลด...'));
+    return w;
+  }
+  if (!D.kpi) return w;
+  const { sum, cats, dets, errs } = D.kpi;
+
+  // HEADER
+  w.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' } },
+    h('div', { className: 'pt' }, '⚡ รายงานข้อผิดพลาดประจำปี ' + (D.y + 543)),
+    h('button', { className: 'btn', style: { background: '#6366f1', padding: '8px 20px', fontSize: '14px' }, onClick: () => openModal('kpiAdd') }, '+ บันทึกข้อผิดพลาด')));
+
+  // SUMMARY CARDS
+  const cds = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '12px', marginBottom: '20px' } });
+  const mkCard = (icon, label, val, color) => h('div', { style: { background: '#fff', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0', textAlign: 'center' } },
+    h('div', { style: { fontSize: '13px', color: '#64748b', marginBottom: '4px' } }, icon + ' ' + label),
+    h('div', { style: { fontSize: '28px', fontWeight: 800, color } }, val));
+  cds.appendChild(mkCard('📊', 'ข้อผิดพลาดรวม', sum.totals.count, '#ef4444'));
+  cds.appendChild(mkCard('🔢', 'แต้มรวม', sum.totals.points, '#6366f1'));
+  cds.appendChild(mkCard('💰', 'ค่าเสียหายรวม', (sum.totals.damage || 0).toFixed(2) + ' ฿', '#d97706'));
+  // top error
+  if (sum.byCategory.length) { const top = sum.byCategory[0]; cds.appendChild(mkCard('⚠️', 'พบมากที่สุด', top.name, top.color)); }
+  w.appendChild(cds);
+
+  // CATEGORY BREAKDOWN
+  w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '10px' } }, '📂 สัดส่วนตามหมวดหมู่'));
+  const catBar = h('div', { style: { display: 'flex', borderRadius: '10px', overflow: 'hidden', height: '32px', marginBottom: '16px' } });
+  const totalPts = sum.totals.points || 1;
+  sum.byCategory.forEach(c => {
+    const pct = ((c.total_points / totalPts) * 100);
+    if (pct > 0) catBar.appendChild(h('div', { style: { width: pct + '%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '11px', fontWeight: 700, minWidth: pct > 8 ? '0' : '0' }, title: c.name + ' ' + pct.toFixed(1) + '%' }, pct > 12 ? c.name + ' ' + Math.round(pct) + '%' : ''));
+  });
+  w.appendChild(catBar);
+
+  // EMPLOYEE RANKING
+  w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '10px' } }, '👥 สรุปพนักงาน'));
+  const empGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: '10px', marginBottom: '20px' } });
+  // all employees including those with 0
+  const empMap = {}; sum.byEmployee.forEach(e => { empMap[e.employee_id] = e; });
+  ce().forEach(emp => {
+    const data = empMap[emp.id] || { error_count: 0, total_points: 0, total_damage: 0 };
+    const hasTrophy = data.total_points === 0;
+    empGrid.appendChild(h('div', { style: { background: '#fff', borderRadius: '12px', padding: '14px', border: '2px solid ' + (hasTrophy ? '#10b981' : data.total_points >= 10 ? '#ef4444' : '#e2e8f0'), position: 'relative' } },
+      hasTrophy ? h('div', { style: { position: 'absolute', top: '8px', right: '8px', fontSize: '20px' } }, '🏆') : '',
+      h('div', { style: { fontWeight: 700, fontSize: '15px', color: '#1e293b', marginBottom: '6px' } }, emp.avatar + ' ' + dn(emp)),
+      h('div', { style: { display: 'flex', gap: '16px', fontSize: '13px' } },
+        h('div', {}, h('span', { style: { color: '#94a3b8' } }, 'จำนวนครั้ง: '), h('span', { style: { fontWeight: 700 } }, String(data.error_count))),
+        h('div', {}, h('span', { style: { color: '#94a3b8' } }, 'แต้ม: '), h('span', { style: { fontWeight: 700, color: data.total_points > 0 ? '#ef4444' : '#10b981' } }, String(data.total_points)))),
+      h('div', { style: { fontSize: '12px', color: '#94a3b8', marginTop: '4px' } }, '💰 ค่าเสียหาย: ' + (data.total_damage || 0).toFixed(2) + ' ฿')));
+  });
+  w.appendChild(empGrid);
+
+  // RECENT ERRORS TABLE
+  w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '10px' } }, '📋 รายการล่าสุด (' + errs.length + ')'));
+  if (!errs.length) { w.appendChild(h('p', { style: { color: '#10b981', fontSize: '14px' } }, '✅ ยังไม่มีข้อผิดพลาด — ทำดีมาก!')); return w; }
+  errs.slice(0, 30).forEach(er => {
+    w.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fff', borderRadius: '10px', marginBottom: '6px', border: '1px solid #e2e8f0', borderLeft: '4px solid ' + (er.cat_color || '#6366f1') } },
+      h('span', { style: { fontSize: '20px' } }, er.emp_avatar || '👤'),
+      h('div', { style: { flex: 1 } },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' } },
+          h('span', { style: { fontWeight: 700, fontSize: '14px' } }, er.emp_nick || er.emp_name),
+          h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: er.cat_color + '20', color: er.cat_color } }, er.cat_name)),
+        h('div', { style: { fontSize: '13px', color: '#64748b', marginTop: '2px' } }, (er.detail_desc || er.note || '—') + ' | 🔢 ' + er.points + ' แต้ม' + (er.damage_cost > 0 ? ' | 💰 ' + er.damage_cost + ' ฿' : '')),
+        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '2px' } }, '📅 ' + fmtDate(er.date) + ' | ✍️ ' + (er.creator_nick || er.creator_name || '—'))),
+      isO ? h('button', { style: { background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#ef4444' }, onClick: async () => {
+        if (!confirm('ลบรายการนี้?')) return;
+        try { await api('/api/kpi/errors/' + er.id, 'DELETE'); toast('ลบแล้ว'); D.kpiLoaded = false; D.kpi = null; render(); } catch (e) { toast(e.message, true); }
+      } }, '🗑️') : ''));
+  });
+  return w;
+}
+
 // === MODALS ROUTER ===
 function rModal() {
-  const map = { day: rDay, leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet };
+  const map = { day: rDay, leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, kpiAdd: rKpiAdd, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet };
   return (map[D.modal] || (() => h('div')))();
 }
 
@@ -897,6 +992,62 @@ function rDayoffSwp() {
       toast('✅ ส่งคำขอสลับวันหยุดแล้ว — รอคู่สลับอนุมัติ'); closeModal(); load();
     } catch (er) { toast(er.message, true); }
   } }, '📅 ส่งคำขอสลับวันหยุด'));
+  o.appendChild(m); return o;
+}
+
+// === KPI ADD MODAL ===
+function rKpiAdd() {
+  const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', onClick: e => e.stopPropagation() });
+  m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '⚡ บันทึกข้อผิดพลาด'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
+  // Date
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '📅 วันที่'), datePicker('kd', dk(D.y, D.m, new Date().getDate()))));
+  // Employee
+  let selEmp = null;
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '👤 พนักงาน'),
+    h('div', { className: 'pg' }, ...ce().map(e => h('button', { className: 'pl', id: 'ke-' + e.id,
+      onClick: () => { selEmp = e.id; document.querySelectorAll('[id^=ke-]').forEach(el => { const a = el.id === 'ke-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } },
+      e.avatar + ' ' + dn(e))))));
+  // Category
+  let selCat = null;
+  const catEl = h('div', { className: 'pg' });
+  if (D.kpi?.cats) D.kpi.cats.forEach(c => catEl.appendChild(h('button', { className: 'pl', id: 'kc-' + c.id,
+    style: { borderLeft: '3px solid ' + c.color },
+    onClick: () => {
+      selCat = c.id;
+      document.querySelectorAll('[id^=kc-]').forEach(el => { const a = el.id === 'kc-' + c.id; el.style.borderColor = a ? c.color : 'transparent'; el.style.background = a ? c.color + '15' : '#f8fafc'; });
+      // Update detail dropdown
+      const detSel = document.getElementById('kdet');
+      if (detSel) { detSel.innerHTML = '<option value="">-- เลือกรายละเอียด --</option>';
+        (D.kpi?.dets || []).filter(d => d.category_id === c.id).forEach(d => { const op = document.createElement('option'); op.value = d.id; op.textContent = d.description + ' (' + d.points + ' แต้ม)'; detSel.appendChild(op); });
+      }
+    } }, c.name)));
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '📂 หมวดหมู่'), catEl));
+  // Detail dropdown
+  const detSelect = h('select', { className: 'fi', id: 'kdet' }); detSelect.appendChild(h('option', { value: '' }, '-- เลือกรายละเอียด --'));
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '📋 รายละเอียด'), detSelect));
+  // Points
+  m.appendChild(h('div', { className: 'fg', style: { display: 'flex', gap: '10px' } },
+    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '🔢 จำนวนแต้ม'), h('input', { className: 'fi', id: 'kpts', type: 'number', value: '1' })),
+    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '💰 ค่าเสียหาย (฿)'), h('input', { className: 'fi', id: 'kdmg', type: 'number', value: '0', step: '0.01' }))));
+  // Note
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '📝 หมายเหตุ'), h('input', { className: 'fi', id: 'knote', placeholder: 'หมายเลขออเดอร์ หรือ หมายเหตุ...' })));
+  // Submit
+  m.appendChild(h('button', { className: 'btn', style: { background: '#6366f1' }, onClick: async () => {
+    const dt = dpVal('kd'), pts = parseInt(document.getElementById('kpts').value) || 1;
+    const dmg = parseFloat(document.getElementById('kdmg').value) || 0;
+    const detId = document.getElementById('kdet').value || null;
+    const note = document.getElementById('knote').value;
+    if (!selEmp) { toast('เลือกพนักงาน', true); return; }
+    if (!selCat) { toast('เลือกหมวดหมู่', true); return; }
+    if (!dt) { toast('เลือกวันที่', true); return; }
+    // auto-fill points from detail if selected
+    let finalPts = pts;
+    if (detId) { const det = (D.kpi?.dets || []).find(d => d.id == detId); if (det) finalPts = det.points; }
+    try {
+      await api('/api/kpi/errors', 'POST', { date: dt, employee_id: selEmp, category_id: selCat, detail_id: detId ? parseInt(detId) : null, points: finalPts, damage_cost: dmg, note: note || null });
+      toast('✅ บันทึกข้อผิดพลาดแล้ว'); closeModal(); D.kpiLoaded = false; D.kpi = null; render();
+    } catch (er) { toast(er.message, true); }
+  } }, '⚡ บันทึกข้อผิดพลาด'));
   o.appendChild(m); return o;
 }
 

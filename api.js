@@ -384,6 +384,76 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'ลบสำเร็จ' });
   }
 
+  // ==================== KPI ====================
+  if (pathname === '/api/kpi/categories' && method === 'GET') {
+    const { results } = await DB.prepare('SELECT c.*, (SELECT COUNT(*) FROM kpi_details WHERE category_id=c.id) as detail_count FROM kpi_categories c ORDER BY c.id').all();
+    return json({ data: results });
+  }
+  if (pathname === '/api/kpi/details' && method === 'GET') {
+    const catId = url.searchParams.get('category_id');
+    let q = 'SELECT d.*, c.name as category_name, c.color as category_color FROM kpi_details d JOIN kpi_categories c ON d.category_id=c.id';
+    const p = [];
+    if (catId) { q += ' WHERE d.category_id=?'; p.push(catId); }
+    q += ' ORDER BY d.category_id, d.id';
+    const { results } = p.length ? await DB.prepare(q).bind(...p).all() : await DB.prepare(q).all();
+    return json({ data: results });
+  }
+  if (pathname === '/api/kpi/errors' && method === 'GET') {
+    const yr = url.searchParams.get('year') || String(new Date().getFullYear());
+    const mo = url.searchParams.get('month');
+    const empId = url.searchParams.get('employee_id');
+    let q = `SELECT ke.*, e.name as emp_name, e.nickname as emp_nick, e.avatar as emp_avatar,
+      c.name as cat_name, c.color as cat_color, d.description as detail_desc,
+      cr.name as creator_name, cr.nickname as creator_nick
+      FROM kpi_errors ke
+      JOIN employees e ON ke.employee_id=e.id
+      JOIN kpi_categories c ON ke.category_id=c.id
+      LEFT JOIN kpi_details d ON ke.detail_id=d.id
+      LEFT JOIN employees cr ON ke.created_by=cr.id
+      WHERE ke.date LIKE ?`;
+    const p = [mo ? `${yr}-${mo.padStart(2,'0')}%` : `${yr}%`];
+    if (empId) { q += ' AND ke.employee_id=?'; p.push(empId); }
+    q += ' ORDER BY ke.date DESC, ke.id DESC';
+    const { results } = await DB.prepare(q).bind(...p).all();
+    return json({ data: results });
+  }
+  if (pathname === '/api/kpi/errors' && method === 'POST') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const b = await getBody();
+    if (!b.date || !b.employee_id || !b.category_id) return json({ error: 'ข้อมูลไม่ครบ' }, 400);
+    const r = await DB.prepare(
+      'INSERT INTO kpi_errors (date,employee_id,category_id,detail_id,points,damage_cost,note,created_by) VALUES (?,?,?,?,?,?,?,?)'
+    ).bind(b.date, b.employee_id, b.category_id, b.detail_id || null, b.points || 1, b.damage_cost || 0, b.note || null, currentUser.employee_id).run();
+    // Telegram
+    const emp = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(b.employee_id).first();
+    const cat = await DB.prepare('SELECT name FROM kpi_categories WHERE id=?').bind(b.category_id).first();
+    tgSend(`⚠️ <b>บันทึกข้อผิดพลาด</b>\n👤 ${emp?.nickname||emp?.name}\n📂 ${cat?.name}\n📅 ${fmtDateTH(b.date)}\n🔢 ${b.points||1} แต้ม${b.damage_cost > 0 ? '\n💰 ค่าเสียหาย: '+b.damage_cost+' ฿' : ''}${b.note ? '\n📝 '+b.note : ''}`);
+    return json({ data: { id: r.meta.last_row_id }, message: 'บันทึกสำเร็จ' }, 201);
+  }
+  if (pathname.match(/^\/api\/kpi\/errors\/\d+$/) && method === 'DELETE') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    await DB.prepare('DELETE FROM kpi_errors WHERE id=?').bind(pathname.split('/').pop()).run();
+    return json({ message: 'ลบสำเร็จ' });
+  }
+  if (pathname === '/api/kpi/summary' && method === 'GET') {
+    const yr = url.searchParams.get('year') || String(new Date().getFullYear());
+    const mo = url.searchParams.get('month');
+    const dateLike = mo ? `${yr}-${mo.padStart(2,'0')}%` : `${yr}%`;
+    // สรุปต่อคน
+    const { results: byEmp } = await DB.prepare(`
+      SELECT ke.employee_id, e.name, e.nickname, e.avatar, COUNT(*) as error_count, SUM(ke.points) as total_points, SUM(ke.damage_cost) as total_damage
+      FROM kpi_errors ke JOIN employees e ON ke.employee_id=e.id WHERE ke.date LIKE ? GROUP BY ke.employee_id ORDER BY total_points DESC
+    `).bind(dateLike).all();
+    // สรุปต่อหมวด
+    const { results: byCat } = await DB.prepare(`
+      SELECT c.id, c.name, c.color, COUNT(*) as error_count, SUM(ke.points) as total_points
+      FROM kpi_errors ke JOIN kpi_categories c ON ke.category_id=c.id WHERE ke.date LIKE ? GROUP BY ke.category_id ORDER BY total_points DESC
+    `).bind(dateLike).all();
+    // สรุปรวม
+    const totals = await DB.prepare('SELECT COUNT(*) as c, SUM(points) as p, SUM(damage_cost) as d FROM kpi_errors WHERE date LIKE ?').bind(dateLike).first();
+    return json({ data: { byEmployee: byEmp, byCategory: byCat, totals: { count: totals?.c || 0, points: totals?.p || 0, damage: totals?.d || 0 } } });
+  }
+
   // ==================== APPROVAL HISTORY ====================
   if (pathname === '/api/history' && method === 'GET') {
     const yr = url.searchParams.get('year') || String(new Date().getFullYear());
