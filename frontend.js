@@ -727,9 +727,7 @@ function rRos() {
 
 // === STATS ===
 function rSta() {
-  const g = h('div', { className: 'sg' }), dm = gdim(D.y, D.m);
-
-  // สรุปภาพรวมเดือน
+  const w = h('div', {}), dm = gdim(D.y, D.m);
   const allEmps = ce();
   let totalDay = 0, totalEvening = 0, totalOff = 0, totalSick = 0, totalPersonal = 0, totalVacation = 0;
   const empStats = [];
@@ -742,85 +740,102 @@ function rSta() {
     empStats.push({ emp, sc, yl });
   });
 
-  // Dashboard cards
-  const cards = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: '10px', marginBottom: '20px' } });
-  const mkCard = (icon, label, val, color) => h('div', { style: { background: '#fff', borderRadius: '12px', padding: '14px', border: '1px solid #e2e8f0', textAlign: 'center' } },
-    h('div', { style: { fontSize: '20px', marginBottom: '4px' } }, icon),
-    h('div', { style: { fontSize: '22px', fontWeight: 800, color } }, String(val)),
-    h('div', { style: { fontSize: '11px', color: '#94a3b8' } }, label));
-  cards.appendChild(mkCard('☀️', 'กลางวัน', totalDay, '#f59e0b'));
-  cards.appendChild(mkCard('🌙', 'กลางคืน', totalEvening, '#6366f1'));
-  cards.appendChild(mkCard('🏖️', 'วันหยุด', totalOff, '#10b981'));
-  cards.appendChild(mkCard('🏥', 'ลาป่วย', totalSick, '#ef4444'));
-  cards.appendChild(mkCard('📋', 'ลากิจ', totalPersonal, '#8b5cf6'));
-  cards.appendChild(mkCard('✈️', 'ลาพักร้อน', totalVacation, '#06b6d4'));
-  g.appendChild(cards);
+  // === TOP ROW: Overview + Donut ===
+  const topRow = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' } });
 
-  // Bar chart — วันลาแต่ละคน
-  g.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '10px' } }, '📊 วันลาแต่ละคน (ทั้งปี)'));
-  const chartWrap = h('div', { style: { background: '#fff', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0', marginBottom: '20px' } });
-  const maxLeave = Math.max(...empStats.map(e => (e.yl.sick||0) + (e.yl.personal||0) + (e.yl.vacation||0)), 1);
-  empStats.forEach(({ emp, yl }) => {
-    const sick = yl.sick || 0, personal = yl.personal || 0, vacation = yl.vacation || 0;
-    const total = sick + personal + vacation;
-    const maxLv = emp.max_leave_per_year || 20;
-    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' } });
-    row.appendChild(h('div', { style: { width: '80px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, emp.avatar + ' ' + dn(emp)));
-    const barContainer = h('div', { style: { flex: 1, height: '22px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden', display: 'flex', position: 'relative' } });
-    if (sick > 0) barContainer.appendChild(h('div', { style: { width: (sick/maxLv*100) + '%', background: '#ef4444', height: '100%' }, title: '🏥 ลาป่วย ' + sick + ' วัน' }));
-    if (personal > 0) barContainer.appendChild(h('div', { style: { width: (personal/maxLv*100) + '%', background: '#8b5cf6', height: '100%' }, title: '📋 ลากิจ ' + personal + ' วัน' }));
-    if (vacation > 0) barContainer.appendChild(h('div', { style: { width: (vacation/maxLv*100) + '%', background: '#06b6d4', height: '100%' }, title: '✈️ ลาพักร้อน ' + vacation + ' วัน' }));
-    row.appendChild(barContainer);
-    row.appendChild(h('div', { style: { width: '60px', fontSize: '12px', fontWeight: 700, textAlign: 'right', color: total > 0 ? '#ef4444' : '#10b981' } }, total + '/' + maxLv));
-    chartWrap.appendChild(row);
+  // Left: Shift summary cards
+  const shiftBox = h('div', { style: { background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)', borderRadius: '16px', padding: '24px', color: '#fff' } });
+  shiftBox.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 600, opacity: 0.7, marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' } }, '📊 สรุปกะเดือนนี้'));
+  const shiftGrid = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' } });
+  [[totalDay, '☀️', 'กลางวัน', '#fbbf24'], [totalEvening, '🌙', 'กลางคืน', '#818cf8'], [totalOff, '🏖️', 'วันหยุด', '#34d399']].forEach(([v, ic, lb, cl]) => {
+    shiftGrid.appendChild(h('div', { style: { background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '16px', textAlign: 'center', backdropFilter: 'blur(4px)' } },
+      h('div', { style: { fontSize: '28px', marginBottom: '4px' } }, ic),
+      h('div', { style: { fontSize: '28px', fontWeight: 800, color: cl } }, String(v)),
+      h('div', { style: { fontSize: '11px', opacity: 0.7 } }, lb)));
   });
-  // Legend
-  chartWrap.appendChild(h('div', { style: { display: 'flex', gap: '14px', marginTop: '10px', fontSize: '11px', color: '#64748b' } },
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#ef4444' } }), 'ลาป่วย'),
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#8b5cf6' } }), 'ลากิจ'),
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#06b6d4' } }), 'ลาพักร้อน')));
-  g.appendChild(chartWrap);
+  shiftBox.appendChild(shiftGrid);
+  topRow.appendChild(shiftBox);
 
-  // Shift distribution pie (CSS donut)
-  g.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '10px' } }, '🔄 สัดส่วนกะเดือนนี้'));
-  const pieWrap = h('div', { style: { display: 'flex', gap: '20px', alignItems: 'center', background: '#fff', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0', marginBottom: '20px', flexWrap: 'wrap' } });
+  // Right: Donut chart
   const totalShifts = totalDay + totalEvening + totalOff || 1;
   const dayPct = (totalDay / totalShifts * 100).toFixed(1);
   const evePct = (totalEvening / totalShifts * 100).toFixed(1);
   const offPct = (totalOff / totalShifts * 100).toFixed(1);
-  const gradient = 'conic-gradient(#f59e0b 0% ' + dayPct + '%, #6366f1 ' + dayPct + '% ' + (parseFloat(dayPct)+parseFloat(evePct)) + '%, #10b981 ' + (parseFloat(dayPct)+parseFloat(evePct)) + '% 100%)';
-  pieWrap.appendChild(h('div', { style: { width: '120px', height: '120px', borderRadius: '50%', background: gradient, position: 'relative', flexShrink: 0 } },
-    h('div', { style: { position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#475569' } }, totalShifts + ' กะ')));
-  pieWrap.appendChild(h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, h('div', { style: { width: '14px', height: '14px', borderRadius: '4px', background: '#f59e0b' } }), '☀️ กลางวัน ' + totalDay + ' (' + dayPct + '%)'),
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, h('div', { style: { width: '14px', height: '14px', borderRadius: '4px', background: '#6366f1' } }), '🌙 กลางคืน ' + totalEvening + ' (' + evePct + '%)'),
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, h('div', { style: { width: '14px', height: '14px', borderRadius: '4px', background: '#10b981' } }), '🏖️ วันหยุด ' + totalOff + ' (' + offPct + '%)')));
-  g.appendChild(pieWrap);
+  const gradient = 'conic-gradient(#fbbf24 0% ' + dayPct + '%, #818cf8 ' + dayPct + '% ' + (parseFloat(dayPct)+parseFloat(evePct)) + '%, #34d399 ' + (parseFloat(dayPct)+parseFloat(evePct)) + '% 100%)';
+  const donutBox = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } });
+  donutBox.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#64748b', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' } }, '🔄 สัดส่วนกะ'));
+  donutBox.appendChild(h('div', { style: { width: '160px', height: '160px', borderRadius: '50%', background: gradient, position: 'relative', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' } },
+    h('div', { style: { position: 'absolute', top: '25px', left: '25px', right: '25px', bottom: '25px', borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
+      h('div', { style: { fontSize: '26px', fontWeight: 800, color: '#1e293b' } }, String(totalShifts)),
+      h('div', { style: { fontSize: '11px', color: '#94a3b8' } }, 'กะทั้งหมด'))));
+  const donutLeg = h('div', { style: { display: 'flex', gap: '16px', marginTop: '16px' } });
+  [['#fbbf24', '☀️ ' + dayPct + '%'], ['#818cf8', '🌙 ' + evePct + '%'], ['#34d399', '🏖️ ' + offPct + '%']].forEach(([c, l]) =>
+    donutLeg.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '50%', background: c } }), l)));
+  donutBox.appendChild(donutLeg);
+  topRow.appendChild(donutBox);
+  w.appendChild(topRow);
 
-  // รายละเอียดแต่ละคน
-  g.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '10px' } }, '👥 รายละเอียดพนักงาน'));
+  // === Leave bar chart ===
+  const chartBox = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', marginBottom: '20px' } });
+  chartBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📊 วันลาแต่ละคน (ทั้งปี)'));
+  empStats.forEach(({ emp, yl }) => {
+    const sick = yl.sick || 0, personal = yl.personal || 0, vacation = yl.vacation || 0;
+    const total = sick + personal + vacation, maxLv = emp.max_leave_per_year || 20;
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' } });
+    row.appendChild(h('div', { style: { width: '90px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 } },
+      emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', {}, emp.avatar), dn(emp)));
+    const bar = h('div', { style: { flex: 1, height: '28px', background: '#f1f5f9', borderRadius: '8px', overflow: 'hidden', display: 'flex' } });
+    if (sick > 0) bar.appendChild(h('div', { style: { width: (sick/maxLv*100) + '%', background: 'linear-gradient(90deg, #ef4444, #f87171)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 700 } }, sick > 1 ? sick : ''));
+    if (personal > 0) bar.appendChild(h('div', { style: { width: (personal/maxLv*100) + '%', background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 700 } }, personal > 1 ? personal : ''));
+    if (vacation > 0) bar.appendChild(h('div', { style: { width: (vacation/maxLv*100) + '%', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 700 } }, vacation > 1 ? vacation : ''));
+    row.appendChild(bar);
+    row.appendChild(h('div', { style: { width: '65px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: total > 0 ? '#ef4444' : '#10b981' } }, total + '/' + maxLv));
+    chartBox.appendChild(row);
+  });
+  chartBox.appendChild(h('div', { style: { display: 'flex', gap: '16px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', fontSize: '12px' } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '4px', background: 'linear-gradient(90deg, #ef4444, #f87171)' } }), 'ลาป่วย'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '4px', background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)' } }), 'ลากิจ'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '4px', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)' } }), 'ลาพักร้อน')));
+  w.appendChild(chartBox);
+
+  // === Employee cards ===
+  w.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '12px' } }, '👥 รายละเอียดพนักงาน'));
+  const empGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '14px' } });
   const sorted = [...empStats].sort((a, b) => (a.emp.id === U.id ? -1 : b.emp.id === U.id ? 1 : 0));
   sorted.forEach(({ emp, sc, yl }) => {
-    const sickUsed = yl.sick || 0, personalUsed = yl.personal || 0, vacationUsed = yl.vacation || 0;
-    const quotaUsed = personalUsed + vacationUsed;
-    const maxLv = emp.max_leave_per_year || 20;
-    const pct = maxLv > 0 ? (quotaUsed / maxLv) * 100 : 0;
-    const totalAll = sickUsed + personalUsed + vacationUsed;
-    g.appendChild(h('div', { className: 'stc' },
-      h('div', { className: 'sth' }, av(emp, true), h('div', {}, h('div', { className: 'stn' }, dn(emp)), h('div', { className: 'str' }, stime(emp) + ' | หยุด: ' + offD(emp).map(d => DAYF[d]).join(', ')))),
-      h('div', { className: 'stl' }, 'กะทำงานเดือนนี้'),
-      h('div', { className: 'sts' }, ...Object.entries(sc).filter(([, v]) => v > 0).map(([t, c]) => { const i = SHIFT[t]; return i ? h('div', { className: 'stt', style: { background: i.b, color: i.c } }, i.i + ' ' + i.l + ' ' + c + ' วัน') : null; }).filter(Boolean)),
-      h('div', { className: 'total-bar' },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between' } }, h('span', { className: 'tbl' }, '📋 ลากิจ + ✈️ ลาพักร้อน'), h('span', { style: { fontSize: '14px', fontWeight: 700 } }, quotaUsed + '/' + maxLv + ' วัน')),
-        h('div', { className: 'tbb' }, h('div', { className: 'tbf', style: { width: Math.min(pct, 100) + '%' } }))),
-      h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '6px' } },
-        h('div', { style: { fontSize: '12px' } }, '🏥 ป่วย ' + sickUsed),
-        h('div', { style: { fontSize: '12px' } }, '📋 กิจ ' + personalUsed),
-        h('div', { style: { fontSize: '12px' } }, '✈️ ร้อน ' + vacationUsed),
-        h('div', { style: { fontSize: '12px' } }, '🔄 สลับ ' + (emp.swap_count || 0))),
-    ));
+    const sick = yl.sick || 0, personal = yl.personal || 0, vacation = yl.vacation || 0;
+    const quotaUsed = personal + vacation, maxLv = emp.max_leave_per_year || 20;
+    const pct = maxLv > 0 ? Math.min((quotaUsed / maxLv) * 100, 100) : 0;
+    const isMe = emp.id === U.id;
+    const card = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '20px', border: isMe ? '2px solid #3b82f6' : '1px solid #e2e8f0', position: 'relative', overflow: 'hidden' } });
+    if (isMe) card.appendChild(h('div', { style: { position: 'absolute', top: 0, right: 0, background: '#3b82f6', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '0 0 0 10px' } }, 'คุณ'));
+    // Header
+    card.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' } },
+      emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' } }) : h('div', { style: { fontSize: '36px' } }, emp.avatar),
+      h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '16px' } }, dn(emp)),
+        h('div', { style: { fontSize: '12px', color: '#94a3b8' } }, (SHIFT[emp.default_shift]?.i||'') + ' ' + stime(emp) + ' | หยุด ' + offD(emp).map(d => DAYF[d]).join(', ')))));
+    // Shift pills
+    const pills = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' } });
+    Object.entries(sc).filter(([, v]) => v > 0).forEach(([t, c]) => { const i = SHIFT[t]; if (i) pills.appendChild(h('div', { style: { padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, background: i.b, color: i.c } }, i.i + ' ' + c)); });
+    card.appendChild(pills);
+    // Quota bar
+    const barGrad = pct > 80 ? 'linear-gradient(90deg, #ef4444, #f87171)' : pct > 50 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #6366f1, #818cf8)';
+    card.appendChild(h('div', { style: { marginBottom: '10px' } },
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' } },
+        h('span', { style: { color: '#64748b', fontWeight: 600 } }, '📋 โควต้าลา'),
+        h('span', { style: { fontWeight: 700 } }, quotaUsed + '/' + maxLv)),
+      h('div', { style: { height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' } },
+        h('div', { style: { width: pct + '%', height: '100%', background: barGrad, borderRadius: '4px', transition: 'width 0.6s ease' } }))));
+    // Leave mini stats
+    card.appendChild(h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px' } },
+      ...[['🏥', sick, '#ef4444'], ['📋', personal, '#8b5cf6'], ['✈️', vacation, '#06b6d4'], ['🔄', emp.swap_count||0, '#d97706']].map(([ic, v, cl]) =>
+        h('div', { style: { textAlign: 'center', padding: '6px', background: '#f8fafc', borderRadius: '8px' } },
+          h('div', { style: { fontSize: '16px', fontWeight: 800, color: v > 0 ? cl : '#d1d5db' } }, String(v)),
+          h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, ic)))));
+    empGrid.appendChild(card);
   });
-  return g;
+  w.appendChild(empGrid);
+  return w;
 }
 
 // === PENDING ===
@@ -1008,40 +1023,84 @@ function rKpi() {
     h('div', { className: 'pt' }, '⚡ KPI ข้อผิดพลาด (' + (D.y+543) + ')'), tb));
 
   if (D.kpiTab === 'summary') {
-    const cds = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '12px', marginBottom: '20px' } });
-    const mkC = (ic, lb, val, col) => h('div', { style: { background: '#fff', borderRadius: '14px', padding: '18px', border: '1px solid #e2e8f0', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' } },
-      h('div', { style: { fontSize: '13px', color: '#64748b', marginBottom: '6px' } }, ic + ' ' + lb),
-      h('div', { style: { fontSize: '28px', fontWeight: 800, color: col } }, val));
-    cds.appendChild(mkC('📊', 'ข้อผิดพลาดรวม', sum.totals.count, '#ef4444'));
-    cds.appendChild(mkC('🔢', 'แต้มรวม', sum.totals.points, '#6366f1'));
-    cds.appendChild(mkC('💰', 'ค่าเสียหาย', (sum.totals.damage || 0).toFixed(2) + ' ฿', '#d97706'));
-    w.appendChild(cds);
+    // Hero stats
+    const hero = h('div', { style: { background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%)', borderRadius: '16px', padding: '28px', color: '#fff', marginBottom: '20px' } });
+    hero.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 600, opacity: 0.7, marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' } }, '⚡ สรุป KPI ข้อผิดพลาด (' + (D.y+543) + ')'));
+    const heroGrid = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' } });
+    [[sum.totals.count, '📊', 'ข้อผิดพลาดรวม'], [sum.totals.points, '🔢', 'แต้มรวม'], [(sum.totals.damage || 0).toFixed(0) + ' ฿', '💰', 'ค่าเสียหาย']].forEach(([v, ic, lb]) =>
+      heroGrid.appendChild(h('div', { style: { background: 'rgba(255,255,255,0.15)', borderRadius: '12px', padding: '18px', textAlign: 'center', backdropFilter: 'blur(4px)' } },
+        h('div', { style: { fontSize: '28px', marginBottom: '4px' } }, ic),
+        h('div', { style: { fontSize: '30px', fontWeight: 800 } }, String(v)),
+        h('div', { style: { fontSize: '11px', opacity: 0.7 } }, lb))));
+    hero.appendChild(heroGrid);
+    w.appendChild(hero);
+
+    // Category breakdown — horizontal bars
     if (sum.byCategory.length) {
-      w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '8px' } }, '📂 สัดส่วนตามหมวดหมู่'));
-      const bar = h('div', { style: { display: 'flex', borderRadius: '10px', overflow: 'hidden', height: '28px', marginBottom: '8px' } });
+      const catBox = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', marginBottom: '20px' } });
+      catBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📂 แต้มตามหมวดหมู่'));
       const tp = sum.totals.points || 1;
-      sum.byCategory.forEach(c => { const pct = (c.total_points / tp) * 100; if (pct > 0) bar.appendChild(h('div', { style: { width: pct + '%', background: c.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 700 }, title: c.name + ' ' + pct.toFixed(1) + '%' }, pct > 14 ? c.name : '')); });
-      w.appendChild(bar);
-      const leg = h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' } });
-      sum.byCategory.forEach(c => leg.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '50%', background: c.color } }), c.name + ' (' + c.total_points + ')')));
-      w.appendChild(leg);
+      sum.byCategory.forEach(c => {
+        const pct = (c.total_points / tp * 100).toFixed(1);
+        catBox.appendChild(h('div', { style: { marginBottom: '12px' } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' } },
+            h('span', { style: { fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' } },
+              h('div', { style: { width: '10px', height: '10px', borderRadius: '50%', background: c.color } }), c.name),
+            h('span', { style: { fontWeight: 700, color: c.color } }, c.total_points + ' แต้ม (' + pct + '%)')),
+          h('div', { style: { height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden' } },
+            h('div', { style: { width: pct + '%', height: '100%', background: 'linear-gradient(90deg, ' + c.color + ', ' + c.color + '99)', borderRadius: '5px', transition: 'width 0.6s ease' } }))));
+      });
+
+      // Donut chart for categories
+      let accumulated = 0;
+      const segments = sum.byCategory.map(c => {
+        const pct = (c.total_points / tp * 100);
+        const start = accumulated;
+        accumulated += pct;
+        return c.color + ' ' + start + '% ' + accumulated + '%';
+      });
+      const catGrad = 'conic-gradient(' + segments.join(', ') + ')';
+      const donutRow = h('div', { style: { display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' } });
+      donutRow.appendChild(h('div', { style: { width: '120px', height: '120px', borderRadius: '50%', background: catGrad, position: 'relative', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' } },
+        h('div', { style: { position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
+          h('div', { style: { fontSize: '22px', fontWeight: 800, color: '#1e293b' } }, String(sum.totals.points)),
+          h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้มรวม'))));
+      const legCol = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } });
+      sum.byCategory.forEach(c => legCol.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } },
+        h('div', { style: { width: '12px', height: '12px', borderRadius: '50%', background: c.color } }),
+        h('span', { style: { fontWeight: 600 } }, c.name),
+        h('span', { style: { color: '#94a3b8' } }, c.total_points + ' แต้ม'))));
+      donutRow.appendChild(legCol);
+      catBox.appendChild(donutRow);
+      w.appendChild(catBox);
     }
-    w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '8px' } }, '👥 สรุปพนักงาน'));
-    const eg = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '10px', marginBottom: '16px' } });
+
+    // Employee ranking
+    w.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '12px' } }, '🏆 อันดับพนักงาน'));
+    const empBox = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' } });
     const em = {}; sum.byEmployee.forEach(e => { em[e.employee_id] = e; });
-    [...ce()].sort((a, b) => (a.id === U.id ? -1 : b.id === U.id ? 1 : 0)).forEach(emp => {
+    const sortedEmps = [...ce()].sort((a, b) => ((em[b.id]?.total_points||0) - (em[a.id]?.total_points||0)));
+    sortedEmps.forEach((emp, idx) => {
       const d = em[emp.id] || { error_count: 0, total_points: 0, total_damage: 0 };
-      const me = emp.id === U.id, ok = d.total_points === 0;
-      eg.appendChild(h('div', { style: { background: me ? '#eff6ff' : '#fff', borderRadius: '12px', padding: '14px', border: '2px solid ' + (me ? '#3b82f6' : ok ? '#10b981' : d.total_points >= 10 ? '#ef4444' : '#e2e8f0'), position: 'relative' } },
-        ok ? h('div', { style: { position: 'absolute', top: '8px', right: '8px', fontSize: '18px' } }, '🏆') : '',
-        me ? h('div', { style: { position: 'absolute', top: '8px', right: ok ? '32px' : '8px', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: '#3b82f6', color: '#fff', fontWeight: 700 } }, 'คุณ') : '',
-        h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '6px' } }, emp.avatar + ' ' + dn(emp)),
-        h('div', { style: { display: 'flex', gap: '14px', fontSize: '13px' } },
-          h('div', {}, h('span', { style: { color: '#94a3b8' } }, 'ครั้ง: '), h('b', {}, String(d.error_count))),
-          h('div', {}, h('span', { style: { color: '#94a3b8' } }, 'แต้ม: '), h('b', { style: { color: d.total_points > 0 ? '#ef4444' : '#10b981' } }, String(d.total_points)))),
-        d.total_damage > 0 ? h('div', { style: { fontSize: '12px', color: '#d97706', marginTop: '4px' } }, '💰 ' + d.total_damage.toFixed(2) + ' ฿') : ''));
+      const ok = d.total_points === 0, me = emp.id === U.id;
+      const medal = idx === 0 && !ok ? '🥇' : idx === 1 && !ok ? '🥈' : idx === 2 && !ok ? '🥉' : ok ? '🏆' : '';
+      const borderCol = ok ? '#10b981' : d.total_points >= 10 ? '#ef4444' : d.total_points >= 5 ? '#f59e0b' : '#e2e8f0';
+      empBox.appendChild(h('div', { style: { background: me ? '#eff6ff' : '#fff', borderRadius: '14px', padding: '16px', border: '2px solid ' + borderCol, position: 'relative' } },
+        medal ? h('div', { style: { position: 'absolute', top: '8px', right: '10px', fontSize: '20px' } }, medal) : '',
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' } },
+          emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' } }) : h('div', { style: { fontSize: '28px' } }, emp.avatar),
+          h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '14px' } }, dn(emp)),
+            me ? h('div', { style: { fontSize: '10px', color: '#3b82f6', fontWeight: 700 } }, 'คุณ') : '')),
+        h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
+          h('div', { style: { textAlign: 'center', padding: '8px', background: '#f8fafc', borderRadius: '8px' } },
+            h('div', { style: { fontSize: '18px', fontWeight: 800, color: d.total_points > 0 ? '#ef4444' : '#10b981' } }, String(d.total_points)),
+            h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้ม')),
+          h('div', { style: { textAlign: 'center', padding: '8px', background: '#f8fafc', borderRadius: '8px' } },
+            h('div', { style: { fontSize: '18px', fontWeight: 800, color: '#6366f1' } }, String(d.error_count)),
+            h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ครั้ง'))),
+        d.total_damage > 0 ? h('div', { style: { marginTop: '8px', textAlign: 'center', fontSize: '12px', color: '#d97706', fontWeight: 700 } }, '💰 ' + d.total_damage.toFixed(2) + ' ฿') : ''));
     });
-    w.appendChild(eg);
+    w.appendChild(empBox);
   } else if (D.kpiTab === 'myErrors') {
     const my = errs.filter(e => e.employee_id === U.id);
     w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '10px' } }, '👤 ข้อผิดพลาดของฉัน (' + my.length + ')'));
