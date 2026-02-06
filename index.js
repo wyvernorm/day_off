@@ -82,9 +82,9 @@ export default {
         });
         const user = await userRes.json();
 
-        // Check if email is registered
+        // Check if email is registered (case-insensitive)
         const employee = await env.DB.prepare(
-          'SELECT * FROM employees WHERE email = ? AND is_active = 1'
+          'SELECT * FROM employees WHERE LOWER(email) = LOWER(?) AND is_active = 1'
         ).bind(user.email).first();
 
         if (!employee) {
