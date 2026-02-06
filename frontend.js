@@ -288,7 +288,7 @@ let KPI_ADMINS = KPI_ADMINS_DEFAULT;
 
 // === STATE ===
 const D = {
-  v: 'dashboard', y: new Date().getFullYear(), m: new Date().getMonth(),
+  v: 'calendar', y: new Date().getFullYear(), m: new Date().getMonth(),
   calMode: 'calendar', // 'calendar' or 'icon' (roster-style)
   emp: [], sh: {}, lv: {}, hol: {}, set: {}, yl: {},
   pl: [], ps: [], sd: null, se: null, modal: null,
@@ -536,8 +536,7 @@ function render() {
   }
   a.appendChild(rNav());
   a.appendChild(rLgd());
-  if (D.v === 'dashboard') a.appendChild(rDash());
-  else if (D.v === 'calendar') {
+  if (D.v === 'calendar') {
     if (D.calMode === 'icon') a.appendChild(rRos());
     else a.appendChild(rCal());
   }
@@ -550,7 +549,7 @@ function render() {
 
 // === HEADER ===
 function rHdr() {
-  const tabs = ['dashboard', 'calendar', 'stats'];
+  const tabs = ['calendar', 'stats'];
   const myPendingCount = isO ? D.pl.length + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
   const hasPendingForMe = D.ps.some(sw => sw.to_employee_id === U.id);
   if (isO || hasPendingForMe) tabs.push('pending');
@@ -560,7 +559,7 @@ function rHdr() {
     h('div', {}, h('h1', {}, (D.set.company_name || '📅 ระบบจัดการกะ & วันลา')), h('p', {}, 'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
-        const lb = { dashboard: '🏠 หน้าแรก', calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
+        const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
         const tabEl = h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); }, style: { position: 'relative' } }, lb[v]);
         if (v === 'pending' && myPendingCount > 0) tabEl.appendChild(h('span', { style: { position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 800, minWidth: '18px', height: '18px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxShadow: '0 2px 4px rgba(239,68,68,0.4)', animation: myPendingCount > 0 ? 'pulse 2s infinite' : 'none' } }, String(myPendingCount)));
         return tabEl;
@@ -609,94 +608,6 @@ function rLgd() {
     h('div', { className: 'lsep' }),
     ...Object.entries(LEAVE).map(([, v]) => h('div', { className: 'li' }, h('span', {}, v.i), h('span', { style: { fontWeight: 600 } }, v.l))),
   );
-}
-
-// === DASHBOARD ===
-function rDash() {
-  const w = h('div', {}), dm = gdim(D.y, D.m);
-  const me = D.emp.find(e => e.id === U.id);
-  const today = new Date();
-  const tk = dk(today.getFullYear(), today.getMonth(), today.getDate());
-
-  // Hero card — กะวันนี้
-  const myInf = me ? disp(me, tk, today.getFullYear(), today.getMonth(), today.getDate()) : null;
-  const hero = h('div', { style: { background: myInf?.isL ? 'linear-gradient(135deg, #ef4444, #f87171)' : myInf?.ty === 'off' ? 'linear-gradient(135deg, #10b981, #34d399)' : myInf?.ty === 'evening' ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : 'linear-gradient(135deg, #f59e0b, #fbbf24)', borderRadius: '16px', padding: '28px', color: '#fff', marginBottom: '20px', position: 'relative', overflow: 'hidden' } });
-  hero.appendChild(h('div', { style: { position: 'absolute', top: '-20px', right: '-20px', fontSize: '120px', opacity: 0.15 } }, myInf?.isL ? '🏥' : myInf?.ty === 'off' ? '🏖️' : myInf?.ty === 'evening' ? '🌙' : '☀️'));
-  hero.appendChild(h('div', { style: { fontSize: '13px', opacity: 0.8, marginBottom: '4px' } }, '📅 วันนี้ — ' + DAYF[today.getDay()] + 'ที่ ' + today.getDate() + ' ' + MON[today.getMonth()] + ' ' + (today.getFullYear() + 543)));
-  hero.appendChild(h('div', { style: { fontSize: '28px', fontWeight: 800 } }, myInf?.isL ? myInf.i + ' ' + myInf.l : myInf ? myInf.i + ' กะ' + myInf.l : '—'));
-  if (me) hero.appendChild(h('div', { style: { fontSize: '14px', opacity: 0.9, marginTop: '4px' } }, '🕐 ' + stime(me)));
-  w.appendChild(hero);
-
-  // Quick stats row
-  const yl = me ? D.yl[me.id] || {} : {};
-  const maxLv = me?.max_leave_per_year || 20;
-  const quotaUsed = (yl.personal || 0) + (yl.vacation || 0);
-  const statsRow = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '20px' } });
-  [[quotaUsed + '/' + maxLv, '📋', 'โควต้าลา', quotaUsed > maxLv * 0.8 ? '#ef4444' : '#3b82f6'],
-   [String(yl.sick || 0), '🏥', 'ลาป่วย', '#ef4444'],
-   [String(me?.swap_count || 0), '🔄', 'สลับกะ', '#d97706'],
-   [String(D.ps.filter(s => s.to_employee_id === U.id).length), '🔔', 'รออนุมัติ', '#8b5cf6'],
-  ].forEach(([v, ic, lb, cl]) => statsRow.appendChild(h('div', { style: { background: 'var(--sf)', borderRadius: '12px', padding: '14px', border: '1px solid var(--bd)', textAlign: 'center' } },
-    h('div', { style: { fontSize: '22px' } }, ic),
-    h('div', { style: { fontSize: '20px', fontWeight: 800, color: cl } }, v),
-    h('div', { style: { fontSize: '11px', color: 'var(--ts)' } }, lb))));
-  w.appendChild(statsRow);
-
-  // Who's working today
-  const whBox = h('div', { style: { background: 'var(--sf)', borderRadius: '16px', padding: '20px', border: '1px solid var(--bd)', marginBottom: '20px' } });
-  whBox.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px' } }, '👥 ตารางวันนี้'));
-  const whoGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' } });
-  ce().forEach(emp => {
-    const inf = disp(emp, tk, today.getFullYear(), today.getMonth(), today.getDate());
-    const sty = { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '10px', background: inf.isL ? inf.b : inf.ty === 'off' ? '#f1f5f9' : inf.b, border: '1px solid ' + (inf.isL ? inf.c + '40' : inf.ty === 'off' ? '#e2e8f0' : inf.c + '40') };
-    whoGrid.appendChild(h('div', { style: sty },
-      emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', {}, emp.avatar),
-      h('div', {},
-        h('div', { style: { fontWeight: 600, fontSize: '13px' } }, dn(emp)),
-        h('div', { style: { fontSize: '11px', color: inf.c } }, inf.i + ' ' + inf.l + (inf.isL ? (inf.st === 'pending' ? ' (รอ)' : '') : '')))));
-  });
-  whBox.appendChild(whoGrid);
-  w.appendChild(whBox);
-
-  // Pending requests for me
-  const myPending = D.ps.filter(s => s.to_employee_id === U.id);
-  const myPendingLeaves = isO ? D.pl.slice(0, 3) : [];
-  if (myPending.length > 0 || myPendingLeaves.length > 0) {
-    const pBox = h('div', { style: { background: '#fffbeb', borderRadius: '16px', padding: '20px', border: '2px solid #fde68a', marginBottom: '20px' } });
-    pBox.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px', color: '#92400e' } }, '⏳ รอการดำเนินการ'));
-    myPending.forEach(sw => {
-      pBox.appendChild(h('div', { style: { padding: '8px 12px', background: '#fff', borderRadius: '8px', marginBottom: '4px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-        h('span', {}, '🔄 ' + (sw.from_nickname || sw.from_name) + ' ขอสลับ ' + fmtDate(sw.date)),
-        h('button', { style: { background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: () => { D.v = 'pending'; render(); } }, 'ดู')));
-    });
-    myPendingLeaves.forEach(l => {
-      const i = LEAVE[l.leave_type] || LEAVE.sick;
-      pBox.appendChild(h('div', { style: { padding: '8px 12px', background: '#fff', borderRadius: '8px', marginBottom: '4px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-        h('span', {}, i.i + ' ' + (l.nickname || l.employee_name) + ' ลา ' + fmtDate(l.date)),
-        h('button', { style: { background: '#10b981', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: () => { D.v = 'pending'; render(); } }, 'ดู')));
-    });
-    w.appendChild(pBox);
-  }
-
-  // Upcoming week preview
-  const upBox = h('div', { style: { background: 'var(--sf)', borderRadius: '16px', padding: '20px', border: '1px solid var(--bd)' } });
-  upBox.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px' } }, '📆 กะ 7 วันข้างหน้า'));
-  if (me) {
-    const upGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' } });
-    for (let i = 0; i < 7; i++) {
-      const dd = new Date(today); dd.setDate(dd.getDate() + i);
-      const kk = dk(dd.getFullYear(), dd.getMonth(), dd.getDate());
-      const inf = disp(me, kk, dd.getFullYear(), dd.getMonth(), dd.getDate());
-      const isToday = i === 0;
-      upGrid.appendChild(h('div', { style: { textAlign: 'center', padding: '10px 4px', borderRadius: '10px', background: isToday ? 'var(--pr)' : inf.isL ? inf.b : inf.ty === 'off' ? '#f1f5f9' : inf.b, color: isToday ? '#fff' : inf.c, border: isToday ? '2px solid var(--pr)' : '1px solid var(--bd)' } },
-        h('div', { style: { fontSize: '11px', fontWeight: 600 } }, DAYS[dd.getDay()]),
-        h('div', { style: { fontSize: '15px', fontWeight: 800, margin: '4px 0' } }, String(dd.getDate())),
-        h('div', { style: { fontSize: '16px' } }, inf.i)));
-    }
-    upBox.appendChild(upGrid);
-  }
-  w.appendChild(upBox);
-  return w;
 }
 
 // === CALENDAR ===
