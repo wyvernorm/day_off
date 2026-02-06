@@ -129,7 +129,7 @@ export async function handleAPI(request, env, url, currentUser) {
       .bind(b.employee_id, b.date, b.leave_type, b.reason || null).run();
     const LT = {sick:'ลาป่วย',personal:'ลากิจ',vacation:'ลาพักร้อน'};
     const empN = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(b.employee_id).first();
-    tgSend(`📝 <b>คำขอลางาน</b>\n👤 ${empN?.nickname||empN?.name}\n📋 ${LT[b.leave_type]||b.leave_type}\n📅 ${fmtDateTH(b.date)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รออนุมัติ`);
+    await tgSend(`📝 <b>คำขอลางาน</b>\n👤 ${empN?.nickname||empN?.name}\n📋 ${LT[b.leave_type]||b.leave_type}\n📅 ${fmtDateTH(b.date)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รออนุมัติ`);
     return json({ message: 'บันทึกสำเร็จ' }, 201);
   }
   if (pathname === '/api/leaves/range' && method === 'POST') {
@@ -146,7 +146,7 @@ export async function handleAPI(request, env, url, currentUser) {
     await DB.batch(dates.map(d => stmt.bind(b.employee_id, d, b.leave_type, b.reason || null)));
     const LT2 = {sick:'ลาป่วย',personal:'ลากิจ',vacation:'ลาพักร้อน'};
     const empN2 = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(b.employee_id).first();
-    tgSend(`📝 <b>คำขอลางาน</b>\n👤 ${empN2?.nickname||empN2?.name}\n📋 ${LT2[b.leave_type]||b.leave_type}\n📅 ${fmtDateTH(b.start_date)} - ${fmtDateTH(b.end_date)} (${dates.length} วัน)${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รออนุมัติ`);
+    await tgSend(`📝 <b>คำขอลางาน</b>\n👤 ${empN2?.nickname||empN2?.name}\n📋 ${LT2[b.leave_type]||b.leave_type}\n📅 ${fmtDateTH(b.start_date)} - ${fmtDateTH(b.end_date)} (${dates.length} วัน)${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รออนุมัติ`);
     return json({ message: `บันทึก ${dates.length} วันสำเร็จ` }, 201);
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/approve$/) && method === 'PUT') {
@@ -172,7 +172,7 @@ export async function handleAPI(request, env, url, currentUser) {
       .bind(currentUser.employee_id, leaveId).run();
     const LTA = {sick:'ลาป่วย',personal:'ลากิจ',vacation:'ลาพักร้อน'};
     const reqEmpA = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(leave.employee_id).first();
-    tgSend(`✅ <b>อนุมัติวันลา</b>\n👤 ${reqEmpA?.nickname||reqEmpA?.name}\n📋 ${LTA[leave.leave_type]||leave.leave_type}\n📅 ${fmtDateTH(leave.date)}\n✍️ อนุมัติโดย: ${currentUser.nickname||currentUser.name}`);
+    await tgSend(`✅ <b>อนุมัติวันลา</b>\n👤 ${reqEmpA?.nickname||reqEmpA?.name}\n📋 ${LTA[leave.leave_type]||leave.leave_type}\n📅 ${fmtDateTH(leave.date)}\n✍️ อนุมัติโดย: ${currentUser.nickname||currentUser.name}`);
     return json({ message: 'อนุมัติสำเร็จ' });
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/reject$/) && method === 'PUT') {
@@ -196,7 +196,7 @@ export async function handleAPI(request, env, url, currentUser) {
       .bind(currentUser.employee_id, leaveId).run();
     const LTR = {sick:'ลาป่วย',personal:'ลากิจ',vacation:'ลาพักร้อน'};
     const reqEmpR = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(leave.employee_id).first();
-    tgSend(`❌ <b>ปฏิเสธวันลา</b>\n👤 ${reqEmpR?.nickname||reqEmpR?.name}\n📋 ${LTR[leave.leave_type]||leave.leave_type}\n📅 ${fmtDateTH(leave.date)}\n✍️ โดย: ${currentUser.nickname||currentUser.name}`);
+    await tgSend(`❌ <b>ปฏิเสธวันลา</b>\n👤 ${reqEmpR?.nickname||reqEmpR?.name}\n📋 ${LTR[leave.leave_type]||leave.leave_type}\n📅 ${fmtDateTH(leave.date)}\n✍️ โดย: ${currentUser.nickname||currentUser.name}`);
     return json({ message: 'ปฏิเสธสำเร็จ' });
   }
   if (pathname.match(/^\/api\/leaves\/\d+$/) && method === 'DELETE') {
@@ -268,7 +268,7 @@ export async function handleAPI(request, env, url, currentUser) {
 
     // swap_count จะเพิ่มตอนอนุมัติเท่านั้น (ไม่นับตอนขอ)
 
-    tgSend(`🔄 <b>คำขอสลับกะ</b>\n👤 ${fromEmp.nickname||fromEmp.name} ↔ ${toEmp.nickname||toEmp.name}\n📅 ${fmtDateTH(b.date)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รอ ${toEmp.nickname||toEmp.name} อนุมัติ`);
+    await tgSend(`🔄 <b>คำขอสลับกะ</b>\n👤 ${fromEmp.nickname||fromEmp.name} ↔ ${toEmp.nickname||toEmp.name}\n📅 ${fmtDateTH(b.date)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รอ ${toEmp.nickname||toEmp.name} อนุมัติ`);
     return json({ message: 'ส่งคำขอสำเร็จ — รอคู่สลับอนุมัติ' }, 201);
   }
 
@@ -341,7 +341,7 @@ export async function handleAPI(request, env, url, currentUser) {
       .bind(b.date1, b.date2, b.from_employee_id, b.to_employee_id, 'off', 'off', 'dayoff', b.reason || null).run();
     // swap_count จะเพิ่มตอนอนุมัติเท่านั้น
 
-    tgSend(`📅 <b>คำขอสลับวันหยุด</b>\n👤 ${fromEmp.nickname||fromEmp.name} ↔ ${toEmp.nickname||toEmp.name}\n📅 ${fmtDateTH(b.date1)} ↔ ${fmtDateTH(b.date2)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รอ ${toEmp.nickname||toEmp.name} อนุมัติ`);
+    await tgSend(`📅 <b>คำขอสลับวันหยุด</b>\n👤 ${fromEmp.nickname||fromEmp.name} ↔ ${toEmp.nickname||toEmp.name}\n📅 ${fmtDateTH(b.date1)} ↔ ${fmtDateTH(b.date2)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รอ ${toEmp.nickname||toEmp.name} อนุมัติ`);
     return json({ message: 'ส่งคำขอสลับวันหยุดสำเร็จ — รอคู่สลับอนุมัติ' }, 201);
   }
 
@@ -387,7 +387,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const sa1 = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(sw.from_employee_id).first();
     const sa2 = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(sw.to_employee_id).first();
     const swType = sw.swap_type === 'dayoff' ? 'สลับวันหยุด' : 'สลับกะ';
-    tgSend(`✅ <b>อนุมัติ${swType}</b>\n👤 ${sa1?.nickname||sa1?.name} ↔ ${sa2?.nickname||sa2?.name}\n📅 ${fmtDateTH(sw.date)}${sw.date2 ? ' ↔ '+fmtDateTH(sw.date2) : ''}\n✍️ อนุมัติโดย: ${currentUser.nickname||currentUser.name}`);
+    await tgSend(`✅ <b>อนุมัติ${swType}</b>\n👤 ${sa1?.nickname||sa1?.name} ↔ ${sa2?.nickname||sa2?.name}\n📅 ${fmtDateTH(sw.date)}${sw.date2 ? ' ↔ '+fmtDateTH(sw.date2) : ''}\n✍️ อนุมัติโดย: ${currentUser.nickname||currentUser.name}`);
     return json({ message: 'อนุมัติสำเร็จ' });
   }
 
@@ -402,7 +402,7 @@ export async function handleAPI(request, env, url, currentUser) {
       .bind(currentUser.employee_id, id).run();
     const sr1 = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(sw.from_employee_id).first();
     const sr2 = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(sw.to_employee_id).first();
-    tgSend(`❌ <b>ปฏิเสธ${sw.swap_type==='dayoff'?'สลับวันหยุด':'สลับกะ'}</b>\n👤 ${sr1?.nickname||sr1?.name} ↔ ${sr2?.nickname||sr2?.name}\n📅 ${fmtDateTH(sw.date)}\n✍️ โดย: ${currentUser.nickname||currentUser.name}`);
+    await tgSend(`❌ <b>ปฏิเสธ${sw.swap_type==='dayoff'?'สลับวันหยุด':'สลับกะ'}</b>\n👤 ${sr1?.nickname||sr1?.name} ↔ ${sr2?.nickname||sr2?.name}\n📅 ${fmtDateTH(sw.date)}\n✍️ โดย: ${currentUser.nickname||currentUser.name}`);
     return json({ message: 'ปฏิเสธสำเร็จ' });
   }
 
@@ -470,7 +470,7 @@ export async function handleAPI(request, env, url, currentUser) {
     // Telegram
     const emp = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(b.employee_id).first();
     const cat = await DB.prepare('SELECT name FROM kpi_categories WHERE id=?').bind(b.category_id).first();
-    tgSend(`⚠️ <b>บันทึกข้อผิดพลาด</b>\n👤 ${emp?.nickname||emp?.name}\n📂 ${cat?.name}\n📅 ${fmtDateTH(b.date)}\n🔢 ${b.points||1} แต้ม${b.damage_cost > 0 ? '\n💰 ค่าเสียหาย: '+b.damage_cost+' ฿' : ''}${b.note ? '\n📝 '+b.note : ''}`);
+    await tgSend(`⚠️ <b>บันทึกข้อผิดพลาด</b>\n👤 ${emp?.nickname||emp?.name}\n📂 ${cat?.name}\n📅 ${fmtDateTH(b.date)}\n🔢 ${b.points||1} แต้ม${b.damage_cost > 0 ? '\n💰 ค่าเสียหาย: '+b.damage_cost+' ฿' : ''}${b.note ? '\n📝 '+b.note : ''}`);
     return json({ data: { id: r.meta.last_row_id }, message: 'บันทึกสำเร็จ' }, 201);
   }
   if (pathname.match(/^\/api\/kpi\/errors\/\d+$/) && method === 'DELETE') {
