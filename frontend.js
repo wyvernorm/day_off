@@ -551,7 +551,19 @@ function render() {
 // === HEADER ===
 function rHdr() {
   const tabs = ['calendar', 'stats'];
-  const myPendingCount = isO ? D.pl.length + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
+  // นับ pending leaves แบบ group (ต่อเนื่องนับ 1)
+  let groupedLeaveCount = 0;
+  if (isO && D.pl.length > 0) {
+    const _sorted = [...D.pl].sort((a, b) => (a.employee_id + '|' + a.leave_type).localeCompare(b.employee_id + '|' + b.leave_type) || a.date.localeCompare(b.date));
+    let _prev = null;
+    _sorted.forEach(l => {
+      const sameGroup = _prev && _prev.employee_id === l.employee_id && _prev.leave_type === l.leave_type;
+      if (sameGroup) { const a = new Date(_prev.date); a.setDate(a.getDate() + 1); if (a.toISOString().slice(0,10) === l.date) { _prev = l; return; } }
+      groupedLeaveCount++;
+      _prev = l;
+    });
+  }
+  const myPendingCount = isO ? groupedLeaveCount + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
   const hasPendingForMe = D.ps.some(sw => sw.to_employee_id === U.id);
   if (isO || hasPendingForMe) tabs.push('pending');
   tabs.push('history');
@@ -972,7 +984,8 @@ function rPnd() {
       h('div', { style: { display: 'flex', gap: '6px' } },
         h('button', { className: 'ba', onClick: async () => {
           try {
-            for (const l of g.dates) { await api('/api/leaves/' + l.id + '/approve', 'PUT'); }
+            const ids = g.dates.map(l => l.id);
+            await api('/api/leaves/batch', 'PUT', { ids, action: 'approve' });
             toast('✅ อนุมัติ ' + dayCount + ' วัน'); load();
           } catch (e) { toast(e.message, true); }
         } }, '✅ อนุมัติ' + (dayCount > 1 ? ' (' + dayCount + ' วัน)' : '')),
@@ -981,7 +994,8 @@ function rPnd() {
           if (reason === null) return;
           if (!reason.trim()) { toast('กรุณาระบุเหตุผล', true); return; }
           try {
-            for (const l of g.dates) { await api('/api/leaves/' + l.id + '/reject', 'PUT', { reject_reason: reason.trim() }); }
+            const ids = g.dates.map(l => l.id);
+            await api('/api/leaves/batch', 'PUT', { ids, action: 'reject', reject_reason: reason.trim() });
             toast('❌ ปฏิเสธ ' + dayCount + ' วัน'); load();
           } catch (e) { toast(e.message, true); }
         } }, '❌ ปฏิเสธ')),

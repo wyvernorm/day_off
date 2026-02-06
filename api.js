@@ -174,11 +174,9 @@ export async function handleAPI(request, env, url, currentUser) {
     const leaveId = pathname.split('/')[3];
     const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
-    // ลาป่วย: ตรวจสิทธิ์จาก settings (sick_approvers) แทน hardcode
     if (leave.leave_type === 'sick') {
       const approversSetting = await DB.prepare("SELECT value FROM settings WHERE key='sick_approvers'").first();
       const sickApprovers = approversSetting ? approversSetting.value.split(',').map(s => s.trim()) : [];
-      // ถ้าไม่มี setting → ใช้ admin/owner ปกติ
       if (sickApprovers.length > 0) {
         if (!sickApprovers.includes(currentUser.email) && !isO) {
           return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่อนุมัติลาป่วยได้' }, 403);
@@ -191,9 +189,46 @@ export async function handleAPI(request, env, url, currentUser) {
     }
     await DB.prepare("UPDATE leaves SET status='approved',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
       .bind(currentUser.employee_id, leaveId).run();
-    const reqEmpA = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(leave.employee_id).first();
-    await tgSend(tgLeaveApproved(reqEmpA?.nickname||reqEmpA?.name, leave.leave_type, leave.date, currentUser.nickname||currentUser.name));
+    // ส่ง Telegram เฉพาะเมื่อไม่ได้เรียกจาก batch (ดูจาก query param)
+    if (!url.searchParams.get('batch')) {
+      const reqEmpA = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(leave.employee_id).first();
+      await tgSend(tgLeaveApproved(reqEmpA?.nickname||reqEmpA?.name, leave.leave_type, leave.date, currentUser.nickname||currentUser.name));
+    }
     return json({ message: 'อนุมัติสำเร็จ' });
+  }
+
+  // Batch approve/reject leaves (grouped consecutive) — sends 1 Telegram
+  if (pathname === '/api/leaves/batch' && method === 'PUT') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const b = await getBody();
+    const ids = b.ids || [];
+    const action = b.action; // 'approve' or 'reject'
+    if (!ids.length || !action) return json({ error: 'ข้อมูลไม่ถูกต้อง' }, 400);
+    const placeholders = ids.map(() => '?').join(',');
+    const { results: leaves } = await DB.prepare(`SELECT l.*, e.name, e.nickname FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id IN (${placeholders})`).bind(...ids).all();
+    if (!leaves.length) return json({ error: 'ไม่พบรายการ' }, 404);
+    if (action === 'approve') {
+      const stmt = DB.prepare("UPDATE leaves SET status='approved',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?");
+      await DB.batch(ids.map(id => stmt.bind(currentUser.employee_id, id)));
+      const first = leaves[0], last = leaves[leaves.length - 1];
+      const LT = {sick:'🏥 ลาป่วย',personal:'📋 ลากิจ',vacation:'✈️ ลาพักร้อน'};
+      const empName = first.nickname || first.name;
+      const dateStr = leaves.length > 1
+        ? `${fmtDateTH(first.date)} → ${fmtDateTH(last.date)} (${leaves.length} วัน)`
+        : `${fmtDateTH(first.date)} (${dayNameTH(first.date)})`;
+      await tgSend(`━━━━━━━━━━━━━━━\n✅ <b>อนุมัติวันลา</b>\n━━━━━━━━━━━━━━━\n👤 <b>${empName}</b>\n📌 ${LT[first.leave_type] || first.leave_type}\n🗓 ${dateStr}\n✍️ โดย: ${currentUser.nickname||currentUser.name}\n\n🟢 <b>อนุมัติแล้ว</b>\n━━━━━━━━━━━━━━━`);
+    } else {
+      const stmt = DB.prepare("UPDATE leaves SET status='rejected',reject_reason=?,approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?");
+      await DB.batch(ids.map(id => stmt.bind(b.reject_reason || null, currentUser.employee_id, id)));
+      const first = leaves[0], last = leaves[leaves.length - 1];
+      const LT = {sick:'🏥 ลาป่วย',personal:'📋 ลากิจ',vacation:'✈️ ลาพักร้อน'};
+      const empName = first.nickname || first.name;
+      const dateStr = leaves.length > 1
+        ? `${fmtDateTH(first.date)} → ${fmtDateTH(last.date)} (${leaves.length} วัน)`
+        : `${fmtDateTH(first.date)} (${dayNameTH(first.date)})`;
+      await tgSend(`━━━━━━━━━━━━━━━\n❌ <b>ปฏิเสธวันลา</b>\n━━━━━━━━━━━━━━━\n👤 <b>${empName}</b>\n📌 ${LT[first.leave_type] || first.leave_type}\n🗓 ${dateStr}\n✍️ โดย: ${currentUser.nickname||currentUser.name}${b.reject_reason ? `\n💬 <i>${b.reject_reason}</i>` : ''}\n\n🔴 <b>ไม่อนุมัติ</b>\n━━━━━━━━━━━━━━━`);
+    }
+    return json({ message: action === 'approve' ? `อนุมัติ ${ids.length} วันสำเร็จ` : `ปฏิเสธ ${ids.length} วัน` });
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/reject$/) && method === 'PUT') {
     const leaveId = pathname.split('/')[3];
