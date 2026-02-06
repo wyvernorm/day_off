@@ -96,10 +96,13 @@ export async function handleAPI(request, env, url, currentUser) {
   if (pathname === '/api/leaves' && method === 'POST') {
     const b = await getBody();
     const yr = b.date.substring(0, 4);
-    const q = await getTotalLeaveUsed(DB, b.employee_id, yr);
-    const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(b.employee_id).first();
-    const max = emp?.max_leave_per_year || 20;
-    if (q >= max) return json({ error: `วันลาใช้หมดแล้ว (${q}/${max} วัน)` }, 400);
+    // ลาป่วยไม่จำกัด, ลากิจ+ลาพักร้อน รวมกัน ≤ 20
+    if (b.leave_type !== 'sick') {
+      const q = await getQuotaLeaveUsed(DB, b.employee_id, yr);
+      const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(b.employee_id).first();
+      const max = emp?.max_leave_per_year || 20;
+      if (q >= max) return json({ error: `โควต้าลากิจ+ลาพักร้อนเต็มแล้ว (${q}/${max} วัน)` }, 400);
+    }
     await DB.prepare(`INSERT INTO leaves (employee_id,date,leave_type,reason,status) VALUES (?,?,?,?,'pending')
        ON CONFLICT(employee_id,date) DO UPDATE SET leave_type=excluded.leave_type,reason=excluded.reason,status='pending',updated_at=datetime('now')`)
       .bind(b.employee_id, b.date, b.leave_type, b.reason || null).run();
@@ -108,10 +111,13 @@ export async function handleAPI(request, env, url, currentUser) {
   if (pathname === '/api/leaves/range' && method === 'POST') {
     const b = await getBody();
     const dates = dateRange(b.start_date, b.end_date), yr = b.start_date.substring(0, 4);
-    const q = await getTotalLeaveUsed(DB, b.employee_id, yr);
-    const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(b.employee_id).first();
-    const max = emp?.max_leave_per_year || 20;
-    if (q + dates.length > max) return json({ error: `วันลาไม่พอ (เหลือ ${max - q} วัน, ขอ ${dates.length} วัน)` }, 400);
+    // ลาป่วยไม่จำกัด, ลากิจ+ลาพักร้อน รวมกัน ≤ 20
+    if (b.leave_type !== 'sick') {
+      const q = await getQuotaLeaveUsed(DB, b.employee_id, yr);
+      const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(b.employee_id).first();
+      const max = emp?.max_leave_per_year || 20;
+      if (q + dates.length > max) return json({ error: `โควต้าไม่พอ (เหลือ ${max - q} วัน, ขอ ${dates.length} วัน)` }, 400);
+    }
     const stmt = DB.prepare(`INSERT INTO leaves (employee_id,date,leave_type,reason,status) VALUES (?,?,?,?,'pending')
        ON CONFLICT(employee_id,date) DO UPDATE SET leave_type=excluded.leave_type,reason=excluded.reason,status='pending',updated_at=datetime('now')`);
     await DB.batch(dates.map(d => stmt.bind(b.employee_id, d, b.leave_type, b.reason || null)));
@@ -231,8 +237,9 @@ export async function handleAPI(request, env, url, currentUser) {
   return json({ error: 'Not found' }, 404);
 }
 
-async function getTotalLeaveUsed(DB, empId, year) {
-  const r = await DB.prepare("SELECT COUNT(*) as c FROM leaves WHERE employee_id=? AND date LIKE ? AND status!='rejected'").bind(empId, `${year}%`).first();
+async function getQuotaLeaveUsed(DB, empId, year) {
+  // นับเฉพาะ ลากิจ+ลาพักร้อน ที่นับรวมลิมิต 20 วัน (ลาป่วยไม่จำกัด)
+  const r = await DB.prepare("SELECT COUNT(*) as c FROM leaves WHERE employee_id=? AND date LIKE ? AND status!='rejected' AND leave_type IN ('personal','vacation')").bind(empId, `${year}%`).first();
   return r?.c || 0;
 }
 function dateRange(s, e) { const d = [], c = new Date(s), ed = new Date(e); while (c <= ed) { d.push(c.toISOString().split('T')[0]); c.setDate(c.getDate() + 1); } return d; }

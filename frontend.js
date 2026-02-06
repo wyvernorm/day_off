@@ -242,11 +242,9 @@ const SHIFT = {
 };
 
 const LEAVE = {
-  dayoff:    { l:'ลาหยุด',  c:'#10b981', b:'#d1fae5', i:'🏖️' },
-  sick:      { l:'ลาป่วย',  c:'#ef4444', b:'#fee2e2', i:'🏥' },
-  personal:  { l:'ลากิจ',   c:'#8b5cf6', b:'#ede9fe', i:'📋' },
-  vacation:  { l:'พักร้อน', c:'#06b6d4', b:'#cffafe', i:'✈️' },
-  maternity: { l:'ลาคลอด',  c:'#ec4899', b:'#fce7f3', i:'👶' },
+  sick:      { l:'ลาป่วย',      c:'#ef4444', b:'#fee2e2', i:'🏥' },
+  personal:  { l:'ลากิจ',       c:'#8b5cf6', b:'#ede9fe', i:'📋' },
+  vacation:  { l:'ลาพักร้อน',   c:'#06b6d4', b:'#cffafe', i:'✈️' },
 };
 
 const MIN_YEAR = 2026, MIN_MONTH = 0; // ม.ค. 2569 เป็นต้นไป
@@ -315,7 +313,7 @@ function canGoPrev() { return D.y > MIN_YEAR || (D.y === MIN_YEAR && D.m > MIN_M
 
 function disp(e, k, y, m, d) {
   const lv = D.lv[e.id + '-' + k];
-  if (lv) return { isL: true, ...(LEAVE[lv.t] || LEAVE.dayoff), st: lv.s, lid: lv.id, lt: lv.t };
+  if (lv) return { isL: true, ...(LEAVE[lv.t] || LEAVE.sick), st: lv.s, lid: lv.id, lt: lv.t };
   const s = D.sh[e.id + '-' + k];
   if (s) return { isL: false, ...SHIFT[s], ty: s };
   if (isOff(e, y, m, d)) return { isL: false, ...SHIFT.off, ty: 'off' };
@@ -550,21 +548,30 @@ function rSta() {
     const sc = { day: 0, evening: 0, off: 0 };
     for (let d = 1; d <= dm; d++) { const k = dk(D.y, D.m, d), inf = disp(emp, k, D.y, D.m, d); if (!inf.isL) sc[inf.ty] = (sc[inf.ty] || 0) + 1; }
     const yl = D.yl[emp.id] || {};
-    const totalUsed = Object.values(yl).reduce((a, b) => a + b, 0);
+    const sickUsed = yl.sick || 0;
+    const personalUsed = yl.personal || 0;
+    const vacationUsed = yl.vacation || 0;
+    const quotaUsed = personalUsed + vacationUsed; // ลากิจ+ลาพักร้อน นับรวมลิมิต 20
     const maxLv = emp.max_leave_per_year || 20;
-    const pct = maxLv > 0 ? (totalUsed / maxLv) * 100 : 0;
+    const pct = maxLv > 0 ? (quotaUsed / maxLv) * 100 : 0;
+    const totalAll = sickUsed + personalUsed + vacationUsed;
     g.appendChild(h('div', { className: 'stc' },
       h('div', { className: 'sth' }, av(emp, true), h('div', {}, h('div', { className: 'stn' }, dn(emp)), h('div', { className: 'str' }, stime(emp) + ' | หยุด: ' + offD(emp).map(d => DAYF[d]).join(', ')))),
       h('div', { className: 'stl' }, 'กะทำงานเดือนนี้'),
       h('div', { className: 'sts' }, ...Object.entries(sc).filter(([, v]) => v > 0).map(([t, c]) => { const i = SHIFT[t]; return i ? h('div', { className: 'stt', style: { background: i.b, color: i.c } }, i.i + ' ' + i.l + ' ' + c + ' วัน') : null; }).filter(Boolean)),
+      // โควต้า ลากิจ+ลาพักร้อน = 20
       h('div', { className: 'total-bar' },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between' } }, h('span', { className: 'tbl' }, 'โควต้าวันลาทั้งปี (ทุกประเภทรวมกัน)'), h('span', { style: { fontSize: '14px', fontWeight: 700 } }, totalUsed + '/' + maxLv + ' วัน')),
+        h('div', { style: { display: 'flex', justifyContent: 'space-between' } }, h('span', { className: 'tbl' }, '📋 ลากิจ + ✈️ ลาพักร้อน (ลิมิตรวม)'), h('span', { style: { fontSize: '14px', fontWeight: 700 } }, quotaUsed + '/' + maxLv + ' วัน')),
         h('div', { className: 'tbb' }, h('div', { className: 'tbf', style: { width: Math.min(pct, 100) + '%' } }))),
       h('div', { className: 'stl' }, 'รายละเอียดการลาทั้งปี'),
-      ...Object.entries(LEAVE).map(([t, inf]) => {
-        const u = yl[t] || 0;
-        return h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, inf.i + ' ' + inf.l), h('span', { style: { fontWeight: 700, color: inf.c } }, u + ' วัน')));
-      }),
+      // ลากิจ
+      h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, '📋 ลากิจ'), h('span', { style: { fontWeight: 700, color: '#8b5cf6' } }, personalUsed + ' วัน'))),
+      // ลาพักร้อน
+      h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, '✈️ ลาพักร้อน'), h('span', { style: { fontWeight: 700, color: '#06b6d4' } }, vacationUsed + ' วัน'))),
+      // ลาป่วย (ไม่จำกัด)
+      h('div', { className: 'qr' }, h('div', { className: 'qh' }, h('span', {}, '🏥 ลาป่วย (ไม่จำกัด)'), h('span', { style: { fontWeight: 700, color: '#ef4444' } }, sickUsed + ' วัน'))),
+      // รวมทั้งหมด
+      h('div', { style: { marginTop: '8px', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', fontSize: '13px', fontWeight: 700, color: '#475569', display: 'flex', justifyContent: 'space-between' } }, h('span', {}, 'รวมวันลาทั้งหมด'), h('span', {}, totalAll + ' วัน')),
     ));
   });
   return g;
@@ -575,7 +582,7 @@ function rPnd() {
   const s = h('div', { className: 'ps' });
   s.appendChild(h('div', { className: 'pt' }, '📋 วันลารออนุมัติ (' + D.pl.length + ')'));
   if (!D.pl.length) s.appendChild(h('p', { style: { color: '#94a3b8', fontSize: '14px', marginBottom: '20px' } }, 'ไม่มีรายการ ✅'));
-  D.pl.forEach(l => { const i = LEAVE[l.leave_type] || LEAVE.dayoff;
+  D.pl.forEach(l => { const i = LEAVE[l.leave_type] || LEAVE.sick;
     s.appendChild(h('div', { className: 'pc' },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } }, h('span', { style: { fontSize: '26px' } }, l.avatar),
         h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '14px' } }, l.nickname || l.employee_name), h('div', { style: { fontSize: '13px', color: '#64748b' } }, i.i + ' ' + i.l + ' — ' + fmtDate(l.date) + (l.reason ? ' (' + l.reason + ')' : '')))),
@@ -642,9 +649,9 @@ function rLv() {
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '📝 ลงวันลา'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
   const eg = h('div', { className: 'fg' }); eg.appendChild(h('label', { className: 'fl' }, 'เลือกพนักงาน')); const ep = h('div', { className: 'pg' });
   ce().forEach(emp => { const a = D.se === emp.id; ep.appendChild(h('button', { className: 'pl' + (a ? ' on' : ''), style: a ? { borderColor: '#3b82f6', background: '#eff6ff', color: '#3b82f6' } : {}, onClick: () => { D.se = emp.id; render(); requestAnimationFrame(() => { const m = document.querySelector('.mo'); if (m) m.classList.add('show'); }); } }, emp.avatar + ' ' + dn(emp))); });
-  eg.appendChild(ep); m.appendChild(eg); let slt = 'dayoff';
+  eg.appendChild(ep); m.appendChild(eg); let slt = 'sick';
   const tg = h('div', { className: 'fg' }); tg.appendChild(h('label', { className: 'fl' }, 'ประเภท')); const tp = h('div', { className: 'pg' });
-  Object.entries(LEAVE).forEach(([t, i]) => { tp.appendChild(h('button', { className: 'pl', id: 'lt-' + t, style: t === 'dayoff' ? { borderColor: i.c, background: i.b, color: i.c } : {},
+  Object.entries(LEAVE).forEach(([t, i]) => { tp.appendChild(h('button', { className: 'pl', id: 'lt-' + t, style: t === 'sick' ? { borderColor: i.c, background: i.b, color: i.c } : {},
     onClick: () => { slt = t; document.querySelectorAll('[id^=lt-]').forEach(el => { const tt = el.id.replace('lt-', ''), ii = LEAVE[tt]; el.style.borderColor = tt === t ? ii.c : 'transparent'; el.style.background = tt === t ? ii.b : '#f8fafc'; el.style.color = tt === t ? ii.c : '#64748b'; }); } }, i.i + ' ' + i.l)); });
   tg.appendChild(tp); m.appendChild(tg);
   m.appendChild(h('div', { className: 'fg', style: { display: 'flex', gap: '10px' } }, h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, 'เริ่ม'), datePicker('ls', D.sd || '')), h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, 'สิ้นสุด'), datePicker('le', D.sd || ''))));
