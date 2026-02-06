@@ -435,6 +435,37 @@ export async function handleAPI(request, env, url, currentUser) {
     await DB.prepare('DELETE FROM kpi_errors WHERE id=?').bind(pathname.split('/').pop()).run();
     return json({ message: 'ลบสำเร็จ' });
   }
+  if (pathname === '/api/kpi/details' && method === 'POST') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const b = await getBody();
+    await DB.prepare('INSERT INTO kpi_details (category_id,description,points,notes) VALUES (?,?,?,?)')
+      .bind(b.category_id, b.description, b.points || 1, b.notes || null).run();
+    return json({ message: 'เพิ่มสำเร็จ' }, 201);
+  }
+  if (pathname.match(/^\/api\/kpi\/details\/\d+$/) && method === 'PUT') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const id = pathname.split('/').pop(), b = await getBody();
+    const f = [], v = [];
+    if (b.description !== undefined) { f.push('description=?'); v.push(b.description); }
+    if (b.points !== undefined) { f.push('points=?'); v.push(b.points); }
+    if (b.notes !== undefined) { f.push('notes=?'); v.push(b.notes); }
+    if (!f.length) return json({ error: 'ไม่มีข้อมูล' }, 400);
+    v.push(id);
+    await DB.prepare('UPDATE kpi_details SET ' + f.join(',') + ' WHERE id=?').bind(...v).run();
+    return json({ message: 'แก้ไขสำเร็จ' });
+  }
+  if (pathname.match(/^\/api\/kpi\/details\/\d+$/) && method === 'DELETE') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    await DB.prepare('DELETE FROM kpi_details WHERE id=?').bind(pathname.split('/').pop()).run();
+    return json({ message: 'ลบสำเร็จ' });
+  }
+  if (pathname === '/api/settings' && method === 'POST') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const b = await getBody();
+    await DB.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
+      .bind(b.key, b.value).run();
+    return json({ message: 'บันทึกสำเร็จ' });
+  }
   if (pathname === '/api/kpi/summary' && method === 'GET') {
     const yr = url.searchParams.get('year') || String(new Date().getFullYear());
     const mo = url.searchParams.get('month');
