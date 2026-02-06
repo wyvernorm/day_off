@@ -608,31 +608,115 @@ function rCal() {
   return g;
 }
 
-// === ROSTER ===
+// === ROSTER (Weekly Card Layout) ===
 function rRos() {
   const dm = gdim(D.y, D.m);
-  const w = h('div', { className: 'rw' }), tb = h('table', { className: 'rt' }), thd = h('thead'), hr = h('tr');
-  hr.appendChild(h('th', { className: 'sk' }, 'พนักงาน'));
+  const wrap = h('div', {});
+
+  // สร้าง weeks array — แบ่งวันในเดือนเป็นสัปดาห์
+  const weeks = [];
+  let week = [];
+  // เติมวันว่างก่อนวันที่ 1
+  const firstDow = fdm(D.y, D.m);
+  for (let i = 0; i < firstDow; i++) week.push(null);
   for (let d = 1; d <= dm; d++) {
-    const k = dk(D.y, D.m, d), td = itd(D.y, D.m, d), hl = D.hol[k];
-    let c = td ? 'tc' : hl ? 'hc' : '';
-    const dw = gdow(D.y, D.m, d);
-    hr.appendChild(h('th', { className: c, style: { minWidth: '40px' } }, h('div', {}, String(d)), h('div', { className: 'dl' }, DAYS[dw])));
+    week.push(d);
+    if (week.length === 7) { weeks.push(week); week = []; }
   }
-  thd.appendChild(hr); tb.appendChild(thd);
-  const bd = h('tbody');
-  ce().forEach(emp => {
-    const r = h('tr');
-    r.appendChild(h('td', { className: 'sk' }, h('div', { className: 'ec' }, av(emp), h('div', {}, h('div', { className: 'en' }, dn(emp)), h('div', { className: 'er' }, stime(emp) + ' | หยุด: ' + offD(emp).map(d => DAYF[d]).join(','))))));
-    for (let d = 1; d <= dm; d++) {
-      const k = dk(D.y, D.m, d), td = itd(D.y, D.m, d);
-      if (isBlackout(k)) { r.appendChild(h('td', { style: { background: '#f1f5f9', opacity: 0.4 } }, h('div', { className: 'sc', style: { background: '#e2e8f0' } }, '—'))); continue; }
-      const inf = disp(emp, k, D.y, D.m, d);
-      r.appendChild(h('td', { className: td ? 'tc' : '' }, h('div', { className: 'sc', style: inf.isL ? { background: inf.b, border: '2px solid ' + inf.c, boxShadow: '0 0 6px ' + inf.c + '40' } : { background: inf.b }, title: (inf.l || ''), onClick: () => { D.sd = k; D.se = emp.id; openModal('day'); } }, inf.i)));
-    }
-    bd.appendChild(r);
+  if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push(week); }
+
+  const emps = ce();
+
+  weeks.forEach((wk, wi) => {
+    // Week header
+    const validDays = wk.filter(d => d !== null);
+    const wStart = validDays[0], wEnd = validDays[validDays.length - 1];
+    const weekLabel = 'สัปดาห์ที่ ' + (wi + 1) + ' — วันที่ ' + wStart + '-' + wEnd + ' ' + MON[D.m];
+
+    const section = h('div', { style: { marginBottom: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' } });
+
+    // Week title bar
+    section.appendChild(h('div', { style: { padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 700, color: '#475569' } }, weekLabel));
+
+    // Table for this week
+    const tb = h('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } });
+
+    // Header row: days of week
+    const thd = h('thead');
+    const hr = h('tr');
+    hr.appendChild(h('th', { style: { padding: '8px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, minWidth: '130px', position: 'sticky', left: 0, zIndex: 2 } }, 'พนักงาน'));
+    wk.forEach((d, di) => {
+      if (d === null) {
+        hr.appendChild(h('th', { style: { padding: '8px 6px', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', minWidth: '70px' } }));
+        return;
+      }
+      const k = dk(D.y, D.m, d);
+      const td = itd(D.y, D.m, d);
+      const hl = D.hol[k];
+      const isWe = di === 0 || di === 6;
+      hr.appendChild(h('th', { style: {
+        padding: '8px 6px', textAlign: 'center', borderBottom: '2px solid #e5e7eb', minWidth: '70px',
+        background: td ? '#eff6ff' : hl ? '#fffbeb' : '#f8fafc',
+        color: isWe ? '#ef4444' : td ? '#3b82f6' : '#475569', fontWeight: 700
+      } },
+        h('div', { style: { fontSize: '16px' } }, String(d)),
+        h('div', { style: { fontSize: '10px', opacity: 0.7 } }, DAYS[di]),
+        hl ? h('div', { style: { fontSize: '9px', color: '#d97706', marginTop: '2px' } }, '🔴') : '',
+      ));
+    });
+    thd.appendChild(hr);
+    tb.appendChild(thd);
+
+    // Body: each employee
+    const bd = h('tbody');
+    emps.forEach(emp => {
+      const r = h('tr');
+      r.appendChild(h('td', { style: { padding: '8px 12px', borderBottom: '1px solid #f1f5f9', position: 'sticky', left: 0, background: '#fff', zIndex: 1 } },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+          av(emp),
+          h('div', { style: { fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' } }, dn(emp)))));
+
+      wk.forEach(d => {
+        if (d === null) {
+          r.appendChild(h('td', { style: { borderBottom: '1px solid #f1f5f9' } }));
+          return;
+        }
+        const k = dk(D.y, D.m, d);
+        const td = itd(D.y, D.m, d);
+        if (isBlackout(k)) {
+          r.appendChild(h('td', { style: { textAlign: 'center', borderBottom: '1px solid #f1f5f9', opacity: 0.3 } }, '—'));
+          return;
+        }
+        const inf = disp(emp, k, D.y, D.m, d);
+        const isOffDay = inf.ty === 'off';
+        const cellStyle = {
+          textAlign: 'center', padding: '4px', borderBottom: '1px solid #f1f5f9',
+          background: td ? '#f0f7ff' : 'transparent'
+        };
+        const tagStyle = inf.isL ? {
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+          background: inf.b, color: inf.c, border: '1.5px solid ' + inf.c,
+          whiteSpace: 'nowrap'
+        } : {
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
+          background: isOffDay ? '#fff1f2' : inf.b,
+          color: isOffDay ? '#dc2626' : inf.c,
+          border: isOffDay ? '1.5px dashed #f87171' : 'none',
+          whiteSpace: 'nowrap'
+        };
+        const label = inf.isL ? inf.i + ' ' + inf.l : isOffDay ? '🏖️ หยุด' : inf.i + ' ' + inf.l;
+        r.appendChild(h('td', { style: cellStyle }, h('span', { style: tagStyle, title: inf.l || '' }, label)));
+      });
+      bd.appendChild(r);
+    });
+    tb.appendChild(bd);
+    section.appendChild(tb);
+    wrap.appendChild(section);
   });
-  tb.appendChild(bd); w.appendChild(tb); return w;
+
+  return wrap;
 }
 
 // === STATS ===
