@@ -1,5 +1,5 @@
 -- =============================================
--- Shift Manager - D1 Schema v4
+-- Shift Manager - D1 Schema v5
 -- =============================================
 
 DROP TABLE IF EXISTS activity_logs;
@@ -22,22 +22,19 @@ CREATE TABLE IF NOT EXISTS employees (
   name TEXT NOT NULL,
   nickname TEXT,
   email TEXT UNIQUE,
-  role TEXT DEFAULT 'staff',         -- owner, admin, staff
+  role TEXT DEFAULT 'staff',
   department TEXT DEFAULT 'general',
   default_shift TEXT DEFAULT 'day',
-  shift_start TEXT DEFAULT '09:00',  -- เวลาเริ่มงาน
-  shift_end TEXT DEFAULT '17:00',    -- เวลาเลิกงาน
-  default_off_day TEXT DEFAULT '6',  -- วันหยุด เช่น "6" หรือ "0,6" (หลายวัน)
+  shift_start TEXT DEFAULT '09:00',
+  shift_end TEXT DEFAULT '17:00',
+  default_off_day TEXT DEFAULT '6',
   avatar TEXT DEFAULT '👤',
   profile_image TEXT,
   phone TEXT,
   line_id TEXT,
-  max_sick_leave INTEGER DEFAULT 30,
-  max_personal_leave INTEGER DEFAULT 6,
-  max_vacation_leave INTEGER DEFAULT 10,
-  max_maternity_leave INTEGER DEFAULT 90,
+  max_leave_per_year INTEGER DEFAULT 20,
   is_active INTEGER DEFAULT 1,
-  show_in_calendar INTEGER DEFAULT 1, -- 0 = ไม่แสดงในปฏิทิน (owner)
+  show_in_calendar INTEGER DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -124,20 +121,18 @@ CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
 -- ========== ตั้งค่า ==========
 INSERT INTO settings (key, value) VALUES
   ('company_holidays_per_year', '20'),
-  ('company_name', 'บริษัท');
+  ('company_name', 'บริษัท'),
+  ('start_year', '2026');
 
 -- ========== พนักงาน ==========
--- default_off_day: 0=อาทิตย์ 1=จันทร์ 2=อังคาร 3=พุธ 4=พฤหัส 5=ศุกร์ 6=เสาร์
--- สามารถใส่หลายวันได้ เช่น "0,6" = หยุดอาทิตย์+เสาร์
+INSERT INTO employees (id, name, nickname, email, role, default_shift, shift_start, shift_end, default_off_day, avatar, show_in_calendar, max_leave_per_year) VALUES
+  (1, 'น้ำตาล', 'น้ำตาล', 'iiiiinamtaniiiii@gmail.com', 'staff', 'evening', '17:00', '00:00', '6', '👩', 1, 20),
+  (2, 'ปุ้มปุ้ย', 'ปุ้ย', 'r.suwimonn@gmail.com', 'staff', 'evening', '17:00', '00:00', '0', '👩‍🦱', 1, 20),
+  (3, 'แตมป์', 'แตม', 'orawantam12@gmail.com', 'staff', 'day', '09:00', '17:00', '6', '👨', 1, 20),
+  (4, 'เหมี่ยว', 'เหมี่ยว', 'phanaarusth2465@gmail.com', 'staff', 'day', '09:00', '17:00', '3', '🐱', 1, 20),
+  (5, 'ToP', 'ToP', 'wyvernorm@gmail.com', 'owner', 'day', '09:00', '17:00', '0,6', '👨‍💼', 0, 20);
 
-INSERT INTO employees (id, name, nickname, email, role, default_shift, shift_start, shift_end, default_off_day, avatar, show_in_calendar) VALUES
-  (1, 'น้ำตาล', 'น้ำตาล', 'iiiiinamtaniiiii@gmail.com', 'staff', 'evening', '17:00', '00:00', '6', '👩', 1),
-  (2, 'ปุ้มปุ้ย', 'ปุ้ย', 'r.suwimonn@gmail.com', 'staff', 'evening', '17:00', '00:00', '0', '👩‍🦱', 1),
-  (3, 'แตมป์', 'แตม', 'orawantam12@gmail.com', 'staff', 'day', '09:00', '17:00', '6', '👨', 1),
-  (4, 'เหมี่ยว', 'เหมี่ยว', 'phanaarusth2465@gmail.com', 'staff', 'day', '09:00', '17:00', '3', '🐱', 1),
-  (5, 'ToP', 'ToP', 'wyvernorm@gmail.com', 'owner', 'day', '09:00', '17:00', '0,6', '👨‍💼', 0);
-
--- ========== วันหยุดนักขัตฤกษ์ 2569 ==========
+-- ========== วันหยุดนักขัตฤกษ์ 2569 (เริ่ม ม.ค. 2569 เป็นต้นไป) ==========
 INSERT OR IGNORE INTO holidays (date, name, type) VALUES
   ('2026-01-01', 'วันขึ้นปีใหม่', 'public'),
   ('2026-01-02', 'ชดเชยวันขึ้นปีใหม่', 'public'),
