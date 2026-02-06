@@ -1,16 +1,35 @@
 -- =============================================
--- Shift Manager - D1 Schema
+-- Shift Manager - D1 Schema v3 (with Auth)
 -- =============================================
+
+DROP TABLE IF EXISTS activity_logs;
+DROP TABLE IF EXISTS swap_requests;
+DROP TABLE IF EXISTS leaves;
+DROP TABLE IF EXISTS shifts;
+DROP TABLE IF EXISTS holidays;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS settings;
+
+-- ตั้งค่าระบบ
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
 
 -- พนักงาน
 CREATE TABLE IF NOT EXISTS employees (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   nickname TEXT,
+  email TEXT UNIQUE,
   role TEXT DEFAULT 'staff',         -- admin, lead, staff
   department TEXT DEFAULT 'general',
-  default_shift TEXT DEFAULT 'morning', -- morning, afternoon, night
+  default_shift TEXT DEFAULT 'day',
+  default_off_day INTEGER DEFAULT 6,
   avatar TEXT DEFAULT '👤',
+  profile_image TEXT,                -- URL จาก Google
   phone TEXT,
   line_id TEXT,
   max_sick_leave INTEGER DEFAULT 30,
@@ -22,12 +41,21 @@ CREATE TABLE IF NOT EXISTS employees (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- ตารางกะรายวัน
+-- Sessions
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  employee_id INTEGER NOT NULL,
+  email TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+
 CREATE TABLE IF NOT EXISTS shifts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
-  date TEXT NOT NULL,                -- YYYY-MM-DD
-  shift_type TEXT NOT NULL,          -- morning, afternoon, night, off
+  date TEXT NOT NULL,
+  shift_type TEXT NOT NULL,
   note TEXT,
   created_by INTEGER,
   created_at TEXT DEFAULT (datetime('now')),
@@ -36,13 +64,12 @@ CREATE TABLE IF NOT EXISTS shifts (
   UNIQUE(employee_id, date)
 );
 
--- วันลา
 CREATE TABLE IF NOT EXISTS leaves (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   employee_id INTEGER NOT NULL,
-  date TEXT NOT NULL,                -- YYYY-MM-DD
-  leave_type TEXT NOT NULL,          -- sick, personal, vacation, maternity
-  status TEXT DEFAULT 'pending',     -- pending, approved, rejected
+  date TEXT NOT NULL,
+  leave_type TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
   reason TEXT,
   approved_by INTEGER,
   approved_at TEXT,
@@ -53,7 +80,6 @@ CREATE TABLE IF NOT EXISTS leaves (
   UNIQUE(employee_id, date)
 );
 
--- คำขอสลับกะ
 CREATE TABLE IF NOT EXISTS swap_requests (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   date TEXT NOT NULL,
@@ -61,7 +87,7 @@ CREATE TABLE IF NOT EXISTS swap_requests (
   to_employee_id INTEGER NOT NULL,
   from_shift TEXT NOT NULL,
   to_shift TEXT NOT NULL,
-  status TEXT DEFAULT 'pending',     -- pending, approved, rejected
+  status TEXT DEFAULT 'pending',
   reason TEXT,
   approved_by INTEGER,
   approved_at TEXT,
@@ -70,64 +96,50 @@ CREATE TABLE IF NOT EXISTS swap_requests (
   FOREIGN KEY (to_employee_id) REFERENCES employees(id)
 );
 
--- วันหยุดนักขัตฤกษ์
 CREATE TABLE IF NOT EXISTS holidays (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  date TEXT NOT NULL UNIQUE,         -- YYYY-MM-DD
+  date TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
-  type TEXT DEFAULT 'public',        -- public, company, special
+  type TEXT DEFAULT 'public',
   created_at TEXT DEFAULT (datetime('now'))
 );
 
--- Activity log
 CREATE TABLE IF NOT EXISTS activity_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  action TEXT NOT NULL,              -- shift_change, leave_request, swap_request, etc.
+  action TEXT NOT NULL,
   description TEXT,
   employee_id INTEGER,
   performed_by INTEGER,
-  metadata TEXT,                     -- JSON
+  metadata TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_shifts_date ON shifts(date);
-CREATE INDEX IF NOT EXISTS idx_shifts_employee ON shifts(employee_id);
 CREATE INDEX IF NOT EXISTS idx_shifts_employee_date ON shifts(employee_id, date);
-CREATE INDEX IF NOT EXISTS idx_leaves_date ON leaves(date);
 CREATE INDEX IF NOT EXISTS idx_leaves_employee ON leaves(employee_id);
 CREATE INDEX IF NOT EXISTS idx_leaves_status ON leaves(status);
 CREATE INDEX IF NOT EXISTS idx_swap_status ON swap_requests(status);
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
-CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
 
--- ========== Seed Data ==========
+-- ========== ตั้งค่า ==========
+INSERT INTO settings (key, value) VALUES
+  ('company_holidays_per_year', '20'),
+  ('company_name', 'บริษัท'),
+  ('fiscal_year_start', '01-01');
 
--- วันหยุดนักขัตฤกษ์ 2568 (2025)
-INSERT OR IGNORE INTO holidays (date, name, type) VALUES
-  ('2025-01-01', 'วันขึ้นปีใหม่', 'public'),
-  ('2025-02-12', 'วันมาฆบูชา', 'public'),
-  ('2025-04-06', 'วันจักรี', 'public'),
-  ('2025-04-13', 'วันสงกรานต์', 'public'),
-  ('2025-04-14', 'วันสงกรานต์', 'public'),
-  ('2025-04-15', 'วันสงกรานต์', 'public'),
-  ('2025-05-01', 'วันแรงงาน', 'public'),
-  ('2025-05-04', 'วันฉัตรมงคล', 'public'),
-  ('2025-05-12', 'วันวิสาขบูชา', 'public'),
-  ('2025-06-03', 'วันเฉลิมพระชนมพรรษา ร.10', 'public'),
-  ('2025-07-10', 'วันอาสาฬหบูชา', 'public'),
-  ('2025-07-11', 'วันเข้าพรรษา', 'public'),
-  ('2025-07-28', 'วันเฉลิมพระชนมพรรษา ร.10', 'public'),
-  ('2025-08-12', 'วันแม่แห่งชาติ', 'public'),
-  ('2025-10-13', 'วันคล้ายวันสวรรคต ร.9', 'public'),
-  ('2025-10-23', 'วันปิยมหาราช', 'public'),
-  ('2025-12-05', 'วันพ่อแห่งชาติ', 'public'),
-  ('2025-12-10', 'วันรัฐธรรมนูญ', 'public'),
-  ('2025-12-31', 'วันสิ้นปี', 'public');
+-- ========== พนักงาน (พร้อม email mapping) ==========
+INSERT INTO employees (id, name, nickname, email, role, default_shift, default_off_day, avatar, department) VALUES
+  (1, 'น้ำตาล', 'น้ำตาล', 'iiiiinamtaniiiii@gmail.com', 'staff', 'evening', 6, '👩', 'general'),
+  (2, 'ปุ้มปุ้ย', 'ปุ้ย', 'r.suwimonn@gmail.com', 'staff', 'evening', 0, '👩‍🦱', 'general'),
+  (3, 'แตมป์', 'แตม', 'orawantam12@gmail.com', 'staff', 'day', 6, '👨', 'general'),
+  (4, 'เหมี่ยว', 'เหมี่ยว', 'phanaarusth2465@gmail.com', 'staff', 'day', 3, '🐱', 'general'),
+  (5, 'ToP', 'ToP', 'wyvernorm@gmail.com', 'admin', 'day', 6, '👨‍💼', 'management');
 
--- วันหยุดนักขัตฤกษ์ 2569 (2026)
+-- ========== วันหยุดนักขัตฤกษ์ 2569 ==========
 INSERT OR IGNORE INTO holidays (date, name, type) VALUES
   ('2026-01-01', 'วันขึ้นปีใหม่', 'public'),
+  ('2026-01-02', 'ชดเชยวันขึ้นปีใหม่', 'public'),
   ('2026-03-03', 'วันมาฆบูชา', 'public'),
   ('2026-04-06', 'วันจักรี', 'public'),
   ('2026-04-13', 'วันสงกรานต์', 'public'),
@@ -136,20 +148,13 @@ INSERT OR IGNORE INTO holidays (date, name, type) VALUES
   ('2026-05-01', 'วันแรงงาน', 'public'),
   ('2026-05-04', 'วันฉัตรมงคล', 'public'),
   ('2026-05-31', 'วันวิสาขบูชา', 'public'),
-  ('2026-06-03', 'วันเฉลิมพระชนมพรรษา ร.10', 'public'),
+  ('2026-06-03', 'วันเฉลิมพระชนมพรรษา สมเด็จพระราชินี', 'public'),
   ('2026-07-28', 'วันเฉลิมพระชนมพรรษา ร.10', 'public'),
+  ('2026-07-29', 'วันอาสาฬหบูชา', 'public'),
+  ('2026-07-30', 'วันเข้าพรรษา', 'public'),
   ('2026-08-12', 'วันแม่แห่งชาติ', 'public'),
   ('2026-10-13', 'วันคล้ายวันสวรรคต ร.9', 'public'),
   ('2026-10-23', 'วันปิยมหาราช', 'public'),
   ('2026-12-05', 'วันพ่อแห่งชาติ', 'public'),
   ('2026-12-10', 'วันรัฐธรรมนูญ', 'public'),
   ('2026-12-31', 'วันสิ้นปี', 'public');
-
--- Sample employees
-INSERT OR IGNORE INTO employees (id, name, nickname, role, default_shift, avatar, department) VALUES
-  (1, 'สมชาย ใจดี', 'ชาย', 'admin', 'morning', '👨‍💼', 'management'),
-  (2, 'สมหญิง รักงาน', 'หญิง', 'lead', 'morning', '👩‍💻', 'production'),
-  (3, 'วิชัย เก่งมาก', 'ชัย', 'staff', 'afternoon', '👨‍🔧', 'production'),
-  (4, 'นภา สดใส', 'นภา', 'staff', 'afternoon', '👩‍🔬', 'production'),
-  (5, 'ธนา มั่นคง', 'ธนา', 'staff', 'night', '👨‍🍳', 'warehouse'),
-  (6, 'ปิยะ สุขสันต์', 'ปิยะ', 'staff', 'night', '👩‍⚕️', 'warehouse');
