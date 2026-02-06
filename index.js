@@ -83,9 +83,25 @@ export default {
         const user = await userRes.json();
 
         // Check if email is registered (case-insensitive)
-        const employee = await env.DB.prepare(
+        let employee = await env.DB.prepare(
           'SELECT * FROM employees WHERE LOWER(email) = LOWER(?) AND is_active = 1'
         ).bind(user.email).first();
+
+        if (!employee) {
+          // Check super_admins setting — auto-create as owner if matched
+          const superSetting = await env.DB.prepare("SELECT value FROM settings WHERE key='super_admins'").first();
+          const superAdmins = (superSetting?.value || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+          if (superAdmins.includes(user.email.toLowerCase())) {
+            // Auto-create as owner, not shown in calendar
+            await env.DB.prepare(
+              `INSERT INTO employees (name, nickname, email, role, default_shift, shift_start, shift_end, default_off_day, avatar, show_in_calendar, is_active, max_leave_per_year)
+               VALUES (?, ?, ?, 'owner', 'day', '09:00', '17:00', '0,6', '👑', 0, 1, 20)`
+            ).bind(user.name || user.email.split('@')[0], user.name || user.email.split('@')[0], user.email).run();
+            employee = await env.DB.prepare(
+              'SELECT * FROM employees WHERE LOWER(email) = LOWER(?) AND is_active = 1'
+            ).bind(user.email).first();
+          }
+        }
 
         if (!employee) {
           const safeEmail = user.email.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

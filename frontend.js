@@ -1581,10 +1581,15 @@ function rSet() {
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันหยุดบริษัท/ปี'), h('input', { type: 'number', className: 'fi', id: 'shv', value: D.set.company_holidays_per_year || '20' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'ผู้มีสิทธิ์อนุมัติลาป่วย (อีเมล, คั่นด้วย ,)'), h('input', { type: 'text', className: 'fi', id: 'ssa', value: D.set.sick_approvers || '', placeholder: 'email1@x.com,email2@x.com' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วัน Blackout (ไม่แสดงข้อมูล, คั่นด้วย ,)'), h('input', { type: 'text', className: 'fi', id: 'sbd', value: D.set.blackout_dates || '', placeholder: '2026-01-01,2026-01-02' })));
+  // Super admins
+  m.appendChild(h('div', { className: 'fg' },
+    h('label', { className: 'fl' }, '👑 ผู้ดูแลระบบ (ไม่ใช่พนักงาน, คั่นด้วย ,)'),
+    h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '6px' } }, 'อีเมลที่ใส่จะสามารถเข้าระบบได้โดยอัตโนมัติเป็นแอดมินสูงสุด ไม่แสดงในปฏิทิน'),
+    h('input', { type: 'text', className: 'fi', id: 'ssa2', value: D.set.super_admins || '', placeholder: 'admin@example.com,boss@example.com' })));
   m.appendChild(h('div', { style: { background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px' } },
     h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '8px' } }, '📊 สรุป'),
     h('div', { style: { fontSize: '14px' } }, 'วันหยุดนักขัตฤกษ์เดือนนี้: ' + Object.keys(D.hol).length + ' วัน')));
-  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
+  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim(), super_admins: document.getElementById('ssa2').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
   o.appendChild(m); return o;
 }
 
