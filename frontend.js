@@ -1,502 +1,322 @@
-// =============================================
-// Frontend v3 - with Auth, Profile, Settings
-// =============================================
-
 export function getLoginHTML(appUrl, errorMsg = '') {
-  return `<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📅 เข้าสู่ระบบ - ระบบจัดการกะ & วันลา</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Noto Sans Thai', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-.login-card { background: #fff; border-radius: 24px; padding: 48px 40px; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
-.login-icon { font-size: 64px; margin-bottom: 16px; }
-.login-title { font-size: 28px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
-.login-sub { font-size: 15px; color: #64748b; margin-bottom: 32px; line-height: 1.6; }
-.google-btn { display: inline-flex; align-items: center; gap: 12px; padding: 14px 32px; border: 2px solid #e2e8f0; border-radius: 14px; background: #fff; font-size: 16px; font-weight: 700; color: #1e293b; cursor: pointer; transition: all 0.2s; font-family: inherit; text-decoration: none; }
-.google-btn:hover { border-color: #4285f4; background: #f8faff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(66,133,244,0.15); }
-.google-btn img { width: 24px; height: 24px; }
-.error-msg { background: #fef2f2; color: #ef4444; padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
-</style>
-</head>
-<body>
-<div class="login-card">
-  <div class="login-icon">📅</div>
-  <div class="login-title">ระบบจัดการกะ & วันลา</div>
-  <div class="login-sub">เข้าสู่ระบบด้วย Google Account<br>เพื่อจัดการตารางกะและวันลาของคุณ</div>
-  ${errorMsg ? '<div class="error-msg">⚠️ ' + errorMsg + '</div>' : ''}
-  <a href="/auth/login" class="google-btn">
-    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
-    เข้าสู่ระบบด้วย Google
-  </a>
-</div>
-</body>
-</html>`;
+  return `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>📅 เข้าสู่ระบบ</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Noto Sans Thai',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.c{background:#fff;border-radius:24px;padding:48px 40px;max-width:420px;width:90%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,0.3)}
+.i{font-size:64px;margin-bottom:16px}.t{font-size:28px;font-weight:800;color:#1e293b;margin-bottom:8px}
+.s{font-size:15px;color:#64748b;margin-bottom:32px;line-height:1.6}
+.b{display:inline-flex;align-items:center;gap:12px;padding:14px 32px;border:2px solid #e2e8f0;border-radius:14px;background:#fff;font-size:16px;font-weight:700;color:#1e293b;cursor:pointer;transition:all 0.2s;font-family:inherit;text-decoration:none}
+.b:hover{border-color:#4285f4;background:#f8faff;transform:translateY(-1px);box-shadow:0 4px 12px rgba(66,133,244,0.15)}
+.b img{width:24px;height:24px}.e{background:#fef2f2;color:#ef4444;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:600;margin-bottom:20px}</style>
+</head><body><div class="c"><div class="i">📅</div><div class="t">ระบบจัดการกะ & วันลา</div><div class="s">เข้าสู่ระบบด้วย Google Account<br>เพื่อจัดการตารางกะและวันลาของคุณ</div>
+${errorMsg?'<div class="e">⚠️ '+errorMsg+'</div>':''}
+<a href="/auth/login" class="b"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">เข้าสู่ระบบด้วย Google</a></div></body></html>`;
 }
 
 export function getHTML(currentUser) {
   const userJson = JSON.stringify({
-    id: currentUser.employee_id,
-    name: currentUser.name,
-    nickname: currentUser.nickname,
-    email: currentUser.email,
-    role: currentUser.role,
-    avatar: currentUser.avatar,
-    profile_image: currentUser.profile_image,
+    id: currentUser.employee_id, name: currentUser.name, nickname: currentUser.nickname,
+    email: currentUser.email, role: currentUser.role, avatar: currentUser.avatar,
+    profile_image: currentUser.profile_image, show_in_calendar: currentUser.show_in_calendar,
   });
 
-  return `<!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  return `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>📅 ระบบจัดการกะ & วันลา</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root { --bg:#f7f8fc; --surface:#fff; --border:#e5e7eb; --text:#1e293b; --text-sub:#64748b; --primary:#3b82f6; --primary-bg:#eff6ff; --danger:#ef4444; --danger-bg:#fef2f2; --success:#10b981; --success-bg:#ecfdf5; --warning:#f59e0b; --warning-bg:#fffbeb; --radius:12px; --shadow:0 1px 3px rgba(0,0,0,0.06); --shadow-lg:0 10px 30px rgba(0,0,0,0.1); }
-* { box-sizing:border-box; margin:0; padding:0; }
-body { font-family:'Noto Sans Thai',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:15px; }
-button { font-family:inherit; cursor:pointer; }
-.container { max-width:1400px; margin:0 auto; padding:16px 20px; }
-
-/* Header */
-.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
-.header h1 { font-size:26px; font-weight:800; }
-.header p { font-size:14px; color:var(--text-sub); margin-top:2px; }
-.user-bar { display:flex; align-items:center; gap:10px; background:var(--surface); padding:8px 16px; border-radius:12px; border:1px solid var(--border); }
-.user-avatar { width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--border); }
-.user-avatar-emoji { font-size:28px; line-height:36px; }
-.user-name { font-weight:700; font-size:14px; }
-.user-role { font-size:11px; color:var(--text-sub); }
-.user-btn { border:none; background:#f1f5f9; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600; color:var(--text-sub); }
-.user-btn:hover { background:#e2e8f0; }
-
-/* Tabs */
-.tabs { display:flex; gap:3px; background:var(--surface); padding:4px; border-radius:10px; border:1px solid var(--border); flex-wrap:wrap; }
-.tab { padding:8px 16px; border:none; border-radius:8px; font-size:14px; font-weight:600; background:transparent; color:var(--text-sub); transition:all 0.15s; }
-.tab.active { background:var(--primary); color:#fff; }
-
-/* Month nav */
-.month-nav { display:flex; align-items:center; gap:10px; background:var(--surface); padding:10px 16px; border-radius:var(--radius); border:1px solid var(--border); margin-bottom:16px; flex-wrap:wrap; }
-.month-nav h2 { font-size:20px; font-weight:700; min-width:200px; text-align:center; }
-.nav-btn { border:none; background:#f1f5f9; width:36px; height:36px; border-radius:8px; font-size:18px; font-weight:700; color:#475569; display:flex; align-items:center; justify-content:center; }
-.today-btn { border:1px solid var(--primary); background:var(--primary-bg); padding:6px 16px; border-radius:8px; font-size:13px; font-weight:700; color:var(--primary); }
-.spacer { flex:1; }
-.action-btn { border:none; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700; }
-.action-btn.leave { background:var(--danger-bg); color:var(--danger); }
-.action-btn.swap { background:var(--success-bg); color:var(--success); }
-
-/* Legend */
-.legend { display:flex; gap:12px; flex-wrap:wrap; padding:10px 16px; background:var(--surface); border-radius:10px; border:1px solid var(--border); margin-bottom:16px; font-size:13px; }
-.legend-item { display:flex; align-items:center; gap:5px; color:var(--text-sub); }
-.legend-icon { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:13px; }
-.legend-sep { width:1px; background:var(--border); }
-
-/* Calendar */
-.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-.cal-header { text-align:center; padding:10px 0; font-weight:700; font-size:14px; color:#475569; }
-.cal-header.weekend { color:var(--danger); }
-.cal-day { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:8px; min-height:110px; cursor:pointer; transition:all 0.15s; }
-.cal-day:hover { box-shadow:var(--shadow-lg); transform:translateY(-1px); z-index:1; }
-.cal-day.today { border:2px solid var(--primary); background:var(--primary-bg); }
-.cal-day.holiday { background:#fffbf0; border-color:#fbbf24; }
-.day-num { font-size:15px; font-weight:600; color:#334155; margin-bottom:4px; display:flex; align-items:center; gap:4px; }
-.day-num.today-num { font-weight:800; color:var(--primary); }
-.day-num .badge { font-size:9px; padding:2px 6px; border-radius:6px; font-weight:700; }
-.holiday-name { font-size:10px; color:#d97706; font-weight:600; margin-bottom:3px; }
-.emp-tag { display:flex; align-items:center; gap:3px; font-size:12px; font-weight:600; padding:2px 6px; border-radius:5px; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-/* Roster */
-.roster-wrap { overflow-x:auto; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface); }
-.roster { width:100%; border-collapse:collapse; font-size:13px; }
-.roster th { padding:10px 4px; text-align:center; background:#f8fafc; border-bottom:2px solid var(--border); font-weight:700; }
-.roster th.sticky { position:sticky; left:0; z-index:3; min-width:140px; text-align:left; padding-left:14px; }
-.roster th.today-col { background:var(--primary-bg); }
-.roster th.holiday-col { background:#fffbeb; color:#d97706; }
-.roster th .day-label { font-size:10px; opacity:0.7; }
-.roster td { text-align:center; padding:3px; border-bottom:1px solid #f1f5f9; }
-.roster td.sticky { position:sticky; left:0; background:#fff; z-index:2; text-align:left; padding:8px 14px; }
-.roster td.today-col { background:#f0f7ff; }
-.emp-cell { display:flex; align-items:center; gap:8px; }
-.emp-avatar { font-size:22px; }
-.emp-img { width:28px; height:28px; border-radius:50%; object-fit:cover; }
-.emp-name { font-weight:700; font-size:13px; }
-.emp-role { font-size:11px; color:var(--text-sub); }
-.shift-cell { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; margin:0 auto; font-size:15px; cursor:pointer; transition:all 0.15s; }
-.shift-cell:hover { transform:scale(1.25); }
-
-/* Stats */
-.stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; }
-.stat-card { background:var(--surface); border-radius:var(--radius); padding:20px; border:1px solid var(--border); }
-.stat-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.stat-avatar { font-size:36px; }
-.stat-img { width:44px; height:44px; border-radius:50%; object-fit:cover; }
-.stat-name { font-size:17px; font-weight:700; }
-.stat-role { font-size:12px; color:var(--text-sub); }
-.stat-section-title { font-size:12px; font-weight:700; color:var(--text-sub); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
-.stat-tags { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
-.stat-tag { display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:6px; font-size:13px; font-weight:600; }
-.quota-row { margin-bottom:10px; }
-.quota-header { display:flex; justify-content:space-between; font-size:12px; color:var(--text-sub); margin-bottom:4px; }
-.quota-bar { height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; }
-.quota-fill { height:100%; border-radius:3px; transition:width 0.4s; }
-
-/* Pending */
-.pending-section { margin-top:20px; }
-.pending-title { font-size:18px; font-weight:700; margin-bottom:12px; }
-.pending-card { background:var(--surface); border-radius:var(--radius); padding:14px 18px; border:1px solid var(--border); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
-.btn-approve { border:none; background:var(--success); color:#fff; padding:7px 16px; border-radius:8px; font-size:13px; font-weight:700; }
-.btn-reject { border:1px solid var(--danger); background:#fff; color:var(--danger); padding:7px 16px; border-radius:8px; font-size:13px; font-weight:700; }
-
-/* Modal */
-.modal-overlay { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.35); backdrop-filter:blur(4px); animation:fadeIn 0.15s; }
-.modal { background:#fff; border-radius:16px; padding:28px; min-width:400px; max-width:540px; box-shadow:var(--shadow-lg); max-height:88vh; overflow:auto; animation:slideUp 0.2s; }
-.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
-.modal-title { font-size:18px; font-weight:700; }
-.modal-close { border:none; background:#f1f5f9; width:32px; height:32px; border-radius:8px; font-size:15px; display:flex; align-items:center; justify-content:center; }
-.emp-row { padding:12px; border-radius:10px; margin-bottom:6px; border:1px solid var(--border); cursor:pointer; transition:all 0.15s; }
-.emp-row:hover { border-color:var(--primary); }
-.emp-row.selected { border-color:var(--primary); background:var(--primary-bg); }
-.emp-row-header { display:flex; align-items:center; gap:10px; }
-.emp-row-shift { margin-left:auto; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; }
-.pill-group { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-.pill { display:inline-flex; align-items:center; gap:4px; padding:6px 14px; border-radius:16px; border:2px solid transparent; font-size:13px; font-weight:600; background:#f8fafc; color:var(--text-sub); transition:all 0.15s; }
-.pill.active { transform:scale(1.05); }
-.section-label { font-size:12px; font-weight:700; color:var(--text-sub); margin:10px 0 6px; text-transform:uppercase; }
-.submit-btn { width:100%; padding:12px 0; border:none; border-radius:10px; font-size:14px; font-weight:700; color:#fff; margin-top:14px; }
-.form-group { margin-bottom:16px; }
-.form-label { display:block; font-size:13px; font-weight:700; color:var(--text-sub); margin-bottom:6px; }
-.form-input { width:100%; padding:10px 14px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; outline:none; }
-.form-input:focus { border-color:var(--primary); }
-textarea.form-input { resize:vertical; min-height:60px; }
-.toast { position:fixed; top:20px; right:20px; z-index:2000; background:#fff; padding:14px 22px; border-radius:10px; box-shadow:var(--shadow-lg); font-weight:600; font-size:14px; border-left:4px solid var(--success); animation:notifIn 0.3s; }
-.toast.error { border-left-color:var(--danger); }
-
-/* Profile */
-.profile-img-large { width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--border); }
-.profile-emoji-large { font-size:60px; line-height:80px; }
-
-@media (max-width:768px) {
-  .cal-grid { gap:3px; } .cal-day { padding:4px; min-height:75px; }
-  .emp-tag { font-size:10px; } .header h1 { font-size:20px; }
-  .stats-grid { grid-template-columns:1fr; } .modal { min-width:320px; margin:10px; }
-}
-@keyframes fadeIn { from{opacity:0}to{opacity:1} }
-@keyframes slideUp { from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)} }
-@keyframes notifIn { from{opacity:0;transform:translateX(80px)}to{opacity:1;transform:translateX(0)} }
-</style>
-</head>
-<body>
-<div class="container" id="app"></div>
+:root{--bg:#f7f8fc;--sf:#fff;--bd:#e5e7eb;--tx:#1e293b;--ts:#64748b;--pr:#3b82f6;--pb:#eff6ff;--dg:#ef4444;--db:#fef2f2;--su:#10b981;--sb:#ecfdf5;--wn:#f59e0b;--wb:#fffbeb;--rd:12px;--sh:0 1px 3px rgba(0,0,0,0.06);--sl:0 10px 30px rgba(0,0,0,0.1)}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:15px}
+button{font-family:inherit;cursor:pointer}.ctn{max-width:1400px;margin:0 auto;padding:16px 20px}
+.hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.hdr h1{font-size:26px;font-weight:800}.hdr p{font-size:14px;color:var(--ts);margin-top:2px}
+.ub{display:flex;align-items:center;gap:10px;background:var(--sf);padding:8px 16px;border-radius:12px;border:1px solid var(--bd)}
+.ua{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)}.uae{font-size:28px;line-height:36px}
+.un{font-weight:700;font-size:14px}.ur{font-size:11px;color:var(--ts)}
+.ubtn{border:none;background:#f1f5f9;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;color:var(--ts)}.ubtn:hover{background:#e2e8f0}
+.tabs{display:flex;gap:3px;background:var(--sf);padding:4px;border-radius:10px;border:1px solid var(--bd);flex-wrap:wrap}
+.tab{padding:8px 16px;border:none;border-radius:8px;font-size:14px;font-weight:600;background:transparent;color:var(--ts);transition:all .15s}.tab.on{background:var(--pr);color:#fff}
+.mnv{display:flex;align-items:center;gap:10px;background:var(--sf);padding:10px 16px;border-radius:var(--rd);border:1px solid var(--bd);margin-bottom:16px;flex-wrap:wrap}
+.mnv h2{font-size:20px;font-weight:700;min-width:200px;text-align:center}
+.nb{border:none;background:#f1f5f9;width:36px;height:36px;border-radius:8px;font-size:18px;font-weight:700;color:#475569;display:flex;align-items:center;justify-content:center}
+.tb{border:1px solid var(--pr);background:var(--pb);padding:6px 16px;border-radius:8px;font-size:13px;font-weight:700;color:var(--pr)}
+.sp{flex:1}.ab{border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700}
+.lgd{display:flex;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--sf);border-radius:10px;border:1px solid var(--bd);margin-bottom:16px;font-size:13px}
+.li{display:flex;align-items:center;gap:5px;color:var(--ts)}.lic{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.ls{width:1px;background:var(--bd)}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.ch{text-align:center;padding:10px 0;font-weight:700;font-size:14px;color:#475569}.ch.we{color:var(--dg)}
+.cd{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rd);padding:8px;min-height:110px;cursor:pointer;transition:all .15s}
+.cd:hover{box-shadow:var(--sl);transform:translateY(-1px);z-index:1}.cd.td{border:2px solid var(--pr);background:var(--pb)}.cd.hd{background:#fffbf0;border-color:#fbbf24}
+.dn{font-size:15px;font-weight:600;color:#334155;margin-bottom:4px;display:flex;align-items:center;gap:4px}.dn.tn{font-weight:800;color:var(--pr)}
+.dn .bg{font-size:9px;padding:2px 6px;border-radius:6px;font-weight:700}
+.hn{font-size:10px;color:#d97706;font-weight:600;margin-bottom:3px}
+.et{display:flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:2px 6px;border-radius:5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw{overflow-x:auto;border-radius:var(--rd);border:1px solid var(--bd);background:var(--sf)}
+.rt{width:100%;border-collapse:collapse;font-size:13px}
+.rt th{padding:10px 4px;text-align:center;background:#f8fafc;border-bottom:2px solid var(--bd);font-weight:700}
+.rt th.sk{position:sticky;left:0;z-index:3;min-width:160px;text-align:left;padding-left:14px}
+.rt th.tc{background:var(--pb)}.rt th.hc{background:#fffbeb;color:#d97706}
+.rt th .dl{font-size:10px;opacity:.7}
+.rt td{text-align:center;padding:3px;border-bottom:1px solid #f1f5f9}
+.rt td.sk{position:sticky;left:0;background:#fff;z-index:2;text-align:left;padding:8px 14px}
+.rt td.tc{background:#f0f7ff}
+.ec{display:flex;align-items:center;gap:8px}.ea{font-size:22px}.ei{width:28px;height:28px;border-radius:50%;object-fit:cover}
+.en{font-weight:700;font-size:13px}.er{font-size:11px;color:var(--ts)}
+.sc{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:15px;cursor:pointer;transition:all .15s}
+.sc:hover{transform:scale(1.25)}
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.stc{background:var(--sf);border-radius:var(--rd);padding:20px;border:1px solid var(--bd)}
+.sth{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.sta{font-size:36px}.sti{width:44px;height:44px;border-radius:50%;object-fit:cover}
+.stn{font-size:17px;font-weight:700}.str{font-size:12px;color:var(--ts)}
+.stl{font-size:12px;font-weight:700;color:var(--ts);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.sts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.stt{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:600}
+.qr{margin-bottom:10px}.qh{display:flex;justify-content:space-between;font-size:12px;color:var(--ts);margin-bottom:4px}
+.qb{height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden}.qf{height:100%;border-radius:3px;transition:width .4s}
+.ps{margin-top:20px}.pt{font-size:18px;font-weight:700;margin-bottom:12px}
+.pc{background:var(--sf);border-radius:var(--rd);padding:14px 18px;border:1px solid var(--bd);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.ba{border:none;background:var(--su);color:#fff;padding:7px 16px;border-radius:8px;font-size:13px;font-weight:700}
+.br{border:1px solid var(--dg);background:#fff;color:var(--dg);padding:7px 16px;border-radius:8px;font-size:13px;font-weight:700}
+.mo{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);animation:fi .15s}
+.md{background:#fff;border-radius:16px;padding:28px;min-width:400px;max-width:560px;box-shadow:var(--sl);max-height:88vh;overflow:auto;animation:su .2s}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.mt{font-size:18px;font-weight:700}.mc{border:none;background:#f1f5f9;width:32px;height:32px;border-radius:8px;font-size:15px;display:flex;align-items:center;justify-content:center}
+.row{padding:12px;border-radius:10px;margin-bottom:6px;border:1px solid var(--bd);cursor:pointer;transition:all .15s}
+.row:hover{border-color:var(--pr)}.row.sel{border-color:var(--pr);background:var(--pb)}
+.rh{display:flex;align-items:center;gap:10px}.rs{margin-left:auto;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700}
+.pg{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pl{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border-radius:16px;border:2px solid transparent;font-size:13px;font-weight:600;background:#f8fafc;color:var(--ts);transition:all .15s}
+.pl.on{transform:scale(1.05)}
+.sl{font-size:12px;font-weight:700;color:var(--ts);margin:10px 0 6px;text-transform:uppercase}
+.btn{width:100%;padding:12px 0;border:none;border-radius:10px;font-size:14px;font-weight:700;color:#fff;margin-top:14px}
+.fg{margin-bottom:16px}.fl{display:block;font-size:13px;font-weight:700;color:var(--ts);margin-bottom:6px}
+.fi{width:100%;padding:10px 14px;border:1px solid var(--bd);border-radius:8px;font-size:14px;font-family:inherit;outline:none}
+.fi:focus{border-color:var(--pr)}textarea.fi{resize:vertical;min-height:60px}
+.tst{position:fixed;top:20px;right:20px;z-index:2000;background:#fff;padding:14px 22px;border-radius:10px;box-shadow:var(--sl);font-weight:600;font-size:14px;border-left:4px solid var(--su);animation:ni .3s}
+.tst.err{border-left-color:var(--dg)}
+.pil{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--bd)}.pel{font-size:60px;line-height:80px}
+@media(max-width:768px){.cg{gap:3px}.cd{padding:4px;min-height:75px}.et{font-size:10px}.hdr h1{font-size:20px}.sg{grid-template-columns:1fr}.md{min-width:320px;margin:10px}}
+@keyframes fi{from{opacity:0}to{opacity:1}}@keyframes su{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ni{from{opacity:0;transform:translateX(80px)}to{opacity:1;transform:translateX(0)}}
+</style></head><body>
+<div class="ctn" id="app"></div>
 <script>
-const CURRENT_USER = ${userJson};
-const API = '';
-const DAYS_TH = ['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
-const DAYS_FULL = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
-const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-const SHIFT_TYPES = {
-  day:     { label:'กลางวัน', time:'09:00-17:00', color:'#f59e0b', bg:'#fef3c7', icon:'☀️' },
-  evening: { label:'กลางคืน', time:'17:00-00:00', color:'#6366f1', bg:'#e0e7ff', icon:'🌙' },
-  off:     { label:'วันหยุด', time:'', color:'#10b981', bg:'#d1fae5', icon:'🏖️' },
-};
-const LEAVE_TYPES = {
-  sick:     { label:'ลาป่วย', color:'#ef4444', bg:'#fee2e2', icon:'🏥', max:30 },
-  personal: { label:'ลากิจ', color:'#8b5cf6', bg:'#ede9fe', icon:'📋', max:6 },
-  vacation: { label:'พักร้อน', color:'#06b6d4', bg:'#cffafe', icon:'✈️', max:10 },
-  maternity:{ label:'ลาคลอด', color:'#ec4899', bg:'#fce7f3', icon:'👶', max:90 },
-};
-const isAdmin = CURRENT_USER.role === 'admin';
+const U=${userJson};
+const DAYS=['จ.','อ.','พ.','พฤ.','ศ.','ส.','อา.'];
+const DAYF=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const MON=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const ST={day:{l:'กลางวัน',c:'#f59e0b',b:'#fef3c7',i:'☀️'},evening:{l:'กลางคืน',c:'#6366f1',b:'#e0e7ff',i:'🌙'},off:{l:'วันหยุด',c:'#10b981',b:'#d1fae5',i:'🏖️'}};
+const LT={sick:{l:'ลาป่วย',c:'#ef4444',b:'#fee2e2',i:'🏥',m:30},personal:{l:'ลากิจ',c:'#8b5cf6',b:'#ede9fe',i:'📋',m:6},vacation:{l:'พักร้อน',c:'#06b6d4',b:'#cffafe',i:'✈️',m:10},maternity:{l:'ลาคลอด',c:'#ec4899',b:'#fce7f3',i:'👶',m:90}};
+const isOwner=U.role==='owner'||U.role==='admin';
+const S={v:'calendar',y:new Date().getFullYear(),m:new Date().getMonth(),emp:[],sh:{},lv:{},hol:{},set:{},pl:[],ps:[],sd:null,se:null,modal:null,toast:null};
 
-const state = {
-  view:'calendar', year:new Date().getFullYear(), month:new Date().getMonth(),
-  employees:[], shifts:{}, leaves:{}, holidays:{}, settings:{},
-  pendingLeaves:[], pendingSwaps:[],
-  selectedDate:null, selectedEmployee:null, modal:null, toast:null,
-};
+async function api(p,m='GET',b=null){const o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);const r=await fetch(p,o);const d=await r.json();if(!r.ok)throw new Error(d.error||'error');return d;}
+function toast(m,e=false){S.toast={m,e};render();setTimeout(()=>{S.toast=null;render();},2500);}
+async function load(){try{const ms=S.y+'-'+String(S.m+1).padStart(2,'0');const[o,pl,ps]=await Promise.all([api('/api/overview?month='+ms),api('/api/leaves?status=pending'),api('/api/swaps?status=pending')]);S.emp=o.data.employees;S.set=o.data.settings||{};S.sh={};o.data.shifts.forEach(s=>{S.sh[s.employee_id+'-'+s.date]=s.shift_type;});S.lv={};o.data.leaves.forEach(l=>{S.lv[l.employee_id+'-'+l.date]={t:l.leave_type,s:l.status,id:l.id};});S.hol={};o.data.holidays.forEach(h=>{S.hol[h.date]=h.name;});S.pl=pl.data;S.ps=ps.data;}catch(e){toast('โหลดไม่สำเร็จ: '+e.message,true);}render();}
+function dk(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function itd(y,m,d){const t=new Date();return t.getFullYear()===y&&t.getMonth()===m&&t.getDate()===d;}
+function dow(y,m,d){return new Date(y,m,d).getDay();}
+function dim(y,m){return new Date(y,m+1,0).getDate();}
+function fdm(y,m){const d=new Date(y,m,1).getDay();return d===0?6:d-1;}
+function calEmp(){return S.emp.filter(e=>e.show_in_calendar===1);}
+function offDays(emp){return(emp.default_off_day||'6').split(',').map(Number);}
+function isOff(emp,y,m,d){return offDays(emp).includes(dow(y,m,d));}
+function shiftTime(emp){return(emp.shift_start||'09:00')+'-'+(emp.shift_end||'17:00');}
+function disp(emp,k,y,m,d){const lv=S.lv[emp.id+'-'+k];if(lv)return{isL:true,...LT[lv.t],st:lv.s,lid:lv.id};const s=S.sh[emp.id+'-'+k];if(s)return{isL:false,...ST[s],ty:s};if(isOff(emp,y,m,d))return{isL:false,...ST.off,ty:'off'};return{isL:false,...ST[emp.default_shift],ty:emp.default_shift};}
+function dn(e){return e.nickname||e.name;}
+function av(e,lg){if(e.profile_image)return h('img',{src:e.profile_image,className:lg?'pil':'ei'});return h('span',{className:lg?'pel':'ea'},e.avatar);}
+function h(t,a={},...ch){const el=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k==='style'&&typeof v==='object')Object.assign(el.style,v);else if(k.startsWith('on'))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==='className')el.className=v;else if(k==='innerHTML')el.innerHTML=v;else if(k==='src')el.src=v;else el.setAttribute(k,v);}ch.flat(Infinity).forEach(c=>{if(c==null)return;el.appendChild(typeof c==='string'||typeof c==='number'?document.createTextNode(c):c);});return el;}
 
-async function api(p,m='GET',b=null){const o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);const r=await fetch(API+p,o);const d=await r.json();if(!r.ok)throw new Error(d.error||'เกิดข้อผิดพลาด');return d;}
-function showToast(msg,err=false){state.toast={msg,isError:err};render();setTimeout(()=>{state.toast=null;render();},2500);}
+function render(){const a=document.getElementById('app');a.innerHTML='';a.appendChild(rHdr());a.appendChild(rNav());a.appendChild(rLgd());
+if(S.v==='calendar')a.appendChild(rCal());else if(S.v==='roster')a.appendChild(rRos());else if(S.v==='stats')a.appendChild(rSta());else if(S.v==='pending')a.appendChild(rPnd());
+if(S.modal==='day')a.appendChild(rDay());if(S.modal==='leave')a.appendChild(rLv());if(S.modal==='swap')a.appendChild(rSwp());
+if(S.modal==='employee')a.appendChild(rEmp());if(S.modal==='editEmp')a.appendChild(rEditEmp());
+if(S.modal==='profile')a.appendChild(rPrf());if(S.modal==='settings')a.appendChild(rSet());
+if(S.toast)a.appendChild(h('div',{className:'tst'+(S.toast.e?' err':'')},S.toast.m));}
 
-async function loadData(){
-  try{
-    const ms=state.year+'-'+String(state.month+1).padStart(2,'0');
-    const[ov,pl,ps]=await Promise.all([api('/api/overview?month='+ms),api('/api/leaves?status=pending'),api('/api/swaps?status=pending')]);
-    state.employees=ov.data.employees; state.settings=ov.data.settings||{};
-    state.shifts={}; ov.data.shifts.forEach(s=>{state.shifts[s.employee_id+'-'+s.date]=s.shift_type;});
-    state.leaves={}; ov.data.leaves.forEach(l=>{state.leaves[l.employee_id+'-'+l.date]={type:l.leave_type,status:l.status,id:l.id};});
-    state.holidays={}; ov.data.holidays.forEach(h=>{state.holidays[h.date]=h.name;});
-    state.pendingLeaves=pl.data; state.pendingSwaps=ps.data;
-  }catch(e){showToast('โหลดข้อมูลไม่สำเร็จ: '+e.message,true);}
-  render();
-}
+function rHdr(){const pc=S.pl.length+S.ps.length;const tabs=['calendar','roster','stats'];if(isOwner)tabs.push('pending');
+return h('div',{className:'hdr'},h('div',{},h('h1',{},'📅 ระบบจัดการกะ & วันลา'),h('p',{},'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
+h('div',{style:{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}},
+h('div',{className:'tabs'},...tabs.map(v=>{const lb={calendar:'📅 ปฏิทิน',roster:'📋 ตารางกะ',stats:'📊 สถิติ',pending:'🔔 รออนุมัติ'};let t=lb[v];if(v==='pending'&&pc>0)t+=' ('+pc+')';return h('button',{className:'tab'+(S.v===v?' on':''),onClick:()=>{S.v=v;render();}},t);})),
+h('div',{className:'ub'},U.profile_image?h('img',{src:U.profile_image,className:'ua'}):h('span',{className:'uae'},U.avatar),
+h('div',{},h('div',{className:'un'},U.nickname||U.name),h('div',{className:'ur'},isOwner?'👑 Owner':'พนักงาน')),
+h('button',{className:'ubtn',onClick:()=>{S.modal='profile';render();}},'โปรไฟล์'),
+isOwner?h('button',{className:'ubtn',onClick:()=>{S.modal='settings';render();}},'⚙️'):'',
+h('button',{className:'ubtn',style:{color:'#ef4444'},onClick:()=>{location.href='/auth/logout';}},'ออก'))));}
 
-function dateKey(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
-function isToday(y,m,d){const t=new Date();return t.getFullYear()===y&&t.getMonth()===m&&t.getDate()===d;}
-function getDOW(y,m,d){return new Date(y,m,d).getDay();}
-function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
-function firstDayOfMonth(y,m){const d=new Date(y,m,1).getDay();return d===0?6:d-1;}
-function isOffDay(emp,y,m,d){return getDOW(y,m,d)===emp.default_off_day;}
+function rNav(){return h('div',{className:'mnv'},
+h('button',{className:'nb',onClick:()=>{if(S.m===0){S.m=11;S.y--;}else S.m--;load();}},'‹'),
+h('h2',{},MON[S.m]+' '+(S.y+543)),
+h('button',{className:'nb',onClick:()=>{if(S.m===11){S.m=0;S.y++;}else S.m++;load();}},'›'),
+h('button',{className:'tb',onClick:()=>{S.m=new Date().getMonth();S.y=new Date().getFullYear();load();}},'วันนี้'),
+h('div',{className:'sp'}),
+h('button',{className:'ab',style:{background:'#fef2f2',color:'#ef4444'},onClick:()=>{S.modal='leave';S.sd=dk(S.y,S.m,new Date().getDate());render();}},'+ ลางาน'),
+h('button',{className:'ab',style:{background:'#ecfdf5',color:'#10b981'},onClick:()=>{S.modal='swap';S.sd=dk(S.y,S.m,new Date().getDate());render();}},'🔄 สลับกะ'),
+isOwner?h('button',{className:'ab',style:{background:'#eff6ff',color:'#3b82f6'},onClick:()=>{S.modal='employee';render();}},'👤 จัดการพนักงาน'):'');}
 
-function getDisplayShift(emp,dk,y,m,d){
-  const lv=state.leaves[emp.id+'-'+dk];
-  if(lv)return{isLeave:true,...LEAVE_TYPES[lv.type],leaveStatus:lv.status,leaveId:lv.id};
-  const s=state.shifts[emp.id+'-'+dk];
-  if(s)return{isLeave:false,...SHIFT_TYPES[s],shiftType:s};
-  if(isOffDay(emp,y,m,d))return{isLeave:false,...SHIFT_TYPES.off,shiftType:'off'};
-  return{isLeave:false,...SHIFT_TYPES[emp.default_shift],shiftType:emp.default_shift};
-}
+function rLgd(){const ce=calEmp();const shiftTypes=new Set(ce.map(e=>e.default_shift));
+return h('div',{className:'lgd'},
+...Object.entries(ST).filter(([k])=>k==='off'||shiftTypes.has(k)).map(([k,v])=>{
+const emp=ce.find(e=>e.default_shift===k);const time=emp?shiftTime(emp):(v.time||'');
+return h('div',{className:'li'},h('span',{className:'lic',style:{background:v.b}},v.i),h('span',{style:{fontWeight:600}},v.l),time?h('span',{style:{color:'#94a3b8'}},time):null);}),
+h('div',{className:'ls'}),
+...Object.entries(LT).map(([k,v])=>h('div',{className:'li'},h('span',{},v.i),h('span',{style:{fontWeight:600}},v.l))));}
 
-function empDisplay(emp){return emp.nickname||emp.name;}
-function empAvatarEl(emp,size){
-  if(emp.profile_image)return h('img',{src:emp.profile_image,className:size==='large'?'profile-img-large':'emp-img'});
-  return h('span',{className:size==='large'?'profile-emoji-large':'emp-avatar'},emp.avatar);
-}
+function rCal(){const g=h('div',{className:'cg'});DAYS.forEach((d,i)=>g.appendChild(h('div',{className:'ch'+(i>=5?' we':'')},d)));
+for(let i=0;i<fdm(S.y,S.m);i++)g.appendChild(h('div'));const dm=dim(S.y,S.m);
+for(let d=1;d<=dm;d++){const k=dk(S.y,S.m,d),td=itd(S.y,S.m,d),hl=S.hol[k];
+const dy=h('div',{className:'cd'+(td?' td':'')+(hl?' hd':''),onClick:()=>{S.sd=k;S.modal='day';S.se=null;render();}});
+const nm=h('div',{className:'dn'+(td?' tn':'')},String(d));if(td)nm.appendChild(h('span',{className:'bg',style:{background:'#3b82f6',color:'#fff'}},'วันนี้'));dy.appendChild(nm);
+if(hl)dy.appendChild(h('div',{className:'hn'},'🔴 '+hl));
+calEmp().forEach(emp=>{const inf=disp(emp,k,S.y,S.m,d);
+dy.appendChild(h('div',{className:'et',style:{background:inf.b,color:inf.c}},inf.i+' '+dn(emp)));});
+g.appendChild(dy);}return g;}
 
-function h(tag,attrs={},...ch){const el=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==='style'&&typeof v==='object')Object.assign(el.style,v);else if(k.startsWith('on'))el.addEventListener(k.slice(2).toLowerCase(),v);else if(k==='className')el.className=v;else if(k==='innerHTML')el.innerHTML=v;else if(k==='src')el.src=v;else el.setAttribute(k,v);}ch.flat(Infinity).forEach(c=>{if(c==null)return;el.appendChild(typeof c==='string'||typeof c==='number'?document.createTextNode(c):c);});return el;}
+function rRos(){const dm=dim(S.y,S.m);const w=h('div',{className:'rw'}),tb=h('table',{className:'rt'}),th=h('thead'),hr=h('tr');
+hr.appendChild(h('th',{className:'sk'},'พนักงาน'));
+for(let d=1;d<=dm;d++){const k=dk(S.y,S.m,d),td=itd(S.y,S.m,d),hl=S.hol[k];let c=td?'tc':hl?'hc':'';const dw=dow(S.y,S.m,d),di=dw===0?6:dw-1;
+hr.appendChild(h('th',{className:c,style:{minWidth:'40px'}},h('div',{},String(d)),h('div',{className:'dl'},DAYS[di])));}
+th.appendChild(hr);tb.appendChild(th);const bd=h('tbody');
+calEmp().forEach(emp=>{const r=h('tr');
+r.appendChild(h('td',{className:'sk'},h('div',{className:'ec'},av(emp),h('div',{},h('div',{className:'en'},dn(emp)),h('div',{className:'er'},'หยุด: '+offDays(emp).map(d=>DAYF[d]).join(', ')+' | '+shiftTime(emp))))));
+for(let d=1;d<=dm;d++){const k=dk(S.y,S.m,d),td=itd(S.y,S.m,d),inf=disp(emp,k,S.y,S.m,d);
+r.appendChild(h('td',{className:td?'tc':''},h('div',{className:'sc',style:{background:inf.b},title:inf.l+' '+(inf.time||''),onClick:()=>{S.sd=k;S.se=emp.id;S.modal='day';render();}},inf.i)));}
+bd.appendChild(r);});tb.appendChild(bd);w.appendChild(tb);return w;}
 
-function render(){
-  const app=document.getElementById('app'); app.innerHTML='';
-  app.appendChild(renderHeader()); app.appendChild(renderMonthNav()); app.appendChild(renderLegend());
-  if(state.view==='calendar')app.appendChild(renderCalendar());
-  else if(state.view==='roster')app.appendChild(renderRoster());
-  else if(state.view==='stats')app.appendChild(renderStats());
-  else if(state.view==='pending')app.appendChild(renderPending());
-  if(state.modal==='day')app.appendChild(renderDayModal());
-  if(state.modal==='leave')app.appendChild(renderLeaveModal());
-  if(state.modal==='swap')app.appendChild(renderSwapModal());
-  if(state.modal==='employee')app.appendChild(renderEmployeeModal());
-  if(state.modal==='profile')app.appendChild(renderProfileModal());
-  if(state.modal==='settings')app.appendChild(renderSettingsModal());
-  if(state.toast)app.appendChild(h('div',{className:'toast'+(state.toast.isError?' error':'')},state.toast.msg));
-}
+function rSta(){const g=h('div',{className:'sg'}),dm=dim(S.y,S.m);
+calEmp().forEach(emp=>{const sc={day:0,evening:0,off:0},lc={sick:0,personal:0,vacation:0,maternity:0};
+for(let d=1;d<=dm;d++){const k=dk(S.y,S.m,d),inf=disp(emp,k,S.y,S.m,d);if(inf.isL)lc[S.lv[emp.id+'-'+k]?.t]++;else sc[inf.ty]=(sc[inf.ty]||0)+1;}
+g.appendChild(h('div',{className:'stc'},
+h('div',{className:'sth'},av(emp,true),h('div',{},h('div',{className:'stn'},dn(emp)),h('div',{className:'str'},'หยุด: '+offDays(emp).map(d=>DAYF[d]).join(', ')+' | '+shiftTime(emp)))),
+h('div',{className:'stl'},'กะทำงานเดือนนี้'),
+h('div',{className:'sts'},...Object.entries(sc).filter(([_,v])=>v>0).map(([t,c])=>{const i=ST[t];return i?h('div',{className:'stt',style:{background:i.b,color:i.c}},i.i+' '+i.l+' '+c+' วัน'):null;}).filter(Boolean)),
+h('div',{className:'stl'},'โควต้าวันลา (ทั้งปี)'),
+...Object.entries(LT).map(([t,inf])=>{const u=lc[t]||0,mx=emp['max_'+t+'_leave']||inf.m,p=mx>0?(u/mx)*100:0;
+return h('div',{className:'qr'},h('div',{className:'qh'},h('span',{},inf.i+' '+inf.l),h('span',{style:{fontWeight:700,color:inf.c}},u+'/'+mx)),
+h('div',{className:'qb'},h('div',{className:'qf',style:{width:p+'%',background:inf.c}})));})
+));});return g;}
 
-function renderHeader(){
-  const pc=state.pendingLeaves.length+state.pendingSwaps.length;
-  const tabs=['calendar','roster','stats'];
-  if(isAdmin)tabs.push('pending');
-  return h('div',{className:'header'},
-    h('div',{},h('h1',{},'📅 ระบบจัดการกะ & วันลา'),h('p',{},'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
-    h('div',{style:{display:'flex',gap:'10px',alignItems:'center',flexWrap:'wrap'}},
-      h('div',{className:'tabs'},
-        ...tabs.map(v=>{const lbl={calendar:'📅 ปฏิทิน',roster:'📋 ตารางกะ',stats:'📊 สถิติ',pending:'🔔 รออนุมัติ'};let t=lbl[v];if(v==='pending'&&pc>0)t+=' ('+pc+')';return h('button',{className:'tab'+(state.view===v?' active':''),onClick:()=>{state.view=v;render();}},t);})
-      ),
-      h('div',{className:'user-bar'},
-        CURRENT_USER.profile_image?h('img',{src:CURRENT_USER.profile_image,className:'user-avatar'}):h('span',{className:'user-avatar-emoji'},CURRENT_USER.avatar),
-        h('div',{},h('div',{className:'user-name'},CURRENT_USER.nickname||CURRENT_USER.name),h('div',{className:'user-role'},isAdmin?'👑 Admin':'พนักงาน')),
-        h('button',{className:'user-btn',onClick:()=>{state.modal='profile';render();}},'โปรไฟล์'),
-        isAdmin?h('button',{className:'user-btn',onClick:()=>{state.modal='settings';render();}},'⚙️'):'',
-        h('button',{className:'user-btn',style:{color:'#ef4444'},onClick:()=>{window.location.href='/auth/logout';}},'ออก'),
-      ),
-    )
-  );
-}
+function rPnd(){const s=h('div',{className:'ps'});
+s.appendChild(h('div',{className:'pt'},'📋 วันลารออนุมัติ ('+S.pl.length+')'));
+if(!S.pl.length)s.appendChild(h('p',{style:{color:'#94a3b8',fontSize:'14px',marginBottom:'20px'}},'ไม่มีรายการ ✅'));
+S.pl.forEach(l=>{const i=LT[l.leave_type];s.appendChild(h('div',{className:'pc'},
+h('div',{style:{display:'flex',alignItems:'center',gap:'10px'}},h('span',{style:{fontSize:'26px'}},l.avatar),h('div',{},h('div',{style:{fontWeight:700,fontSize:'14px'}},l.nickname||l.employee_name),h('div',{style:{fontSize:'13px',color:'#64748b'}},i.i+' '+i.l+' — '+l.date+(l.reason?' ('+l.reason+')':'')))),
+h('div',{style:{display:'flex',gap:'6px'}},h('button',{className:'ba',onClick:async()=>{try{await api('/api/leaves/'+l.id+'/approve','PUT');toast('✅ อนุมัติ');load();}catch(e){toast(e.message,true);}}},'✅ อนุมัติ'),h('button',{className:'br',onClick:async()=>{try{await api('/api/leaves/'+l.id+'/reject','PUT');toast('❌ ปฏิเสธ');load();}catch(e){toast(e.message,true);}}},'❌ ปฏิเสธ'))));});
+s.appendChild(h('div',{className:'pt',style:{marginTop:'24px'}},'🔄 สลับกะรออนุมัติ ('+S.ps.length+')'));
+if(!S.ps.length)s.appendChild(h('p',{style:{color:'#94a3b8',fontSize:'14px'}},'ไม่มีรายการ ✅'));
+S.ps.forEach(sw=>{s.appendChild(h('div',{className:'pc'},h('div',{style:{display:'flex',alignItems:'center',gap:'10px'}},h('span',{style:{fontSize:'22px'}},sw.from_avatar),h('div',{},h('div',{style:{fontWeight:700,fontSize:'14px'}},(sw.from_nickname||sw.from_name)+' ↔ '+(sw.to_nickname||sw.to_name)),h('div',{style:{fontSize:'13px',color:'#64748b'}},'วันที่ '+sw.date))),
+h('div',{style:{display:'flex',gap:'6px'}},h('button',{className:'ba',onClick:async()=>{try{await api('/api/swaps/'+sw.id+'/approve','PUT');toast('✅ อนุมัติ');load();}catch(e){toast(e.message,true);}}},'✅'),h('button',{className:'br',onClick:async()=>{try{await api('/api/swaps/'+sw.id+'/reject','PUT');toast('❌');load();}catch(e){toast(e.message,true);}}},'❌'))));});
+return s;}
 
-function renderMonthNav(){
-  return h('div',{className:'month-nav'},
-    h('button',{className:'nav-btn',onClick:()=>{if(state.month===0){state.month=11;state.year--;}else state.month--;loadData();}},'‹'),
-    h('h2',{},MONTHS_TH[state.month]+' '+(state.year+543)),
-    h('button',{className:'nav-btn',onClick:()=>{if(state.month===11){state.month=0;state.year++;}else state.month++;loadData();}},'›'),
-    h('button',{className:'today-btn',onClick:()=>{state.month=new Date().getMonth();state.year=new Date().getFullYear();loadData();}},'วันนี้'),
-    h('div',{className:'spacer'}),
-    h('button',{className:'action-btn leave',onClick:()=>{state.modal='leave';state.selectedDate=dateKey(state.year,state.month,new Date().getDate());render();}},'+ ลางาน'),
-    h('button',{className:'action-btn swap',onClick:()=>{state.modal='swap';state.selectedDate=dateKey(state.year,state.month,new Date().getDate());render();}},'🔄 สลับกะ'),
-    isAdmin?h('button',{className:'action-btn',style:{background:'#eff6ff',color:'#3b82f6'},onClick:()=>{state.modal='employee';render();}},'👤 จัดการพนักงาน'):'',
-  );
-}
+function rDay(){const k=S.sd;if(!k)return h('div');const[yr,mo,dy]=[+k.split('-')[0],+k.split('-')[1]-1,+k.split('-')[2]];const hl=S.hol[k];
+const o=h('div',{className:'mo',onClick:()=>{S.modal=null;render();}});
+const m=h('div',{className:'md',onClick:e=>e.stopPropagation()});
+m.appendChild(h('div',{className:'mh'},h('div',{className:'mt'},'📅 '+dy+' '+MON[mo]+' '+(yr+543)+' ('+DAYF[dow(yr,mo,dy)]+')'+(hl?' — 🔴'+hl:'')),h('button',{className:'mc',onClick:()=>{S.modal=null;render();}},'✕')));
+calEmp().forEach(emp=>{const inf=disp(emp,k,yr,mo,dy),sel=S.se===emp.id;
+const r=h('div',{className:'row'+(sel?' sel':''),onClick:()=>{S.se=sel?null:emp.id;render();}});
+const hd=h('div',{className:'rh'},av(emp),h('div',{},h('div',{style:{fontWeight:700,fontSize:'14px'}},dn(emp)),h('div',{style:{fontSize:'11px',color:'#94a3b8'}},'หยุด: '+offDays(emp).map(d=>DAYF[d]).join(', ')+' | '+shiftTime(emp))));
+if(inf.isL)hd.appendChild(h('span',{className:'rs',style:{background:inf.b,color:inf.c}},inf.i+' '+inf.l+(inf.st==='pending'?' (รอ)':'')));
+else hd.appendChild(h('span',{className:'rs',style:{background:inf.b,color:inf.c}},inf.i+' '+inf.l));
+r.appendChild(hd);
+if(sel){r.appendChild(h('div',{className:'sl'},'เปลี่ยนกะ'));
+const sp=h('div',{className:'pg'});Object.entries(ST).forEach(([t,si])=>{const a=!inf.isL&&inf.ty===t;sp.appendChild(h('button',{className:'pl'+(a?' on':''),style:a?{borderColor:si.c,background:si.b,color:si.c}:{},onClick:async e=>{e.stopPropagation();try{if(inf.isL&&inf.lid)await api('/api/leaves/'+inf.lid,'DELETE');await api('/api/shifts','POST',{employee_id:emp.id,date:k,shift_type:t});toast(si.i+' '+dn(emp)+' → '+si.l);load();}catch(er){toast(er.message,true);}}},si.i+' '+si.l));});r.appendChild(sp);
+r.appendChild(h('div',{className:'sl'},'ลางาน'));
+const lp=h('div',{className:'pg'});Object.entries(LT).forEach(([t,li])=>{const lv=S.lv[emp.id+'-'+k],a=lv&&lv.t===t;lp.appendChild(h('button',{className:'pl'+(a?' on':''),style:a?{borderColor:li.c,background:li.b,color:li.c}:{},onClick:async e=>{e.stopPropagation();try{if(a){await api('/api/leaves/'+lv.id,'DELETE');toast('❌ ยกเลิกลา');}else{await api('/api/leaves','POST',{employee_id:emp.id,date:k,leave_type:t});toast(li.i+' '+dn(emp)+' → '+li.l);}load();}catch(er){toast(er.message,true);}}},li.i+' '+li.l));});r.appendChild(lp);}
+m.appendChild(r);});o.appendChild(m);return o;}
 
-function renderLegend(){
-  return h('div',{className:'legend'},
-    ...Object.entries(SHIFT_TYPES).map(([k,v])=>h('div',{className:'legend-item'},h('span',{className:'legend-icon',style:{background:v.bg}},v.icon),h('span',{style:{fontWeight:600}},v.label),v.time?h('span',{style:{color:'#94a3b8'}},v.time):null)),
-    h('div',{className:'legend-sep'}),
-    ...Object.entries(LEAVE_TYPES).map(([k,v])=>h('div',{className:'legend-item'},h('span',{},v.icon),h('span',{style:{fontWeight:600}},v.label))),
-  );
-}
+function rLv(){const o=h('div',{className:'mo',onClick:()=>{S.modal=null;render();}});const m=h('div',{className:'md',onClick:e=>e.stopPropagation()});
+m.appendChild(h('div',{className:'mh'},h('div',{className:'mt'},'📝 ลงวันลา'),h('button',{className:'mc',onClick:()=>{S.modal=null;render();}},'✕')));
+const eg=h('div',{className:'fg'});eg.appendChild(h('label',{className:'fl'},'เลือกพนักงาน'));const ep=h('div',{className:'pg'});
+calEmp().forEach(emp=>{const a=S.se===emp.id;ep.appendChild(h('button',{className:'pl'+(a?' on':''),style:a?{borderColor:'#3b82f6',background:'#eff6ff',color:'#3b82f6'}:{},onClick:()=>{S.se=emp.id;render();}},emp.avatar+' '+dn(emp)));});
+eg.appendChild(ep);m.appendChild(eg);let slt='sick';
+const tg=h('div',{className:'fg'});tg.appendChild(h('label',{className:'fl'},'ประเภท'));const tp=h('div',{className:'pg'});
+Object.entries(LT).forEach(([t,i])=>{tp.appendChild(h('button',{className:'pl',id:'lt-'+t,style:t==='sick'?{borderColor:i.c,background:i.b,color:i.c}:{},onClick:()=>{slt=t;document.querySelectorAll('[id^=lt-]').forEach(el=>{const tt=el.id.replace('lt-',''),ii=LT[tt];el.style.borderColor=tt===t?ii.c:'transparent';el.style.background=tt===t?ii.b:'#f8fafc';el.style.color=tt===t?ii.c:'#64748b';});}},i.i+' '+i.l));});
+tg.appendChild(tp);m.appendChild(tg);
+m.appendChild(h('div',{className:'fg',style:{display:'flex',gap:'10px'}},h('div',{style:{flex:1}},h('label',{className:'fl'},'เริ่ม'),h('input',{type:'date',className:'fi',id:'ls',value:S.sd||''})),h('div',{style:{flex:1}},h('label',{className:'fl'},'สิ้นสุด'),h('input',{type:'date',className:'fi',id:'le',value:S.sd||''}))));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'เหตุผล'),h('textarea',{className:'fi',id:'lr',placeholder:'ระบุเหตุผล...'})));
+m.appendChild(h('button',{className:'btn',style:{background:'#3b82f6'},onClick:async()=>{if(!S.se){toast('เลือกพนักงาน',true);return;}const s=document.getElementById('ls').value,e=document.getElementById('le').value,r=document.getElementById('lr').value;if(!s){toast('เลือกวันที่',true);return;}try{if(s===e||!e)await api('/api/leaves','POST',{employee_id:S.se,date:s,leave_type:slt,reason:r||null});else await api('/api/leaves/range','POST',{employee_id:S.se,start_date:s,end_date:e,leave_type:slt,reason:r||null});toast('✅ บันทึกสำเร็จ');S.modal=null;load();}catch(er){toast(er.message,true);}}},'บันทึกวันลา'));
+o.appendChild(m);return o;}
 
-function renderCalendar(){
-  const grid=h('div',{className:'cal-grid'});
-  DAYS_TH.forEach((d,i)=>grid.appendChild(h('div',{className:'cal-header'+(i>=5?' weekend':'')},d)));
-  for(let i=0;i<firstDayOfMonth(state.year,state.month);i++)grid.appendChild(h('div'));
-  const dim=daysInMonth(state.year,state.month);
-  for(let d=1;d<=dim;d++){
-    const dk=dateKey(state.year,state.month,d),td=isToday(state.year,state.month,d),hol=state.holidays[dk];
-    const day=h('div',{className:'cal-day'+(td?' today':'')+(hol?' holiday':''),onClick:()=>{state.selectedDate=dk;state.modal='day';state.selectedEmployee=null;render();}});
-    const num=h('div',{className:'day-num'+(td?' today-num':'')},String(d));
-    if(td)num.appendChild(h('span',{className:'badge',style:{background:'#3b82f6',color:'#fff'}},'วันนี้'));
-    day.appendChild(num);
-    if(hol)day.appendChild(h('div',{className:'holiday-name'},'🔴 '+hol));
-    state.employees.forEach(emp=>{
-      const info=getDisplayShift(emp,dk,state.year,state.month,d);
-      day.appendChild(h('div',{className:'emp-tag',style:{background:info.bg,color:info.color}},info.icon+' '+empDisplay(emp)));
-    });
-    grid.appendChild(day);
-  }
-  return grid;
-}
+function rSwp(){const o=h('div',{className:'mo',onClick:()=>{S.modal=null;render();}});const m=h('div',{className:'md',onClick:e=>e.stopPropagation()});
+m.appendChild(h('div',{className:'mh'},h('div',{className:'mt'},'🔄 สลับกะ'),h('button',{className:'mc',onClick:()=>{S.modal=null;render();}},'✕')));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'วันที่'),h('input',{type:'date',className:'fi',id:'sd',value:S.sd||''})));
+let sf=null,st=null;const ce=calEmp();
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'คนที่ 1'),h('div',{className:'pg'},...ce.map(e=>h('button',{className:'pl',id:'sf-'+e.id,onClick:()=>{sf=e.id;document.querySelectorAll('[id^=sf-]').forEach(el=>{const a=el.id==='sf-'+e.id;el.style.borderColor=a?'#f59e0b':'transparent';el.style.background=a?'#fef3c7':'#f8fafc';el.style.color=a?'#f59e0b':'#64748b';});}},e.avatar+' '+dn(e))))));
+m.appendChild(h('div',{style:{textAlign:'center',fontSize:'22px',margin:'6px 0'}},'⇅'));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'คนที่ 2'),h('div',{className:'pg'},...ce.map(e=>h('button',{className:'pl',id:'st-'+e.id,onClick:()=>{st=e.id;document.querySelectorAll('[id^=st-]').forEach(el=>{const a=el.id==='st-'+e.id;el.style.borderColor=a?'#6366f1':'transparent';el.style.background=a?'#e0e7ff':'#f8fafc';el.style.color=a?'#6366f1':'#64748b';});}},e.avatar+' '+dn(e))))));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'เหตุผล'),h('textarea',{className:'fi',id:'sr',placeholder:'ระบุเหตุผล...'})));
+m.appendChild(h('button',{className:'btn',style:{background:'#16a34a'},onClick:async()=>{const d=document.getElementById('sd').value,r=document.getElementById('sr').value;if(!sf||!st){toast('เลือกทั้ง 2 คน',true);return;}if(sf===st){toast('ต้องคนละคน',true);return;}if(!d){toast('เลือกวันที่',true);return;}try{await api('/api/swaps','POST',{date:d,from_employee_id:sf,to_employee_id:st,reason:r||null});toast('✅ ส่งคำขอสำเร็จ');S.modal=null;load();}catch(er){toast(er.message,true);}}},'ส่งคำขอสลับกะ'));
+o.appendChild(m);return o;}
 
-function renderRoster(){
-  const dim=daysInMonth(state.year,state.month);
-  const wrap=h('div',{className:'roster-wrap'}),table=h('table',{className:'roster'}),thead=h('thead'),hrow=h('tr');
-  hrow.appendChild(h('th',{className:'sticky'},'พนักงาน'));
-  for(let d=1;d<=dim;d++){const dk=dateKey(state.year,state.month,d),td=isToday(state.year,state.month,d),hol=state.holidays[dk];let cls=td?'today-col':hol?'holiday-col':'';const dow=getDOW(state.year,state.month,d),di=dow===0?6:dow-1;hrow.appendChild(h('th',{className:cls,style:{minWidth:'40px'}},h('div',{},String(d)),h('div',{className:'day-label'},DAYS_TH[di])));}
-  thead.appendChild(hrow);table.appendChild(thead);
-  const tbody=h('tbody');
-  state.employees.forEach(emp=>{
-    const row=h('tr');
-    row.appendChild(h('td',{className:'sticky'},h('div',{className:'emp-cell'},empAvatarEl(emp),h('div',{},h('div',{className:'emp-name'},empDisplay(emp)),h('div',{className:'emp-role'},'หยุด: '+DAYS_FULL[emp.default_off_day])))));
-    for(let d=1;d<=dim;d++){const dk=dateKey(state.year,state.month,d),td=isToday(state.year,state.month,d),info=getDisplayShift(emp,dk,state.year,state.month,d);row.appendChild(h('td',{className:td?'today-col':''},h('div',{className:'shift-cell',style:{background:info.bg},title:info.label+' '+(info.time||''),onClick:()=>{state.selectedDate=dk;state.selectedEmployee=emp.id;state.modal='day';render();}},info.icon)));}
-    tbody.appendChild(row);
-  });
-  table.appendChild(tbody);wrap.appendChild(table);return wrap;
-}
+function rEmp(){const o=h('div',{className:'mo',onClick:()=>{S.modal=null;render();}});const m=h('div',{className:'md',style:{maxWidth:'600px'},onClick:e=>e.stopPropagation()});
+m.appendChild(h('div',{className:'mh'},h('div',{className:'mt'},'👤 จัดการพนักงาน'),h('button',{className:'mc',onClick:()=>{S.modal=null;render();}},'✕')));
+calEmp().forEach(emp=>{m.appendChild(h('div',{className:'row',style:{display:'flex',alignItems:'center',gap:'10px',cursor:'pointer'},onClick:()=>{S.se=emp.id;S.modal='editEmp';render();}},
+av(emp),h('div',{style:{flex:1}},h('div',{style:{fontWeight:700,fontSize:'14px'}},emp.name+(emp.email?' ('+emp.email+')':'')),
+h('div',{style:{fontSize:'12px',color:'#94a3b8'}},ST[emp.default_shift]?.i+' '+shiftTime(emp)+' | หยุด: '+offDays(emp).map(d=>DAYF[d]).join(', '))),
+h('span',{style:{fontSize:'13px',color:'#3b82f6',fontWeight:600}},'แก้ไข ✏️')));});
+m.appendChild(h('div',{style:{borderTop:'1px solid #e2e8f0',marginTop:'14px',paddingTop:'14px'}},
+h('div',{className:'sl'},'เพิ่มพนักงานใหม่'),
+h('div',{style:{display:'flex',gap:'8px',marginBottom:'8px'}},h('input',{type:'text',className:'fi',id:'nn',placeholder:'ชื่อ',style:{flex:1}}),h('input',{type:'email',className:'fi',id:'ne',placeholder:'Email',style:{flex:1}})),
+h('div',{style:{display:'flex',gap:'8px',marginBottom:'8px'}},
+h('select',{className:'fi',id:'ns',style:{flex:1},innerHTML:'<option value="day">☀️ กลางวัน</option><option value="evening">🌙 กลางคืน</option>'}),
+h('input',{type:'time',className:'fi',id:'nss',value:'09:00',style:{flex:1}}),
+h('input',{type:'time',className:'fi',id:'nse',value:'17:00',style:{flex:1}})),
+h('div',{style:{marginBottom:'8px'}},h('label',{className:'fl'},'วันหยุดประจำ (เลือกได้หลายวัน)'),
+h('div',{className:'pg',id:'nd'},...DAYF.map((d,i)=>h('button',{className:'pl',id:'nd-'+i,'data-day':i,onClick:e=>{e.target.classList.toggle('on');if(e.target.classList.contains('on')){e.target.style.borderColor='#10b981';e.target.style.background='#d1fae5';e.target.style.color='#10b981';}else{e.target.style.borderColor='transparent';e.target.style.background='#f8fafc';e.target.style.color='#64748b';}}},d)))),
+h('button',{className:'btn',style:{background:'#3b82f6'},onClick:async()=>{
+const name=document.getElementById('nn').value.trim(),email=document.getElementById('ne').value.trim();
+const shift=document.getElementById('ns').value,ss=document.getElementById('nss').value,se=document.getElementById('nse').value;
+const offArr=[];document.querySelectorAll('#nd .pl.on').forEach(el=>offArr.push(el.dataset.day));
+if(!name){toast('กรอกชื่อ',true);return;}
+try{await api('/api/employees','POST',{name,nickname:name,email:email||null,default_shift:shift,shift_start:ss,shift_end:se,default_off_day:offArr.join(',')||'6'});toast('✅ เพิ่มสำเร็จ');load();}catch(er){toast(er.message,true);}}},'+ เพิ่มพนักงาน')));
+o.appendChild(m);return o;}
 
-function renderStats(){
-  const grid=h('div',{className:'stats-grid'}),dim=daysInMonth(state.year,state.month);
-  state.employees.forEach(emp=>{
-    const sc={day:0,evening:0,off:0},lc={sick:0,personal:0,vacation:0,maternity:0};
-    for(let d=1;d<=dim;d++){const dk=dateKey(state.year,state.month,d),info=getDisplayShift(emp,dk,state.year,state.month,d);if(info.isLeave)lc[state.leaves[emp.id+'-'+dk]?.type]++;else sc[info.shiftType]=(sc[info.shiftType]||0)+1;}
-    grid.appendChild(h('div',{className:'stat-card'},
-      h('div',{className:'stat-header'},empAvatarEl(emp,'large'),h('div',{},h('div',{className:'stat-name'},empDisplay(emp)),h('div',{className:'stat-role'},'หยุดประจำ: '+DAYS_FULL[emp.default_off_day]+' | '+SHIFT_TYPES[emp.default_shift]?.label))),
-      h('div',{className:'stat-section-title'},'กะทำงานเดือนนี้'),
-      h('div',{className:'stat-tags'},...Object.entries(sc).filter(([_,v])=>v>0).map(([t,c])=>{const i=SHIFT_TYPES[t];return i?h('div',{className:'stat-tag',style:{background:i.bg,color:i.color}},i.icon+' '+i.label+' '+c+' วัน'):null;}).filter(Boolean)),
-      h('div',{className:'stat-section-title'},'โควต้าวันลา (ทั้งปี)'),
-      ...Object.entries(LEAVE_TYPES).map(([type,info])=>{const used=lc[type]||0,max=emp['max_'+type+'_leave']||info.max,pct=max>0?(used/max)*100:0;return h('div',{className:'quota-row'},h('div',{className:'quota-header'},h('span',{},info.icon+' '+info.label),h('span',{style:{fontWeight:700,color:info.color}},used+'/'+max)),h('div',{className:'quota-bar'},h('div',{className:'quota-fill',style:{width:pct+'%',background:info.color}})));})
-    ));
-  });
-  return grid;
-}
+function rEditEmp(){const emp=S.emp.find(e=>e.id===S.se);if(!emp)return h('div');
+const o=h('div',{className:'mo',onClick:()=>{S.modal='employee';render();}});const m=h('div',{className:'md',onClick:e=>e.stopPropagation()});
+m.appendChild(h('div',{className:'mh'},h('div',{className:'mt'},'✏️ แก้ไข: '+dn(emp)),h('button',{className:'mc',onClick:()=>{S.modal='employee';render();}},'✕')));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'ชื่อ'),h('input',{type:'text',className:'fi',id:'en',value:emp.name||''})));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'ชื่อเล่น'),h('input',{type:'text',className:'fi',id:'enn',value:emp.nickname||''})));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'Email'),h('input',{type:'email',className:'fi',id:'ee',value:emp.email||''})));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'กะ'),h('select',{className:'fi',id:'es',innerHTML:'<option value="day"'+(emp.default_shift==='day'?' selected':'')+'>☀️ กลางวัน</option><option value="evening"'+(emp.default_shift==='evening'?' selected':'')+'>🌙 กลางคืน</option>'})));
+m.appendChild(h('div',{className:'fg',style:{display:'flex',gap:'8px'}},h('div',{style:{flex:1}},h('label',{className:'fl'},'เริ่มงาน'),h('input',{type:'time',className:'fi',id:'ess',value:emp.shift_start||'09:00'})),h('div',{style:{flex:1}},h('label',{className:'fl'},'เลิกงาน'),h('input',{type:'time',className:'fi',id:'ese',value:emp.shift_end||'17:00'}))));
+const curOff=offDays(emp);
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'วันหยุดประจำ'),
+h('div',{className:'pg',id:'ed'},...DAYF.map((d,i)=>{const on=curOff.includes(i);return h('button',{className:'pl'+(on?' on':''),id:'ed-'+i,'data-day':i,
+style:on?{borderColor:'#10b981',background:'#d1fae5',color:'#10b981'}:{},
+onClick:e=>{e.target.classList.toggle('on');if(e.target.classList.contains('on')){e.target.style.borderColor='#10b981';e.target.style.background='#d1fae5';e.target.style.color='#10b981';}else{e.target.style.borderColor='transparent';e.target.style.background='#f8fafc';e.target.style.color='#64748b';}}},d);}))));
+m.appendChild(h('button',{className:'btn',style:{background:'#3b82f6'},onClick:async()=>{
+const offArr=[];document.querySelectorAll('#ed .pl.on').forEach(el=>offArr.push(el.dataset.day));
+try{await api('/api/employees/'+emp.id,'PUT',{
+name:document.getElementById('en').value.trim(),nickname:document.getElementById('enn').value.trim(),
+email:document.getElementById('ee').value.trim()||null,default_shift:document.getElementById('es').value,
+shift_start:document.getElementById('ess').value,shift_end:document.getElementById('ese').value,
+default_off_day:offArr.join(',')||'6'});toast('✅ แก้ไขสำเร็จ');S.modal='employee';load();}catch(er){toast(er.message,true);}}},'บันทึก'));
+m.appendChild(h('button',{className:'btn',style:{background:'#ef4444',marginTop:'8px'},onClick:async()=>{if(!confirm('ลบพนักงาน '+dn(emp)+' ?'))return;try{await api('/api/employees/'+emp.id,'DELETE');toast('ลบสำเร็จ');S.modal='employee';load();}catch(er){toast(er.message,true);}}},'🗑️ ลบพนักงาน'));
+o.appendChild(m);return o;}
 
-function renderPending(){
-  const sec=h('div',{className:'pending-section'});
-  sec.appendChild(h('div',{className:'pending-title'},'📋 วันลารออนุมัติ ('+state.pendingLeaves.length+')'));
-  if(!state.pendingLeaves.length)sec.appendChild(h('p',{style:{color:'#94a3b8',fontSize:'14px',marginBottom:'20px'}},'ไม่มีรายการรออนุมัติ ✅'));
-  state.pendingLeaves.forEach(lv=>{const info=LEAVE_TYPES[lv.leave_type];sec.appendChild(h('div',{className:'pending-card'},h('div',{style:{display:'flex',alignItems:'center',gap:'10px'}},h('span',{style:{fontSize:'26px'}},lv.avatar),h('div',{},h('div',{style:{fontWeight:700,fontSize:'14px'}},lv.nickname||lv.employee_name),h('div',{style:{fontSize:'13px',color:'#64748b'}},info.icon+' '+info.label+' — '+lv.date+(lv.reason?' ('+lv.reason+')':'')))),h('div',{style:{display:'flex',gap:'6px'}},h('button',{className:'btn-approve',onClick:async()=>{try{await api('/api/leaves/'+lv.id+'/approve','PUT');showToast('✅ อนุมัติสำเร็จ');loadData();}catch(e){showToast(e.message,true);}}},'✅ อนุมัติ'),h('button',{className:'btn-reject',onClick:async()=>{try{await api('/api/leaves/'+lv.id+'/reject','PUT');showToast('❌ ปฏิเสธ');loadData();}catch(e){showToast(e.message,true);}}},'❌ ปฏิเสธ'))));});
-  sec.appendChild(h('div',{className:'pending-title',style:{marginTop:'24px'}},'🔄 สลับกะรออนุมัติ ('+state.pendingSwaps.length+')'));
-  if(!state.pendingSwaps.length)sec.appendChild(h('p',{style:{color:'#94a3b8',fontSize:'14px'}},'ไม่มีรายการรออนุมัติ ✅'));
-  state.pendingSwaps.forEach(sw=>{sec.appendChild(h('div',{className:'pending-card'},h('div',{style:{display:'flex',alignItems:'center',gap:'10px'}},h('span',{style:{fontSize:'22px'}},sw.from_avatar),h('div',{},h('div',{style:{fontWeight:700,fontSize:'14px'}},(sw.from_nickname||sw.from_name)+' ↔ '+(sw.to_nickname||sw.to_name)),h('div',{style:{fontSize:'13px',color:'#64748b'}},'วันที่ '+sw.date))),h('div',{style:{display:'flex',gap:'6px'}},h('button',{className:'btn-approve',onClick:async()=>{try{await api('/api/swaps/'+sw.id+'/approve','PUT');showToast('✅ อนุมัติสลับกะ');loadData();}catch(e){showToast(e.message,true);}}},'✅ อนุมัติ'),h('button',{className:'btn-reject',onClick:async()=>{try{await api('/api/swaps/'+sw.id+'/reject','PUT');showToast('❌ ปฏิเสธ');loadData();}catch(e){showToast(e.message,true);}}},'❌ ปฏิเสธ'))));});
-  return sec;
-}
+function rPrf(){const o=h('div',{className:'mo',onClick:()=>{S.modal=null;render();}});const m=h('div',{className:'md',onClick:e=>e.stopPropagation()});
+m.appendChild(h('div',{className:'mh'},h('div',{className:'mt'},'👤 โปรไฟล์'),h('button',{className:'mc',onClick:()=>{S.modal=null;render();}},'✕')));
+const me=S.emp.find(e=>e.id===U.id)||U;
+m.appendChild(h('div',{style:{textAlign:'center',marginBottom:'20px'}},me.profile_image?h('img',{src:me.profile_image,className:'pil'}):h('div',{className:'pel'},me.avatar),h('div',{style:{fontSize:'12px',color:'#94a3b8',marginTop:'6px'}},me.email)));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'ชื่อที่แสดง'),h('input',{type:'text',className:'fi',id:'pn',value:me.nickname||me.name||''})));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'ไอคอน'),h('input',{type:'text',className:'fi',id:'pa',value:me.avatar||'👤',style:{fontSize:'24px'}})));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'เบอร์โทร'),h('input',{type:'tel',className:'fi',id:'pp',value:me.phone||'',placeholder:'0xx-xxx-xxxx'})));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'LINE ID'),h('input',{type:'text',className:'fi',id:'pl',value:me.line_id||''})));
+m.appendChild(h('button',{className:'btn',style:{background:'#3b82f6'},onClick:async()=>{try{await api('/api/me','PUT',{nickname:document.getElementById('pn').value.trim(),avatar:document.getElementById('pa').value.trim()||'👤',phone:document.getElementById('pp').value.trim()||null,line_id:document.getElementById('pl').value.trim()||null});toast('✅ อัพเดทสำเร็จ');U.nickname=document.getElementById('pn').value.trim();U.avatar=document.getElementById('pa').value.trim()||'👤';S.modal=null;load();}catch(er){toast(er.message,true);}}},'บันทึก'));
+o.appendChild(m);return o;}
 
-function renderDayModal(){
-  const dk=state.selectedDate;if(!dk)return h('div');
-  const[yr,mo,dy]=[parseInt(dk.split('-')[0]),parseInt(dk.split('-')[1])-1,parseInt(dk.split('-')[2])];
-  const hol=state.holidays[dk];
-  const ov=h('div',{className:'modal-overlay',onClick:()=>{state.modal=null;render();}});
-  const md=h('div',{className:'modal',onClick:e=>e.stopPropagation()});
-  md.appendChild(h('div',{className:'modal-header'},h('div',{className:'modal-title'},'📅 '+dy+' '+MONTHS_TH[mo]+' '+(yr+543)+' ('+DAYS_FULL[getDOW(yr,mo,dy)]+')'+(hol?' — 🔴 '+hol:'')),h('button',{className:'modal-close',onClick:()=>{state.modal=null;render();}},'✕')));
-  state.employees.forEach(emp=>{
-    const info=getDisplayShift(emp,dk,yr,mo,dy),isSel=state.selectedEmployee===emp.id;
-    const row=h('div',{className:'emp-row'+(isSel?' selected':''),onClick:()=>{state.selectedEmployee=isSel?null:emp.id;render();}});
-    const hdr=h('div',{className:'emp-row-header'},empAvatarEl(emp),h('div',{},h('div',{style:{fontWeight:700,fontSize:'14px'}},empDisplay(emp)),h('div',{style:{fontSize:'11px',color:'#94a3b8'}},'หยุด: '+DAYS_FULL[emp.default_off_day])));
-    if(info.isLeave)hdr.appendChild(h('span',{className:'emp-row-shift',style:{background:info.bg,color:info.color}},info.icon+' '+info.label+(info.leaveStatus==='pending'?' (รอ)':'')));
-    else hdr.appendChild(h('span',{className:'emp-row-shift',style:{background:info.bg,color:info.color}},info.icon+' '+info.label+' '+(info.time||'')));
-    row.appendChild(hdr);
-    if(isSel){
-      row.appendChild(h('div',{className:'section-label'},'เปลี่ยนกะ'));
-      const sp=h('div',{className:'pill-group'});
-      Object.entries(SHIFT_TYPES).forEach(([t,si])=>{const a=!info.isLeave&&info.shiftType===t;sp.appendChild(h('button',{className:'pill'+(a?' active':''),style:a?{borderColor:si.color,background:si.bg,color:si.color}:{},onClick:async e=>{e.stopPropagation();try{if(info.isLeave&&info.leaveId)await api('/api/leaves/'+info.leaveId,'DELETE');await api('/api/shifts','POST',{employee_id:emp.id,date:dk,shift_type:t});showToast(si.icon+' '+empDisplay(emp)+' → '+si.label);loadData();}catch(er){showToast(er.message,true);}}},si.icon+' '+si.label));});
-      row.appendChild(sp);
-      row.appendChild(h('div',{className:'section-label'},'ลางาน'));
-      const lp=h('div',{className:'pill-group'});
-      Object.entries(LEAVE_TYPES).forEach(([t,li])=>{const lv=state.leaves[emp.id+'-'+dk],a=lv&&lv.type===t;lp.appendChild(h('button',{className:'pill'+(a?' active':''),style:a?{borderColor:li.color,background:li.bg,color:li.color}:{},onClick:async e=>{e.stopPropagation();try{if(a){await api('/api/leaves/'+lv.id,'DELETE');showToast('❌ ยกเลิกลา '+empDisplay(emp));}else{await api('/api/leaves','POST',{employee_id:emp.id,date:dk,leave_type:t});showToast(li.icon+' '+empDisplay(emp)+' → '+li.label);}loadData();}catch(er){showToast(er.message,true);}}},li.icon+' '+li.label));});
-      row.appendChild(lp);
-    }
-    md.appendChild(row);
-  });
-  ov.appendChild(md);return ov;
-}
+function rSet(){const o=h('div',{className:'mo',onClick:()=>{S.modal=null;render();}});const m=h('div',{className:'md',onClick:e=>e.stopPropagation()});
+m.appendChild(h('div',{className:'mh'},h('div',{className:'mt'},'⚙️ ตั้งค่า'),h('button',{className:'mc',onClick:()=>{S.modal=null;render();}},'✕')));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'ชื่อบริษัท'),h('input',{type:'text',className:'fi',id:'sc',value:S.set.company_name||''})));
+m.appendChild(h('div',{className:'fg'},h('label',{className:'fl'},'วันหยุดบริษัท/ปี'),h('input',{type:'number',className:'fi',id:'sh',value:S.set.company_holidays_per_year||'20'})));
+m.appendChild(h('div',{style:{background:'#f8fafc',borderRadius:'10px',padding:'14px',marginBottom:'16px'}},
+h('div',{style:{fontSize:'13px',fontWeight:700,color:'#475569',marginBottom:'8px'}},'📊 สรุป'),
+h('div',{style:{fontSize:'14px'}},'วันหยุดนักขัตฤกษ์เดือนนี้: '+Object.keys(S.hol).length+' วัน'),
+h('div',{style:{fontSize:'14px',marginTop:'4px'}},'วันหยุดบริษัท/ปี: '+(S.set.company_holidays_per_year||20)+' วัน')));
+m.appendChild(h('button',{className:'btn',style:{background:'#3b82f6'},onClick:async()=>{try{await api('/api/settings','PUT',{company_name:document.getElementById('sc').value,company_holidays_per_year:document.getElementById('sh').value});toast('✅ บันทึกสำเร็จ');load();}catch(er){toast(er.message,true);}}},'บันทึก'));
+o.appendChild(m);return o;}
 
-function renderLeaveModal(){
-  const ov=h('div',{className:'modal-overlay',onClick:()=>{state.modal=null;render();}});
-  const md=h('div',{className:'modal',onClick:e=>e.stopPropagation()});
-  md.appendChild(h('div',{className:'modal-header'},h('div',{className:'modal-title'},'📝 ลงวันลา'),h('button',{className:'modal-close',onClick:()=>{state.modal=null;render();}},'✕')));
-  const eg=h('div',{className:'form-group'});eg.appendChild(h('label',{className:'form-label'},'เลือกพนักงาน'));
-  const ep=h('div',{className:'pill-group'});
-  state.employees.forEach(emp=>{const a=state.selectedEmployee===emp.id;ep.appendChild(h('button',{className:'pill'+(a?' active':''),style:a?{borderColor:'#3b82f6',background:'#eff6ff',color:'#3b82f6'}:{},onClick:()=>{state.selectedEmployee=emp.id;render();}},emp.avatar+' '+empDisplay(emp)));});
-  eg.appendChild(ep);md.appendChild(eg);
-  let slt='sick';
-  const tg=h('div',{className:'form-group'});tg.appendChild(h('label',{className:'form-label'},'ประเภทการลา'));
-  const tp=h('div',{className:'pill-group'});
-  Object.entries(LEAVE_TYPES).forEach(([t,i])=>{tp.appendChild(h('button',{className:'pill',id:'lt-'+t,style:t==='sick'?{borderColor:i.color,background:i.bg,color:i.color}:{},onClick:()=>{slt=t;document.querySelectorAll('[id^=lt-]').forEach(el=>{const tt=el.id.replace('lt-',''),ii=LEAVE_TYPES[tt];if(tt===t){el.style.borderColor=ii.color;el.style.background=ii.bg;el.style.color=ii.color;}else{el.style.borderColor='transparent';el.style.background='#f8fafc';el.style.color='#64748b';}});}},i.icon+' '+i.label));});
-  tg.appendChild(tp);md.appendChild(tg);
-  const dg=h('div',{className:'form-group',style:{display:'flex',gap:'10px'}});
-  dg.appendChild(h('div',{style:{flex:1}},h('label',{className:'form-label'},'วันที่เริ่ม'),h('input',{type:'date',className:'form-input',id:'ls',value:state.selectedDate||''})));
-  dg.appendChild(h('div',{style:{flex:1}},h('label',{className:'form-label'},'วันที่สิ้นสุด'),h('input',{type:'date',className:'form-input',id:'le',value:state.selectedDate||''})));
-  md.appendChild(dg);
-  const rg=h('div',{className:'form-group'});rg.appendChild(h('label',{className:'form-label'},'เหตุผล'));rg.appendChild(h('textarea',{className:'form-input',id:'lr',placeholder:'ระบุเหตุผล...'}));md.appendChild(rg);
-  md.appendChild(h('button',{className:'submit-btn',style:{background:'#3b82f6'},onClick:async()=>{if(!state.selectedEmployee){showToast('เลือกพนักงาน',true);return;}const s=document.getElementById('ls').value,e=document.getElementById('le').value,r=document.getElementById('lr').value;if(!s){showToast('เลือกวันที่',true);return;}try{if(s===e||!e)await api('/api/leaves','POST',{employee_id:state.selectedEmployee,date:s,leave_type:slt,reason:r||null});else await api('/api/leaves/range','POST',{employee_id:state.selectedEmployee,start_date:s,end_date:e,leave_type:slt,reason:r||null});showToast('✅ บันทึกวันลาสำเร็จ');state.modal=null;loadData();}catch(er){showToast(er.message,true);}}},'บันทึกวันลา'));
-  ov.appendChild(md);return ov;
-}
-
-function renderSwapModal(){
-  const ov=h('div',{className:'modal-overlay',onClick:()=>{state.modal=null;render();}});
-  const md=h('div',{className:'modal',onClick:e=>e.stopPropagation()});
-  md.appendChild(h('div',{className:'modal-header'},h('div',{className:'modal-title'},'🔄 สลับกะทำงาน'),h('button',{className:'modal-close',onClick:()=>{state.modal=null;render();}},'✕')));
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'วันที่สลับ'),h('input',{type:'date',className:'form-input',id:'sd',value:state.selectedDate||''})));
-  let sf=null,st=null;
-  const e1=h('div',{className:'form-group'});e1.appendChild(h('label',{className:'form-label'},'คนที่ 1'));
-  const p1=h('div',{className:'pill-group'});state.employees.forEach(emp=>{p1.appendChild(h('button',{className:'pill',id:'sf-'+emp.id,onClick:()=>{sf=emp.id;document.querySelectorAll('[id^=sf-]').forEach(el=>{const a=el.id==='sf-'+emp.id;el.style.borderColor=a?'#f59e0b':'transparent';el.style.background=a?'#fef3c7':'#f8fafc';el.style.color=a?'#f59e0b':'#64748b';});}},emp.avatar+' '+empDisplay(emp)));});
-  e1.appendChild(p1);md.appendChild(e1);
-  md.appendChild(h('div',{style:{textAlign:'center',fontSize:'22px',margin:'6px 0'}},'⇅'));
-  const e2=h('div',{className:'form-group'});e2.appendChild(h('label',{className:'form-label'},'คนที่ 2'));
-  const p2=h('div',{className:'pill-group'});state.employees.forEach(emp=>{p2.appendChild(h('button',{className:'pill',id:'st-'+emp.id,onClick:()=>{st=emp.id;document.querySelectorAll('[id^=st-]').forEach(el=>{const a=el.id==='st-'+emp.id;el.style.borderColor=a?'#6366f1':'transparent';el.style.background=a?'#e0e7ff':'#f8fafc';el.style.color=a?'#6366f1':'#64748b';});}},emp.avatar+' '+empDisplay(emp)));});
-  e2.appendChild(p2);md.appendChild(e2);
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'เหตุผล'),h('textarea',{className:'form-input',id:'sr',placeholder:'ระบุเหตุผล...'})));
-  md.appendChild(h('button',{className:'submit-btn',style:{background:'#16a34a'},onClick:async()=>{const d=document.getElementById('sd').value,r=document.getElementById('sr').value;if(!sf||!st){showToast('เลือกทั้ง 2 คน',true);return;}if(sf===st){showToast('ต้องคนละคน',true);return;}if(!d){showToast('เลือกวันที่',true);return;}try{await api('/api/swaps','POST',{date:d,from_employee_id:sf,to_employee_id:st,reason:r||null});showToast('✅ ส่งคำขอสลับกะสำเร็จ');state.modal=null;loadData();}catch(er){showToast(er.message,true);}}},'ส่งคำขอสลับกะ'));
-  ov.appendChild(md);return ov;
-}
-
-function renderEmployeeModal(){
-  const ov=h('div',{className:'modal-overlay',onClick:()=>{state.modal=null;render();}});
-  const md=h('div',{className:'modal',style:{maxWidth:'560px'},onClick:e=>e.stopPropagation()});
-  md.appendChild(h('div',{className:'modal-header'},h('div',{className:'modal-title'},'👤 จัดการพนักงาน'),h('button',{className:'modal-close',onClick:()=>{state.modal=null;render();}},'✕')));
-  state.employees.forEach(emp=>{md.appendChild(h('div',{className:'emp-row',style:{cursor:'default',display:'flex',alignItems:'center',gap:'10px'}},empAvatarEl(emp),h('div',{style:{flex:1}},h('div',{style:{fontWeight:700,fontSize:'14px'}},emp.name+(emp.email?' ('+emp.email+')':'')),h('div',{style:{fontSize:'11px',color:'#94a3b8'}},SHIFT_TYPES[emp.default_shift]?.icon+' '+SHIFT_TYPES[emp.default_shift]?.label+' | หยุด: '+DAYS_FULL[emp.default_off_day])),h('span',{style:{fontSize:'12px',padding:'4px 10px',borderRadius:'6px',fontWeight:700,background:emp.role==='admin'?'#fef3c7':'#f1f5f9',color:emp.role==='admin'?'#f59e0b':'#94a3b8'}},emp.role==='admin'?'Admin':'Staff')));});
-  md.appendChild(h('div',{style:{borderTop:'1px solid #e2e8f0',marginTop:'14px',paddingTop:'14px'}},
-    h('div',{className:'section-label'},'เพิ่มพนักงานใหม่'),
-    h('div',{style:{display:'flex',gap:'8px',marginBottom:'8px'}},h('input',{type:'text',className:'form-input',id:'nn',placeholder:'ชื่อ/ชื่อเล่น',style:{flex:1}}),h('input',{type:'email',className:'form-input',id:'ne',placeholder:'Email (Gmail)',style:{flex:1}})),
-    h('div',{style:{display:'flex',gap:'8px',marginBottom:'8px'}},h('select',{className:'form-input',id:'ns',style:{flex:1},innerHTML:'<option value="day">☀️ กลางวัน 09-17</option><option value="evening">🌙 กลางคืน 17-00</option>'}),h('select',{className:'form-input',id:'no',style:{flex:1},innerHTML:'<option value="0">หยุด อาทิตย์</option><option value="1">หยุด จันทร์</option><option value="2">หยุด อังคาร</option><option value="3">หยุด พุธ</option><option value="4">หยุด พฤหัสบดี</option><option value="5">หยุด ศุกร์</option><option value="6">หยุด เสาร์</option>'})),
-    h('button',{className:'submit-btn',style:{background:'#3b82f6'},onClick:async()=>{const name=document.getElementById('nn').value.trim(),email=document.getElementById('ne').value.trim(),shift=document.getElementById('ns').value,off=parseInt(document.getElementById('no').value);if(!name){showToast('กรอกชื่อ',true);return;}try{await api('/api/employees','POST',{name,nickname:name,email:email||null,default_shift:shift,default_off_day:off});showToast('✅ เพิ่มพนักงานสำเร็จ');loadData();}catch(er){showToast(er.message,true);}}},'+ เพิ่มพนักงาน'),
-  ));
-  ov.appendChild(md);return ov;
-}
-
-function renderProfileModal(){
-  const ov=h('div',{className:'modal-overlay',onClick:()=>{state.modal=null;render();}});
-  const md=h('div',{className:'modal',onClick:e=>e.stopPropagation()});
-  md.appendChild(h('div',{className:'modal-header'},h('div',{className:'modal-title'},'👤 โปรไฟล์ของฉัน'),h('button',{className:'modal-close',onClick:()=>{state.modal=null;render();}},'✕')));
-  const me=state.employees.find(e=>e.id===CURRENT_USER.id)||CURRENT_USER;
-  md.appendChild(h('div',{style:{textAlign:'center',marginBottom:'20px'}},
-    me.profile_image?h('img',{src:me.profile_image,className:'profile-img-large'}):h('div',{className:'profile-emoji-large'},me.avatar),
-    h('div',{style:{fontSize:'12px',color:'#94a3b8',marginTop:'6px'}},me.email),
-  ));
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'ชื่อที่แสดง'),h('input',{type:'text',className:'form-input',id:'pn',value:me.nickname||me.name||''})));
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'ไอคอน (emoji)'),h('input',{type:'text',className:'form-input',id:'pa',value:me.avatar||'👤',style:{fontSize:'24px'}})));
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'เบอร์โทร'),h('input',{type:'tel',className:'form-input',id:'pp',value:me.phone||'',placeholder:'0xx-xxx-xxxx'})));
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'LINE ID'),h('input',{type:'text',className:'form-input',id:'pl',value:me.line_id||'',placeholder:'@lineid'})));
-  md.appendChild(h('button',{className:'submit-btn',style:{background:'#3b82f6'},onClick:async()=>{try{await api('/api/me','PUT',{nickname:document.getElementById('pn').value.trim(),avatar:document.getElementById('pa').value.trim()||'👤',phone:document.getElementById('pp').value.trim()||null,line_id:document.getElementById('pl').value.trim()||null});showToast('✅ อัพเดทโปรไฟล์สำเร็จ');CURRENT_USER.nickname=document.getElementById('pn').value.trim();CURRENT_USER.avatar=document.getElementById('pa').value.trim()||'👤';state.modal=null;loadData();}catch(er){showToast(er.message,true);}}},'บันทึกโปรไฟล์'));
-  ov.appendChild(md);return ov;
-}
-
-function renderSettingsModal(){
-  const ov=h('div',{className:'modal-overlay',onClick:()=>{state.modal=null;render();}});
-  const md=h('div',{className:'modal',onClick:e=>e.stopPropagation()});
-  md.appendChild(h('div',{className:'modal-header'},h('div',{className:'modal-title'},'⚙️ ตั้งค่าระบบ'),h('button',{className:'modal-close',onClick:()=>{state.modal=null;render();}},'✕')));
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'ชื่อบริษัท'),h('input',{type:'text',className:'form-input',id:'sc',value:state.settings.company_name||'บริษัท'})));
-  md.appendChild(h('div',{className:'form-group'},h('label',{className:'form-label'},'จำนวนวันหยุดบริษัท/ปี'),h('input',{type:'number',className:'form-input',id:'sh',value:state.settings.company_holidays_per_year||'20'})));
-  md.appendChild(h('div',{style:{background:'#f8fafc',borderRadius:'10px',padding:'14px',marginBottom:'16px'}},
-    h('div',{style:{fontSize:'13px',fontWeight:700,color:'#475569',marginBottom:'8px'}},'📊 สรุปวันหยุดของบริษัท'),
-    h('div',{style:{fontSize:'14px',color:'#1e293b'}},'วันหยุดนักขัตฤกษ์: '+Object.keys(state.holidays).length+' วัน'),
-    h('div',{style:{fontSize:'14px',color:'#1e293b',marginTop:'4px'}},'วันหยุดบริษัท/ปี: '+(state.settings.company_holidays_per_year||20)+' วัน'),
-  ));
-  md.appendChild(h('button',{className:'submit-btn',style:{background:'#3b82f6'},onClick:async()=>{try{await api('/api/settings','PUT',{company_name:document.getElementById('sc').value,company_holidays_per_year:document.getElementById('sh').value});showToast('✅ บันทึกตั้งค่าสำเร็จ');loadData();}catch(er){showToast(er.message,true);}}},'บันทึกตั้งค่า'));
-  ov.appendChild(md);return ov;
-}
-
-loadData();
-</script>
-</body>
-</html>`;
+load();
+</script></body></html>`;
 }

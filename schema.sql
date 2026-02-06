@@ -1,5 +1,5 @@
 -- =============================================
--- Shift Manager - D1 Schema v3 (with Auth)
+-- Shift Manager - D1 Schema v4
 -- =============================================
 
 DROP TABLE IF EXISTS activity_logs;
@@ -11,25 +11,25 @@ DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS employees;
 DROP TABLE IF EXISTS settings;
 
--- ตั้งค่าระบบ
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- พนักงาน
 CREATE TABLE IF NOT EXISTS employees (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   nickname TEXT,
   email TEXT UNIQUE,
-  role TEXT DEFAULT 'staff',         -- admin, lead, staff
+  role TEXT DEFAULT 'staff',         -- owner, admin, staff
   department TEXT DEFAULT 'general',
   default_shift TEXT DEFAULT 'day',
-  default_off_day INTEGER DEFAULT 6,
+  shift_start TEXT DEFAULT '09:00',  -- เวลาเริ่มงาน
+  shift_end TEXT DEFAULT '17:00',    -- เวลาเลิกงาน
+  default_off_day TEXT DEFAULT '6',  -- วันหยุด เช่น "6" หรือ "0,6" (หลายวัน)
   avatar TEXT DEFAULT '👤',
-  profile_image TEXT,                -- URL จาก Google
+  profile_image TEXT,
   phone TEXT,
   line_id TEXT,
   max_sick_leave INTEGER DEFAULT 30,
@@ -37,11 +37,11 @@ CREATE TABLE IF NOT EXISTS employees (
   max_vacation_leave INTEGER DEFAULT 10,
   max_maternity_leave INTEGER DEFAULT 90,
   is_active INTEGER DEFAULT 1,
+  show_in_calendar INTEGER DEFAULT 1, -- 0 = ไม่แสดงในปฏิทิน (owner)
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- Sessions
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   employee_id INTEGER NOT NULL,
@@ -73,7 +73,6 @@ CREATE TABLE IF NOT EXISTS leaves (
   reason TEXT,
   approved_by INTEGER,
   approved_at TEXT,
-  attachment_url TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (employee_id) REFERENCES employees(id),
@@ -125,16 +124,18 @@ CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
 -- ========== ตั้งค่า ==========
 INSERT INTO settings (key, value) VALUES
   ('company_holidays_per_year', '20'),
-  ('company_name', 'บริษัท'),
-  ('fiscal_year_start', '01-01');
+  ('company_name', 'บริษัท');
 
--- ========== พนักงาน (พร้อม email mapping) ==========
-INSERT INTO employees (id, name, nickname, email, role, default_shift, default_off_day, avatar, department) VALUES
-  (1, 'น้ำตาล', 'น้ำตาล', 'iiiiinamtaniiiii@gmail.com', 'staff', 'evening', 6, '👩', 'general'),
-  (2, 'ปุ้มปุ้ย', 'ปุ้ย', 'r.suwimonn@gmail.com', 'staff', 'evening', 0, '👩‍🦱', 'general'),
-  (3, 'แตมป์', 'แตม', 'orawantam12@gmail.com', 'staff', 'day', 6, '👨', 'general'),
-  (4, 'เหมี่ยว', 'เหมี่ยว', 'phanaarusth2465@gmail.com', 'staff', 'day', 3, '🐱', 'general'),
-  (5, 'ToP', 'ToP', 'wyvernorm@gmail.com', 'admin', 'day', 6, '👨‍💼', 'management');
+-- ========== พนักงาน ==========
+-- default_off_day: 0=อาทิตย์ 1=จันทร์ 2=อังคาร 3=พุธ 4=พฤหัส 5=ศุกร์ 6=เสาร์
+-- สามารถใส่หลายวันได้ เช่น "0,6" = หยุดอาทิตย์+เสาร์
+
+INSERT INTO employees (id, name, nickname, email, role, default_shift, shift_start, shift_end, default_off_day, avatar, show_in_calendar) VALUES
+  (1, 'น้ำตาล', 'น้ำตาล', 'iiiiinamtaniiiii@gmail.com', 'staff', 'evening', '17:00', '00:00', '6', '👩', 1),
+  (2, 'ปุ้มปุ้ย', 'ปุ้ย', 'r.suwimonn@gmail.com', 'staff', 'evening', '17:00', '00:00', '0', '👩‍🦱', 1),
+  (3, 'แตมป์', 'แตม', 'orawantam12@gmail.com', 'staff', 'day', '09:00', '17:00', '6', '👨', 1),
+  (4, 'เหมี่ยว', 'เหมี่ยว', 'phanaarusth2465@gmail.com', 'staff', 'day', '09:00', '17:00', '3', '🐱', 1),
+  (5, 'ToP', 'ToP', 'wyvernorm@gmail.com', 'owner', 'day', '09:00', '17:00', '0,6', '👨‍💼', 0);
 
 -- ========== วันหยุดนักขัตฤกษ์ 2569 ==========
 INSERT OR IGNORE INTO holidays (date, name, type) VALUES
