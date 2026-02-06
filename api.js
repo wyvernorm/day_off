@@ -599,8 +599,12 @@ export async function handleAPI(request, env, url, currentUser) {
     const { results: ylr } = await DB.prepare("SELECT employee_id, leave_type, COUNT(*) as c FROM leaves WHERE date LIKE ? AND status!='rejected' GROUP BY employee_id, leave_type").bind(`${yr}%`).all();
     ylr.forEach(r => { if (!yearlyLeaves[r.employee_id]) yearlyLeaves[r.employee_id] = {}; yearlyLeaves[r.employee_id][r.leave_type] = r.c; });
     const { results: yld } = await DB.prepare("SELECT id, employee_id, date, leave_type, status, reason FROM leaves WHERE date LIKE ? AND status!='rejected' ORDER BY date").bind(`${yr}%`).all();
+    // Self day-off moves (shifts with 🔀 note)
+    const { results: selfMoves } = await DB.prepare("SELECT id, employee_id, date, shift_type, note FROM shifts WHERE date LIKE ? AND note LIKE '%🔀%' ORDER BY date").bind(`${yr}%`).all();
+    // Swap requests for year
+    const { results: swapReqs } = await DB.prepare("SELECT sr.*, e1.nickname as from_nick, e1.avatar as from_avatar, e2.nickname as to_nick, e2.avatar as to_avatar FROM swap_requests sr JOIN employees e1 ON sr.from_employee_id=e1.id JOIN employees e2 ON sr.to_employee_id=e2.id WHERE sr.date LIKE ? ORDER BY sr.date").bind(`${yr}%`).all();
     const settings = {}; st.results.forEach(r => { settings[r.key] = r.value; });
-    return json({ data: { employees: e.results, shifts: s.results, leaves: l.results, holidays: ho.results, settings, yearlyLeaves, yearlyLeaveDetails: yld } });
+    return json({ data: { employees: e.results, shifts: s.results, leaves: l.results, holidays: ho.results, settings, yearlyLeaves, yearlyLeaveDetails: yld, selfMoves, swapRequests: swapReqs } });
   }
 
   return json({ error: 'Not found' }, 404);

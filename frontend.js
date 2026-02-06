@@ -301,7 +301,7 @@ async function load() {
     // อัพเดท KPI admins จาก settings
     if (D.set.kpi_admins) KPI_ADMINS = D.set.kpi_admins.split(',').map(s => s.trim());
     else KPI_ADMINS = KPI_ADMINS_DEFAULT;
-    D.yl = o.data.yearlyLeaves || {}; D.yld = o.data.yearlyLeaveDetails || [];
+    D.yl = o.data.yearlyLeaves || {}; D.yld = o.data.yearlyLeaveDetails || []; D.selfMoves = o.data.selfMoves || []; D.swapReqs = o.data.swapRequests || [];
     D.sh = {}; o.data.shifts.forEach(s => { D.sh[s.employee_id + '-' + s.date] = s.shift_type; });
     D.lv = {}; o.data.leaves.forEach(l => { D.lv[l.employee_id + '-' + l.date] = { t: l.leave_type, s: l.status, id: l.id }; });
     D.hol = {}; o.data.holidays.forEach(h => { D.hol[h.date] = h.name; });
@@ -528,8 +528,9 @@ function rHdr() {
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
         const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
-        let t = lb[v]; if (v === 'pending' && myPendingCount > 0) t += ' (' + myPendingCount + ')';
-        return h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); } }, t);
+        const tabEl = h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); }, style: { position: 'relative' } }, lb[v]);
+        if (v === 'pending' && myPendingCount > 0) tabEl.appendChild(h('span', { style: { position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 800, minWidth: '18px', height: '18px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxShadow: '0 2px 4px rgba(239,68,68,0.4)', animation: myPendingCount > 0 ? 'pulse 2s infinite' : 'none' } }, String(myPendingCount)));
+        return tabEl;
       })),
       h('div', { className: 'ub' },
         U.profile_image ? h('img', { src: U.profile_image, className: 'ua' }) : h('span', { className: 'uae' }, U.avatar),
@@ -776,27 +777,55 @@ function rSta() {
   topRow.appendChild(donutBox);
   w.appendChild(topRow);
 
-  // === Leave bar chart ===
-  const chartBox = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', marginBottom: '20px' } });
-  chartBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📊 วันลาแต่ละคน (ทั้งปี)'));
-  empStats.forEach(({ emp, yl }) => {
+  // === Leave Racing Chart 🏎️ ===
+  const chartBox = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', borderRadius: '16px', padding: '24px', marginBottom: '20px', color: '#fff' } });
+  chartBox.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' } },
+    h('div', { style: { fontSize: '24px' } }, '🏎️'),
+    h('div', {}, h('div', { style: { fontSize: '15px', fontWeight: 700 } }, 'วันลาแต่ละคน (ทั้งปี)'),
+      h('div', { style: { fontSize: '11px', opacity: 0.5 } }, 'โควต้า ' + (empStats[0]?.emp.max_leave_per_year || 20) + ' วัน'))));
+  // Sort by total leave descending for racing position
+  const raceData = [...empStats].map(({ emp, yl }) => {
     const sick = yl.sick || 0, personal = yl.personal || 0, vacation = yl.vacation || 0;
-    const total = sick + personal + vacation, maxLv = emp.max_leave_per_year || 20;
-    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' } });
-    row.appendChild(h('div', { style: { width: '90px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 } },
-      emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', {}, emp.avatar), dn(emp)));
-    const bar = h('div', { style: { flex: 1, height: '28px', background: '#f1f5f9', borderRadius: '8px', overflow: 'hidden', display: 'flex' } });
-    if (sick > 0) bar.appendChild(h('div', { style: { width: (sick/maxLv*100) + '%', background: 'linear-gradient(90deg, #ef4444, #f87171)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 700 } }, sick > 1 ? sick : ''));
-    if (personal > 0) bar.appendChild(h('div', { style: { width: (personal/maxLv*100) + '%', background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 700 } }, personal > 1 ? personal : ''));
-    if (vacation > 0) bar.appendChild(h('div', { style: { width: (vacation/maxLv*100) + '%', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 700 } }, vacation > 1 ? vacation : ''));
-    row.appendChild(bar);
-    row.appendChild(h('div', { style: { width: '65px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: total > 0 ? '#ef4444' : '#10b981' } }, total + '/' + maxLv));
+    return { emp, sick, personal, vacation, total: sick + personal + vacation, maxLv: emp.max_leave_per_year || 20 };
+  }).sort((a, b) => b.total - a.total);
+  const raceColors = ['#fbbf24', '#94a3b8', '#cd7f32', '#64748b', '#475569'];
+  raceData.forEach((r, idx) => {
+    const pct = Math.min((r.total / r.maxLv) * 100, 100);
+    const posColor = raceColors[idx] || '#475569';
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: idx < raceData.length - 1 ? '14px' : '0', position: 'relative' } });
+    // Position badge
+    row.appendChild(h('div', { style: { width: '28px', height: '28px', borderRadius: '50%', background: idx < 3 ? posColor : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: idx < 3 ? '#0f172a' : '#94a3b8', flexShrink: 0 } }, String(idx + 1)));
+    // Avatar + name
+    row.appendChild(h('div', { style: { width: '90px', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 } },
+      r.emp.profile_image ? h('img', { src: r.emp.profile_image, style: { width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + posColor } }) : h('span', { style: { fontSize: '18px' } }, r.emp.avatar),
+      h('span', { style: { fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp))));
+    // Racing track
+    const track = h('div', { style: { flex: 1, position: 'relative', height: '32px' } });
+    // Track background with lane lines
+    track.appendChild(h('div', { style: { position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' } }));
+    // Checkered finish line
+    track.appendChild(h('div', { style: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '3px', background: 'repeating-linear-gradient(180deg, #fff 0px, #fff 3px, transparent 3px, transparent 6px)', opacity: 0.3 } }));
+    // Stacked colored bars
+    const barWrap = h('div', { style: { position: 'absolute', top: '3px', bottom: '3px', left: '3px', display: 'flex', borderRadius: '6px', overflow: 'hidden', transition: 'width 1s cubic-bezier(0.4,0,0.2,1)', width: Math.max(pct, r.total > 0 ? 5 : 0) + '%' } });
+    if (r.sick > 0) barWrap.appendChild(h('div', { style: { width: (r.sick/r.total*100) + '%', background: 'linear-gradient(90deg, #ef4444, #f87171)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.sick > 1 ? String(r.sick) : ''));
+    if (r.personal > 0) barWrap.appendChild(h('div', { style: { width: (r.personal/r.total*100) + '%', background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.personal > 1 ? String(r.personal) : ''));
+    if (r.vacation > 0) barWrap.appendChild(h('div', { style: { width: (r.vacation/r.total*100) + '%', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, minWidth: '16px' } }, r.vacation > 1 ? String(r.vacation) : ''));
+    if (r.total === 0) barWrap.appendChild(h('div', { style: { fontSize: '10px', padding: '0 8px', color: '#34d399', display: 'flex', alignItems: 'center' } }, '✨'));
+    track.appendChild(barWrap);
+    row.appendChild(track);
+    // Score
+    const scoreColor = r.total === 0 ? '#34d399' : r.total >= r.maxLv * 0.8 ? '#ef4444' : r.total >= r.maxLv * 0.5 ? '#fbbf24' : '#94a3b8';
+    row.appendChild(h('div', { style: { width: '60px', textAlign: 'right', flexShrink: 0 } },
+      h('div', { style: { fontSize: '16px', fontWeight: 800, color: scoreColor } }, String(r.total)),
+      h('div', { style: { fontSize: '9px', opacity: 0.5 } }, '/ ' + r.maxLv)));
     chartBox.appendChild(row);
   });
-  chartBox.appendChild(h('div', { style: { display: 'flex', gap: '16px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', fontSize: '12px' } },
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '4px', background: 'linear-gradient(90deg, #ef4444, #f87171)' } }), 'ลาป่วย'),
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '4px', background: 'linear-gradient(90deg, #8b5cf6, #a78bfa)' } }), 'ลากิจ'),
-    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '12px', height: '12px', borderRadius: '4px', background: 'linear-gradient(90deg, #06b6d4, #22d3ee)' } }), 'ลาพักร้อน')));
+  // Legend
+  chartBox.appendChild(h('div', { style: { display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '11px', opacity: 0.7 } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#ef4444' } }), 'ป่วย'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#8b5cf6' } }), 'กิจ'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#06b6d4' } }), 'พักร้อน'),
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, h('div', { style: { width: '10px', height: '10px', borderRadius: '3px', background: '#34d399' } }), '✨ ยังไม่ลา')));
   w.appendChild(chartBox);
 
   // === Employee cards ===
@@ -808,6 +837,12 @@ function rSta() {
     const quotaUsed = personal + vacation, maxLv = emp.max_leave_per_year || 20;
     const pct = maxLv > 0 ? Math.min((quotaUsed / maxLv) * 100, 100) : 0;
     const isMe = emp.id === U.id;
+    // Count self-moves and swaps for this employee
+    const empMoves = (D.selfMoves || []).filter(m => m.employee_id === emp.id);
+    const empSwaps = (D.swapReqs || []).filter(sr => sr.from_employee_id === emp.id || sr.to_employee_id === emp.id);
+    const moveCount = Math.floor(empMoves.length / 2); // pairs (off→work, work→off)
+    const swapCount = emp.swap_count || 0;
+    const dayoffSwapCount = empSwaps.filter(sr => sr.swap_type === 'dayoff' && sr.status === 'approved').length;
     const card = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '20px', border: isMe ? '2px solid #3b82f6' : '1px solid #e2e8f0', position: 'relative', overflow: 'hidden' } });
     if (isMe) card.appendChild(h('div', { style: { position: 'absolute', top: 0, right: 0, background: '#3b82f6', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '0 0 0 10px' } }, 'คุณ'));
     // Header
@@ -832,7 +867,20 @@ function rSta() {
     const mkStat = (ic, v, cl, label, filterType) => {
       const el = h('div', { style: { textAlign: 'center', padding: '6px', background: '#f8fafc', borderRadius: '8px', cursor: v > 0 ? 'pointer' : 'default', transition: 'all .15s' },
         onClick: v > 0 ? () => {
-          const items = filterType === 'swap' ? [{ text: 'สลับกะทั้งหมด ' + v + ' ครั้ง' }] : empYLD.filter(l => l.leave_type === filterType).map(l => ({ date: l.date, status: l.status, reason: l.reason }));
+          let items = [];
+          if (filterType === 'swap') {
+            items = empSwaps.filter(sr => sr.swap_type !== 'dayoff').map(sr => ({ text: (sr.from_employee_id === emp.id ? '→ ' + sr.to_nick : '← ' + sr.from_nick) + ' | ' + fmtDate(sr.date), status: sr.status }));
+          } else if (filterType === 'dayoffSwap') {
+            items = empSwaps.filter(sr => sr.swap_type === 'dayoff').map(sr => ({ text: (sr.from_employee_id === emp.id ? '→ ' + sr.to_nick : '← ' + sr.from_nick) + ' | ' + fmtDate(sr.date) + (sr.date2 ? ' ↔ ' + fmtDate(sr.date2) : ''), status: sr.status }));
+          } else if (filterType === 'selfMove') {
+            // Group moves in pairs
+            const offs = empMoves.filter(m => m.shift_type === 'off');
+            const works = empMoves.filter(m => m.shift_type !== 'off');
+            offs.forEach(o => { items.push({ text: '🔀 หยุด ' + fmtDate(o.date) + (o.note ? ' — ' + o.note.replace('🔀 ', '') : ''), status: 'approved' }); });
+            works.forEach(w2 => { items.push({ text: '💼 ทำงาน ' + fmtDate(w2.date) + (w2.note ? ' — ' + w2.note.replace('🔀 ', '') : ''), status: 'approved' }); });
+          } else {
+            items = empYLD.filter(l => l.leave_type === filterType).map(l => ({ date: l.date, status: l.status, reason: l.reason }));
+          }
           if (!items.length) return;
           const popup = h('div', { style: { position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.35)', backdropFilter: 'blur(4px)' }, onClick: (e) => { if (e.target === popup) document.body.removeChild(popup); } });
           const box = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', minWidth: '340px', maxWidth: '480px', maxHeight: '70vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }, onClick: e => e.stopPropagation() });
@@ -854,11 +902,14 @@ function rSta() {
       if (v > 0) { el.onmouseenter = () => { el.style.background = '#e2e8f0'; el.style.transform = 'scale(1.05)'; }; el.onmouseleave = () => { el.style.background = '#f8fafc'; el.style.transform = 'scale(1)'; }; }
       return el;
     };
-    card.appendChild(h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '6px' } },
+    card.appendChild(h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' } },
       mkStat('🏥', sick, '#ef4444', 'ลาป่วย', 'sick'),
       mkStat('📋', personal, '#8b5cf6', 'ลากิจ', 'personal'),
-      mkStat('✈️', vacation, '#06b6d4', 'ลาพักร้อน', 'vacation'),
-      mkStat('🔄', emp.swap_count||0, '#d97706', 'สลับกะ', 'swap')));
+      mkStat('✈️', vacation, '#06b6d4', 'ลาพักร้อน', 'vacation')));
+    card.appendChild(h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginTop: '6px' } },
+      mkStat('🔄', swapCount, '#d97706', 'สลับกะ', 'swap'),
+      mkStat('📅', dayoffSwapCount, '#059669', 'สลับวันหยุด', 'dayoffSwap'),
+      mkStat('🔀', moveCount, '#7c3aed', 'ย้ายวันหยุด', 'selfMove')));
     empGrid.appendChild(card);
   });
   w.appendChild(empGrid);
