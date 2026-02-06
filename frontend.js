@@ -1205,7 +1205,6 @@ function rLv() {
         toast('✅ บันทึก ' + allDates.length + ' วันสำเร็จ'); closeModal(); load();
       } catch (er) { toast(er.message, true); }
     }
-    } catch (er) { toast(er.message, true); }
   } }, 'บันทึกวันลา'));
   o.appendChild(m); return o;
 }
