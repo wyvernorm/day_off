@@ -554,11 +554,11 @@ function rHdr() {
   // นับ pending leaves แบบ group (ต่อเนื่องนับ 1)
   let groupedLeaveCount = 0;
   if ((isO || D.isApprover) && D.pl.length > 0) {
-    const _sorted = [...D.pl].sort((a, b) => (a.employee_id + '|' + a.leave_type).localeCompare(b.employee_id + '|' + b.leave_type) || a.date.localeCompare(b.date));
+    const _sorted = [...D.pl].sort((a, b) => (String(a.employee_id) + '|' + a.leave_type).localeCompare(String(b.employee_id) + '|' + b.leave_type) || a.date.localeCompare(b.date));
     let _prev = null;
     _sorted.forEach(l => {
-      const sameGroup = _prev && _prev.employee_id === l.employee_id && _prev.leave_type === l.leave_type;
-      if (sameGroup) { const a = new Date(_prev.date); a.setDate(a.getDate() + 1); if (a.toISOString().slice(0,10) === l.date) { _prev = l; return; } }
+      const sameGroup = _prev && +_prev.employee_id === +l.employee_id && _prev.leave_type === l.leave_type;
+      if (sameGroup) { const [y,m,d] = _prev.date.split('-').map(Number); const a = new Date(y, m-1, d+1); const [y2,m2,d2] = l.date.split('-').map(Number); if (a.getFullYear()===y2 && a.getMonth()===m2-1 && a.getDate()===d2) { _prev = l; return; } }
       groupedLeaveCount++;
       _prev = l;
     });
@@ -955,12 +955,16 @@ function rPnd() {
 
   // Group consecutive leaves by employee + leave_type (only if dates are consecutive)
   const grouped = [];
-  const key = l => l.employee_id + '|' + l.leave_type;
+  const key = l => String(l.employee_id) + '|' + l.leave_type;
   const sorted = [...myLeaves].sort((a, b) => key(a).localeCompare(key(b)) || a.date.localeCompare(b.date));
-  const isConsecutive = (d1, d2) => { const a = new Date(d1), b = new Date(d2); a.setDate(a.getDate() + 1); return a.toISOString().slice(0,10) === b; };
+  const isConsecutive = (d1, d2) => {
+    const [y1,m1,dd1] = d1.split('-').map(Number), [y2,m2,dd2] = d2.split('-').map(Number);
+    const a = new Date(y1, m1-1, dd1+1);
+    return a.getFullYear() === y2 && a.getMonth() === m2-1 && a.getDate() === dd2;
+  };
   let cur = null;
   sorted.forEach(l => {
-    if (cur && cur.employee_id === l.employee_id && cur.leave_type === l.leave_type && isConsecutive(cur.endDate, l.date)) {
+    if (cur && +cur.employee_id === +l.employee_id && cur.leave_type === l.leave_type && isConsecutive(cur.endDate, l.date)) {
       cur.dates.push(l);
       cur.endDate = l.date;
     } else {
