@@ -2,7 +2,7 @@
 // Shift Manager - Main Worker with Google OAuth
 // =============================================
 
-import { handleAPI } from './api.js';
+import { handleAPI, ensureTables } from './api.js';
 import { getLoginHTML, getHTML } from './frontend.js';
 
 // Simple in-memory rate limiter (resets on worker restart)
@@ -189,6 +189,7 @@ export default {
         });
       }
 
+      await ensureTables(env.DB);
       return new Response(getHTML(currentUser), {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });

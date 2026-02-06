@@ -117,6 +117,12 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname === '/api/leaves' && method === 'POST') {
     const b = await getBody();
+    // ตรวจสอบลาซ้ำวัน
+    const existing = await DB.prepare("SELECT id,leave_type,status FROM leaves WHERE employee_id=? AND date=? AND status!='rejected'").bind(b.employee_id, b.date).first();
+    if (existing) {
+      const LT = {sick:'ลาป่วย',personal:'ลากิจ',vacation:'ลาพักร้อน'};
+      return json({ error: `วันนี้มีรายการลา${LT[existing.leave_type]||''}อยู่แล้ว (สถานะ: ${existing.status === 'approved' ? 'อนุมัติแล้ว' : 'รออนุมัติ'})` }, 400);
+    }
     // ตรวจสอบว่าวันที่ไม่ใช่วันหยุดของพนักงาน
     const empChk = await DB.prepare('SELECT default_off_day FROM employees WHERE id=?').bind(b.employee_id).first();
     if (empChk) {
@@ -583,6 +589,81 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: { leaves, swaps } });
   }
 
+  // ==================== SELF DAY-OFF (PENDING) ====================
+  if (pathname === '/api/self-dayoff' && method === 'POST') {
+    const b = await getBody();
+    await DB.prepare("INSERT INTO self_dayoff_requests (employee_id, off_date, work_date, reason, status) VALUES (?,?,?,?,'pending')")
+      .bind(b.employee_id, b.off_date, b.work_date, b.reason || null).run();
+    const emp = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(b.employee_id).first();
+    await tgSend(`━━━━━━━━━━━━━━━\n🔀 <b>คำขอย้ายวันหยุด</b>\n━━━━━━━━━━━━━━━\n👤 <b>${emp?.nickname||emp?.name}</b>\n📅 หยุดเดิม: ${fmtDateTH(b.off_date)} (${dayNameTH(b.off_date)})\n📅 หยุดแทน: ${fmtDateTH(b.work_date)} (${dayNameTH(b.work_date)})${b.reason ? `\n💬 <i>${b.reason}</i>` : ''}\n\n⏳ <b>รอแอดมินอนุมัติ</b>\n━━━━━━━━━━━━━━━`);
+    await logActivity(DB, currentUser.employee_id, 'self_dayoff_request', `ขอย้ายวันหยุด ${b.off_date} → ${b.work_date}`);
+    return json({ message: 'ส่งคำขอแล้ว' }, 201);
+  }
+  if (pathname === '/api/self-dayoff' && method === 'GET') {
+    const { results } = await DB.prepare("SELECT sd.*, e.name, e.nickname, e.avatar FROM self_dayoff_requests sd JOIN employees e ON sd.employee_id=e.id WHERE sd.status='pending' ORDER BY sd.created_at DESC").all();
+    return json({ data: results });
+  }
+  if (pathname.match(/^\/api\/self-dayoff\/(\d+)\/(approve|reject)$/) && method === 'PUT') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const [, id, action] = pathname.match(/^\/api\/self-dayoff\/(\d+)\/(approve|reject)$/);
+    const req = await DB.prepare('SELECT * FROM self_dayoff_requests WHERE id=?').bind(id).first();
+    if (!req) return json({ error: 'ไม่พบคำขอ' }, 404);
+    if (action === 'approve') {
+      const emp = await DB.prepare('SELECT * FROM employees WHERE id=?').bind(req.employee_id).first();
+      const defShift = emp?.default_shift || 'day';
+      await DB.prepare("INSERT INTO shifts (employee_id,date,shift_type,note,created_by) VALUES (?,?,?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,note=excluded.note,created_by=excluded.created_by,updated_at=datetime('now')")
+        .bind(req.employee_id, req.off_date, defShift, '🔀 ย้ายวันหยุดไป ' + req.work_date, currentUser.employee_id).run();
+      await DB.prepare("INSERT INTO shifts (employee_id,date,shift_type,note,created_by) VALUES (?,?,?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,note=excluded.note,created_by=excluded.created_by,updated_at=datetime('now')")
+        .bind(req.employee_id, req.work_date, 'off', '🔀 ย้ายวันหยุดจาก ' + req.off_date, currentUser.employee_id).run();
+      await DB.prepare("UPDATE self_dayoff_requests SET status='approved', approved_by=?, approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id).run();
+      const empN = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(req.employee_id).first();
+      await tgSend(`━━━━━━━━━━━━━━━\n✅ <b>อนุมัติย้ายวันหยุด</b>\n━━━━━━━━━━━━━━━\n👤 <b>${empN?.nickname||empN?.name}</b>\n📅 ${fmtDateTH(req.off_date)} → ทำงาน\n📅 ${fmtDateTH(req.work_date)} → หยุด\n✍️ โดย: ${currentUser.nickname||currentUser.name}\n━━━━━━━━━━━━━━━`);
+    } else {
+      const b = await getBody();
+      await DB.prepare("UPDATE self_dayoff_requests SET status='rejected', reject_reason=?, approved_by=?, approved_at=datetime('now') WHERE id=?").bind(b.reject_reason || null, currentUser.employee_id, id).run();
+    }
+    await logActivity(DB, currentUser.employee_id, 'self_dayoff_' + action, `${action} self-dayoff #${id}`);
+    return json({ message: action === 'approve' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว' });
+  }
+
+  // ==================== ACTIVITY LOG ====================
+  if (pathname === '/api/activity-log' && method === 'GET') {
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 50, 200);
+    const { results } = await DB.prepare('SELECT al.*, e.name, e.nickname, e.avatar FROM activity_log al JOIN employees e ON al.employee_id=e.id ORDER BY al.created_at DESC LIMIT ?').bind(limit).all();
+    return json({ data: results });
+  }
+
+  // ==================== MONTHLY TELEGRAM SUMMARY ====================
+  if (pathname === '/api/telegram/monthly-summary' && method === 'POST') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const mo = url.searchParams.get('month') || (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
+    const yr = mo.split('-')[0];
+    const monthIdx = parseInt(mo.split('-')[1]) - 1;
+    const MON = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    const { results: emps } = await DB.prepare('SELECT * FROM employees WHERE is_active=1 AND show_in_calendar=1').all();
+    const { results: leaves } = await DB.prepare("SELECT employee_id, leave_type, COUNT(*) as c FROM leaves WHERE date LIKE ? AND status='approved' GROUP BY employee_id, leave_type").bind(`${mo}%`).all();
+    const { results: swaps } = await DB.prepare("SELECT from_employee_id, COUNT(*) as c FROM swap_requests WHERE date LIKE ? AND status='approved' GROUP BY from_employee_id").bind(`${mo}%`).all();
+    const { results: kpi } = await DB.prepare("SELECT employee_id, SUM(points) as pts, COUNT(*) as cnt FROM kpi_errors WHERE date LIKE ? GROUP BY employee_id").bind(`${mo}%`).all();
+    let msg = `━━━━━━━━━━━━━━━\n📊 <b>สรุปประจำเดือน ${MON[monthIdx]} ${+yr+543}</b>\n━━━━━━━━━━━━━━━\n`;
+    const lm = {}, sm = {}, km = {};
+    leaves.forEach(l => { if (!lm[l.employee_id]) lm[l.employee_id] = {}; lm[l.employee_id][l.leave_type] = l.c; });
+    swaps.forEach(s => { sm[s.from_employee_id] = s.c; });
+    kpi.forEach(k => { km[k.employee_id] = k; });
+    emps.forEach(e => {
+      const el = lm[e.id] || {}, es = sm[e.id] || 0, ek = km[e.id] || { pts: 0, cnt: 0 };
+      const sick = el.sick || 0, personal = el.personal || 0, vacation = el.vacation || 0;
+      const total = sick + personal + vacation;
+      if (total === 0 && es === 0 && ek.cnt === 0) return;
+      msg += `\n👤 <b>${e.nickname || e.name}</b>`;
+      if (total > 0) msg += `\n   📋 ลา: ป่วย ${sick} | กิจ ${personal} | ร้อน ${vacation}`;
+      if (es > 0) msg += `\n   🔄 สลับกะ: ${es} ครั้ง`;
+      if (ek.cnt > 0) msg += `\n   ⚡ KPI: ${ek.cnt} ครั้ง (${ek.pts} แต้ม)`;
+    });
+    msg += '\n━━━━━━━━━━━━━━━';
+    await tgSend(msg);
+    return json({ message: 'ส่งสรุปเดือนแล้ว' });
+  }
+
   // ==================== OVERVIEW ====================
   if (pathname === '/api/overview' && method === 'GET') {
     const mo = url.searchParams.get('month');
@@ -632,6 +713,38 @@ async function tgSend(msg) {
       body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
     });
   } catch (e) { /* ignore telegram errors */ }
+}
+
+// === Activity Log ===
+async function logActivity(DB, employeeId, action, detail) {
+  try {
+    await DB.prepare('INSERT INTO activity_log (employee_id, action, detail) VALUES (?,?,?)').bind(employeeId, action, detail || null).run();
+  } catch (e) { /* ignore if table doesn't exist */ }
+}
+
+// === Auto-create tables ===
+export async function ensureTables(DB) {
+  try {
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS activity_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      detail TEXT,
+      created_at DATETIME DEFAULT (datetime('now'))
+    )`).run();
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS self_dayoff_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      off_date TEXT NOT NULL,
+      work_date TEXT NOT NULL,
+      reason TEXT,
+      status TEXT DEFAULT 'pending',
+      reject_reason TEXT,
+      approved_by INTEGER,
+      approved_at DATETIME,
+      created_at DATETIME DEFAULT (datetime('now'))
+    )`).run();
+  } catch (e) { /* ignore */ }
 }
 function fmtDateTH(iso) { if (!iso) return ''; const [y,m,d] = iso.split('-'); return d+'/'+m+'/'+(+y+543); }
 function dayNameTH(iso) { if (!iso) return ''; const days = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์']; return days[new Date(iso).getDay()]; }

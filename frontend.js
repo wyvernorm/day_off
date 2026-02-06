@@ -215,6 +215,33 @@ textarea.fi { resize: vertical; min-height: 60px; }
 
 /* Modal should not clip date picker popups */
 
+
+/* === DARK MODE === */
+[data-theme="dark"] {
+  --bg: #0f172a; --sf: #1e293b; --bd: #334155; --tx: #e2e8f0; --ts: #94a3b8;
+  --pr: #60a5fa; --pb: #1e3a5f; --dg: #f87171; --db: #3b1a1a;
+  --su: #34d399; --sb: #064e3b; --wn: #fbbf24; --wb: #422006;
+  --sh: 0 1px 3px rgba(0,0,0,.3); --sl: 0 10px 30px rgba(0,0,0,.4);
+}
+[data-theme="dark"] .cd { background: var(--sf); border-color: var(--bd); }
+[data-theme="dark"] .cd:hover { box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+[data-theme="dark"] .cd.today { border-color: var(--pr); background: var(--pb); }
+[data-theme="dark"] .rt th { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .rt td { border-color: #1e293b; }
+[data-theme="dark"] .rt td.sk { background: #1e293b; }
+[data-theme="dark"] .nb { background: #334155; color: #e2e8f0; }
+[data-theme="dark"] .nb:hover { background: #475569; }
+[data-theme="dark"] .ubtn { background: #334155; color: #e2e8f0; }
+[data-theme="dark"] .ubtn:hover { background: #475569; }
+[data-theme="dark"] .tab { color: var(--ts); }
+[data-theme="dark"] .md { background: #1e293b; color: #e2e8f0; }
+[data-theme="dark"] .fi { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+[data-theme="dark"] .mc { background: #334155; color: #e2e8f0; }
+[data-theme="dark"] .row { border-color: #334155; }
+[data-theme="dark"] .row:hover { border-color: var(--pr); }
+[data-theme="dark"] .row.sel { background: var(--pb); }
+[data-theme="dark"] .tst { background: #1e293b; color: #e2e8f0; }
+
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
   .cg { gap: 3px; }
@@ -233,6 +260,9 @@ textarea.fi { resize: vertical; min-height: 60px; }
 <!-- SCRIPT                                        -->
 <!-- ============================================= -->
 <script>
+// === DARK MODE INIT ===
+if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+
 // === CONSTANTS ===
 const U = ${UJ};
 const DAYS = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
@@ -258,7 +288,7 @@ let KPI_ADMINS = KPI_ADMINS_DEFAULT;
 
 // === STATE ===
 const D = {
-  v: 'calendar', y: new Date().getFullYear(), m: new Date().getMonth(),
+  v: 'dashboard', y: new Date().getFullYear(), m: new Date().getMonth(),
   calMode: 'calendar', // 'calendar' or 'icon' (roster-style)
   emp: [], sh: {}, lv: {}, hol: {}, set: {}, yl: {},
   pl: [], ps: [], sd: null, se: null, modal: null,
@@ -291,12 +321,14 @@ function toast(msg, err = false) {
 async function load() {
   try {
     const ms = D.y + '-' + String(D.m + 1).padStart(2, '0');
-    const [o, pl, ps] = await Promise.all([
+    const [o, pl, ps, sdp] = await Promise.all([
       api('/api/overview?month=' + ms),
       api('/api/leaves?status=pending'),
       api('/api/swaps?status=pending'),
+      isO ? api('/api/self-dayoff') : Promise.resolve({ data: [] }),
     ]);
     D.emp = o.data.employees;
+    D.selfDayoffPending = sdp.data || [];
     D.set = o.data.settings || {};
     // อัพเดท KPI admins จาก settings
     if (D.set.kpi_admins) KPI_ADMINS = D.set.kpi_admins.split(',').map(s => s.trim());
@@ -504,7 +536,8 @@ function render() {
   }
   a.appendChild(rNav());
   a.appendChild(rLgd());
-  if (D.v === 'calendar') {
+  if (D.v === 'dashboard') a.appendChild(rDash());
+  else if (D.v === 'calendar') {
     if (D.calMode === 'icon') a.appendChild(rRos());
     else a.appendChild(rCal());
   }
@@ -517,8 +550,8 @@ function render() {
 
 // === HEADER ===
 function rHdr() {
-  const tabs = ['calendar', 'stats'];
-  const myPendingCount = isO ? D.pl.length + D.ps.length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
+  const tabs = ['dashboard', 'calendar', 'stats'];
+  const myPendingCount = isO ? D.pl.length + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
   const hasPendingForMe = D.ps.some(sw => sw.to_employee_id === U.id);
   if (isO || hasPendingForMe) tabs.push('pending');
   tabs.push('history');
@@ -527,7 +560,7 @@ function rHdr() {
     h('div', {}, h('h1', {}, (D.set.company_name || '📅 ระบบจัดการกะ & วันลา')), h('p', {}, 'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
-        const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
+        const lb = { dashboard: '🏠 หน้าแรก', calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
         const tabEl = h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); }, style: { position: 'relative' } }, lb[v]);
         if (v === 'pending' && myPendingCount > 0) tabEl.appendChild(h('span', { style: { position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 800, minWidth: '18px', height: '18px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxShadow: '0 2px 4px rgba(239,68,68,0.4)', animation: myPendingCount > 0 ? 'pulse 2s infinite' : 'none' } }, String(myPendingCount)));
         return tabEl;
@@ -537,6 +570,7 @@ function rHdr() {
         h('div', {}, h('div', { className: 'un' }, U.nickname || U.name), h('div', { className: 'ur' }, isO ? '👑 Owner' : 'พนักงาน')),
         h('button', { className: 'ubtn', onClick: () => openModal('profile') }, 'โปรไฟล์'),
         isO ? h('button', { className: 'ubtn', onClick: () => openModal('settings') }, '⚙️') : '',
+        h('button', { className: 'ubtn', onClick: () => { const d = document.documentElement; const isDark = d.getAttribute('data-theme') === 'dark'; d.setAttribute('data-theme', isDark ? '' : 'dark'); localStorage.setItem('theme', isDark ? 'light' : 'dark'); } }, document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'),
         h('button', { className: 'ubtn', style: { color: '#ef4444' }, onClick: () => { location.href = '/auth/logout'; } }, 'ออก'),
       ),
     ),
@@ -577,6 +611,94 @@ function rLgd() {
   );
 }
 
+// === DASHBOARD ===
+function rDash() {
+  const w = h('div', {}), dm = gdim(D.y, D.m);
+  const me = D.emp.find(e => e.id === U.id);
+  const today = new Date();
+  const tk = dk(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // Hero card — กะวันนี้
+  const myInf = me ? disp(me, tk, today.getFullYear(), today.getMonth(), today.getDate()) : null;
+  const hero = h('div', { style: { background: myInf?.isL ? 'linear-gradient(135deg, #ef4444, #f87171)' : myInf?.ty === 'off' ? 'linear-gradient(135deg, #10b981, #34d399)' : myInf?.ty === 'evening' ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : 'linear-gradient(135deg, #f59e0b, #fbbf24)', borderRadius: '16px', padding: '28px', color: '#fff', marginBottom: '20px', position: 'relative', overflow: 'hidden' } });
+  hero.appendChild(h('div', { style: { position: 'absolute', top: '-20px', right: '-20px', fontSize: '120px', opacity: 0.15 } }, myInf?.isL ? '🏥' : myInf?.ty === 'off' ? '🏖️' : myInf?.ty === 'evening' ? '🌙' : '☀️'));
+  hero.appendChild(h('div', { style: { fontSize: '13px', opacity: 0.8, marginBottom: '4px' } }, '📅 วันนี้ — ' + DAYF[today.getDay()] + 'ที่ ' + today.getDate() + ' ' + MON[today.getMonth()] + ' ' + (today.getFullYear() + 543)));
+  hero.appendChild(h('div', { style: { fontSize: '28px', fontWeight: 800 } }, myInf?.isL ? myInf.i + ' ' + myInf.l : myInf ? myInf.i + ' กะ' + myInf.l : '—'));
+  if (me) hero.appendChild(h('div', { style: { fontSize: '14px', opacity: 0.9, marginTop: '4px' } }, '🕐 ' + stime(me)));
+  w.appendChild(hero);
+
+  // Quick stats row
+  const yl = me ? D.yl[me.id] || {} : {};
+  const maxLv = me?.max_leave_per_year || 20;
+  const quotaUsed = (yl.personal || 0) + (yl.vacation || 0);
+  const statsRow = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '20px' } });
+  [[quotaUsed + '/' + maxLv, '📋', 'โควต้าลา', quotaUsed > maxLv * 0.8 ? '#ef4444' : '#3b82f6'],
+   [String(yl.sick || 0), '🏥', 'ลาป่วย', '#ef4444'],
+   [String(me?.swap_count || 0), '🔄', 'สลับกะ', '#d97706'],
+   [String(D.ps.filter(s => s.to_employee_id === U.id).length), '🔔', 'รออนุมัติ', '#8b5cf6'],
+  ].forEach(([v, ic, lb, cl]) => statsRow.appendChild(h('div', { style: { background: 'var(--sf)', borderRadius: '12px', padding: '14px', border: '1px solid var(--bd)', textAlign: 'center' } },
+    h('div', { style: { fontSize: '22px' } }, ic),
+    h('div', { style: { fontSize: '20px', fontWeight: 800, color: cl } }, v),
+    h('div', { style: { fontSize: '11px', color: 'var(--ts)' } }, lb))));
+  w.appendChild(statsRow);
+
+  // Who's working today
+  const whBox = h('div', { style: { background: 'var(--sf)', borderRadius: '16px', padding: '20px', border: '1px solid var(--bd)', marginBottom: '20px' } });
+  whBox.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px' } }, '👥 ตารางวันนี้'));
+  const whoGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' } });
+  ce().forEach(emp => {
+    const inf = disp(emp, tk, today.getFullYear(), today.getMonth(), today.getDate());
+    const sty = { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '10px', background: inf.isL ? inf.b : inf.ty === 'off' ? '#f1f5f9' : inf.b, border: '1px solid ' + (inf.isL ? inf.c + '40' : inf.ty === 'off' ? '#e2e8f0' : inf.c + '40') };
+    whoGrid.appendChild(h('div', { style: sty },
+      emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', {}, emp.avatar),
+      h('div', {},
+        h('div', { style: { fontWeight: 600, fontSize: '13px' } }, dn(emp)),
+        h('div', { style: { fontSize: '11px', color: inf.c } }, inf.i + ' ' + inf.l + (inf.isL ? (inf.st === 'pending' ? ' (รอ)' : '') : '')))));
+  });
+  whBox.appendChild(whoGrid);
+  w.appendChild(whBox);
+
+  // Pending requests for me
+  const myPending = D.ps.filter(s => s.to_employee_id === U.id);
+  const myPendingLeaves = isO ? D.pl.slice(0, 3) : [];
+  if (myPending.length > 0 || myPendingLeaves.length > 0) {
+    const pBox = h('div', { style: { background: '#fffbeb', borderRadius: '16px', padding: '20px', border: '2px solid #fde68a', marginBottom: '20px' } });
+    pBox.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px', color: '#92400e' } }, '⏳ รอการดำเนินการ'));
+    myPending.forEach(sw => {
+      pBox.appendChild(h('div', { style: { padding: '8px 12px', background: '#fff', borderRadius: '8px', marginBottom: '4px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+        h('span', {}, '🔄 ' + (sw.from_nickname || sw.from_name) + ' ขอสลับ ' + fmtDate(sw.date)),
+        h('button', { style: { background: '#f59e0b', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: () => { D.v = 'pending'; render(); } }, 'ดู')));
+    });
+    myPendingLeaves.forEach(l => {
+      const i = LEAVE[l.leave_type] || LEAVE.sick;
+      pBox.appendChild(h('div', { style: { padding: '8px 12px', background: '#fff', borderRadius: '8px', marginBottom: '4px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+        h('span', {}, i.i + ' ' + (l.nickname || l.employee_name) + ' ลา ' + fmtDate(l.date)),
+        h('button', { style: { background: '#10b981', color: '#fff', border: 'none', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: () => { D.v = 'pending'; render(); } }, 'ดู')));
+    });
+    w.appendChild(pBox);
+  }
+
+  // Upcoming week preview
+  const upBox = h('div', { style: { background: 'var(--sf)', borderRadius: '16px', padding: '20px', border: '1px solid var(--bd)' } });
+  upBox.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '12px' } }, '📆 กะ 7 วันข้างหน้า'));
+  if (me) {
+    const upGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' } });
+    for (let i = 0; i < 7; i++) {
+      const dd = new Date(today); dd.setDate(dd.getDate() + i);
+      const kk = dk(dd.getFullYear(), dd.getMonth(), dd.getDate());
+      const inf = disp(me, kk, dd.getFullYear(), dd.getMonth(), dd.getDate());
+      const isToday = i === 0;
+      upGrid.appendChild(h('div', { style: { textAlign: 'center', padding: '10px 4px', borderRadius: '10px', background: isToday ? 'var(--pr)' : inf.isL ? inf.b : inf.ty === 'off' ? '#f1f5f9' : inf.b, color: isToday ? '#fff' : inf.c, border: isToday ? '2px solid var(--pr)' : '1px solid var(--bd)' } },
+        h('div', { style: { fontSize: '11px', fontWeight: 600 } }, DAYS[dd.getDay()]),
+        h('div', { style: { fontSize: '15px', fontWeight: 800, margin: '4px 0' } }, String(dd.getDate())),
+        h('div', { style: { fontSize: '16px' } }, inf.i)));
+    }
+    upBox.appendChild(upGrid);
+  }
+  w.appendChild(upBox);
+  return w;
+}
+
 // === CALENDAR ===
 function rCal() {
   const g = h('div', { className: 'cg' });
@@ -597,9 +719,11 @@ function rCal() {
     if (td) nm.appendChild(h('span', { className: 'badge', style: { background: '#3b82f6', color: '#fff' } }, 'วันนี้'));
     dy.appendChild(nm);
     if (hl) dy.appendChild(h('div', { className: 'hn' }, '🔴 ' + hl));
+    let workCount = 0, totalCount = ce().length;
     ce().forEach(emp => {
       const inf = disp(emp, k, D.y, D.m, d);
       const isOff = inf.ty === 'off';
+      if (!isOff && !inf.isL) workCount++;
       const cls = 'et' + (inf.isL ? ' lv' : '') + (isOff ? ' off' : '');
       const sty = inf.isL ? { background: inf.b, color: inf.c, borderColor: inf.c }
         : isOff ? { background: '#fff1f2', color: '#dc2626', borderColor: '#fca5a5', border: '2px dashed #f87171' }
@@ -607,6 +731,9 @@ function rCal() {
       const txt = inf.i + ' ' + dn(emp) + (inf.isL ? ' (' + inf.l + ')' : '') + (isOff ? ' (หยุด)' : '');
       dy.appendChild(h('div', { className: cls, style: sty }, txt));
     });
+    // Headcount badge
+    const hcColor = workCount < 2 ? '#ef4444' : workCount < 3 ? '#f59e0b' : '#10b981';
+    nm.appendChild(h('span', { style: { fontSize: '10px', padding: '1px 6px', borderRadius: '6px', background: hcColor + '20', color: hcColor, fontWeight: 700, marginLeft: '4px' } }, '👤' + workCount + '/' + totalCount));
     g.appendChild(dy);
   }
   return g;
@@ -992,10 +1119,27 @@ function rPnd() {
         : h('div', { style: { fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' } }, 'รอคู่สลับอนุมัติ'),
     ));
   });
+
+  // Self day-off requests pending (admin only)
+  if (isO && D.selfDayoffPending && D.selfDayoffPending.length > 0) {
+    s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔀 ย้ายวันหยุดรออนุมัติ (' + D.selfDayoffPending.length + ')'));
+    D.selfDayoffPending.forEach(req => {
+      s.appendChild(h('div', { className: 'pc' },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 } },
+          h('span', { style: { fontSize: '22px' } }, req.avatar),
+          h('div', {},
+            h('div', { style: { fontWeight: 700, fontSize: '14px' } }, req.nickname || req.name),
+            h('div', { style: { fontSize: '13px', color: '#64748b' } }, '📅 หยุดเดิม: ' + fmtDate(req.off_date) + ' → ทำงาน'),
+            h('div', { style: { fontSize: '13px', color: '#7c3aed' } }, '📅 หยุดแทน: ' + fmtDate(req.work_date)),
+            req.reason ? h('div', { style: { fontSize: '12px', color: '#94a3b8', marginTop: '2px' } }, '💬 ' + req.reason) : '')),
+        h('div', { style: { display: 'flex', gap: '6px' } },
+          h('button', { className: 'ba', onClick: async () => { try { await api('/api/self-dayoff/' + req.id + '/approve', 'PUT'); toast('✅ อนุมัติ'); load(); } catch (e) { toast(e.message, true); } } }, '✅ อนุมัติ'),
+          h('button', { className: 'br', onClick: async () => { const reason = prompt('เหตุผลที่ปฏิเสธ:'); if (reason === null) return; try { await api('/api/self-dayoff/' + req.id + '/reject', 'PUT', { reject_reason: reason }); toast('❌ ปฏิเสธ'); load(); } catch (e) { toast(e.message, true); } } }, '❌ ปฏิเสธ'))));
+    });
+  }
+
   return s;
 }
-
-// === APPROVAL HISTORY ===
 function rHist() {
   const w = h('div', { className: 'ps' });
   if (!D.histLoaded) {
@@ -1643,11 +1787,16 @@ function rSelfDayoff() {
     if (!confirm('ยืนยันย้ายวันหยุด?\\n\\n✅ ' + fmtDate(d1) + ' → มาทำงาน (กะ' + (SHIFT[defShift]?.l||defShift) + ')\\n🏖️ ' + fmtDate(d2) + ' → หยุดแทน' + (reason ? '\\n💬 ' + reason : ''))) return;
 
     try {
-      // Set d1 (old off-day) → work shift
-      await api('/api/shifts', 'POST', { employee_id: selEmpId, date: d1, shift_type: defShift, note: '🔀 ย้ายวันหยุดไป ' + fmtDate(d2) + (reason ? ' — ' + reason : '') });
-      // Set d2 (work day) → off
-      await api('/api/shifts', 'POST', { employee_id: selEmpId, date: d2, shift_type: 'off', note: '🔀 ย้ายวันหยุดจาก ' + fmtDate(d1) + (reason ? ' — ' + reason : '') });
-      toast('✅ ย้ายวันหยุดสำเร็จ! ' + fmtDate(d1) + ' → ทำงาน, ' + fmtDate(d2) + ' → หยุด');
+      if (isO) {
+        // Admin: บันทึกตรงเลย
+        await api('/api/shifts', 'POST', { employee_id: selEmpId, date: d1, shift_type: defShift, note: '🔀 ย้ายวันหยุดไป ' + fmtDate(d2) + (reason ? ' — ' + reason : '') });
+        await api('/api/shifts', 'POST', { employee_id: selEmpId, date: d2, shift_type: 'off', note: '🔀 ย้ายวันหยุดจาก ' + fmtDate(d1) + (reason ? ' — ' + reason : '') });
+        toast('✅ ย้ายวันหยุดสำเร็จ!');
+      } else {
+        // Staff: ส่งคำขอรออนุมัติ
+        await api('/api/self-dayoff', 'POST', { employee_id: selEmpId, off_date: d1, work_date: d2, reason: reason || null });
+        toast('📨 ส่งคำขอย้ายวันหยุดแล้ว — รอแอดมินอนุมัติ');
+      }
       closeModal(); load();
     } catch (er) { toast(er.message, true); }
   } }, '🔀 ยืนยันย้ายวันหยุด'));
@@ -1866,7 +2015,32 @@ function rSet() {
     h('input', { type: 'text', className: 'fi', id: 'ssa2', value: D.set.super_admins || '', placeholder: 'admin@example.com,boss@example.com' })));
   m.appendChild(h('div', { style: { background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px' } },
     h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '8px' } }, '📊 สรุป'),
-    h('div', { style: { fontSize: '14px' } }, 'วันหยุดนักขัตฤกษ์เดือนนี้: ' + Object.keys(D.hol).length + ' วัน')));
+    h('div', { style: { fontSize: '14px', marginBottom: '8px' } }, 'วันหยุดนักขัตฤกษ์เดือนนี้: ' + Object.keys(D.hol).length + ' วัน'),
+    h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+      h('button', { style: { background: '#0088cc', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => { try { await api('/api/telegram/monthly-summary?month=' + D.y + '-' + String(D.m+1).padStart(2,'0'), 'POST'); toast('📨 ส่งสรุปเดือน Telegram แล้ว'); } catch (e) { toast(e.message, true); } } }, '📨 ส่งสรุปเดือน Telegram'),
+      h('button', { style: { background: '#6366f1', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+        try {
+          const r = await api('/api/activity-log?limit=50');
+          const popup = h('div', { style: { position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.35)', backdropFilter: 'blur(4px)' }, onClick: (ev) => { if (ev.target === popup) document.body.removeChild(popup); } });
+          const box = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', minWidth: '400px', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.15)' } });
+          box.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' } },
+            h('div', { style: { fontWeight: 700, fontSize: '16px' } }, '📋 Activity Log'),
+            h('button', { style: { border: 'none', background: '#f1f5f9', width: '28px', height: '28px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }, onClick: () => document.body.removeChild(popup) }, '✕')));
+          const logs = r.data || [];
+          if (!logs.length) box.appendChild(h('p', { style: { color: '#94a3b8' } }, 'ยังไม่มีบันทึก'));
+          logs.forEach(l => {
+            const d = new Date(l.created_at + 'Z');
+            const ts = d.toLocaleDateString('th-TH') + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            box.appendChild(h('div', { style: { padding: '8px 12px', borderLeft: '3px solid #6366f1', marginBottom: '4px', background: '#f8fafc', borderRadius: '0 8px 8px 0', fontSize: '13px' } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between' } },
+                h('span', { style: { fontWeight: 600 } }, (l.avatar||'👤') + ' ' + (l.nickname || l.name)),
+                h('span', { style: { color: '#94a3b8', fontSize: '11px' } }, ts)),
+              h('div', { style: { color: '#64748b', marginTop: '2px' } }, l.action + (l.detail ? ' — ' + l.detail : ''))));
+          });
+          popup.appendChild(box);
+          document.body.appendChild(popup);
+        } catch (e) { toast(e.message, true); }
+      } }, '📋 Activity Log'))));
   m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim(), super_admins: document.getElementById('ssa2').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
   o.appendChild(m); return o;
 }
