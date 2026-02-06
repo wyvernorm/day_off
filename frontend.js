@@ -309,7 +309,7 @@ function isOff(e, y, m, d) { return offD(e).includes(gdow(y, m, d)); }
 function stime(e) { return (e.shift_start || '09:00') + '-' + (e.shift_end || '17:00'); }
 function dn(e) { return e.nickname || e.name; }
 function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return d + '/' + m + '/' + (+y + 543); }
-function canGoPrev() { return D.y > MIN_YEAR || (D.y === MIN_YEAR && D.m > MIN_MONTH); }
+function canGoPrev() { return D.y > MIN_YEAR || (D.y === MIN_YEAR && D.m >= MIN_MONTH + 1); }
 
 function disp(e, k, y, m, d) {
   const lv = D.lv[e.id + '-' + k];

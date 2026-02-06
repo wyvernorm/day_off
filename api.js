@@ -122,15 +122,32 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: `บันทึก ${dates.length} วันสำเร็จ` }, 201);
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/approve$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const leaveId = pathname.split('/')[3];
+    const leave = await DB.prepare('SELECT * FROM leaves WHERE id=?').bind(leaveId).first();
+    if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
+    // ลาป่วย: เฉพาะ น้ำตาล + ToP อนุมัติได้
+    const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
+    if (leave.leave_type === 'sick') {
+      if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่อนุมัติลาป่วยได้' }, 403);
+    } else {
+      if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    }
     await DB.prepare("UPDATE leaves SET status='approved',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
-      .bind(currentUser.employee_id, pathname.split('/')[3]).run();
+      .bind(currentUser.employee_id, leaveId).run();
     return json({ message: 'อนุมัติสำเร็จ' });
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/reject$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const leaveId = pathname.split('/')[3];
+    const leave = await DB.prepare('SELECT * FROM leaves WHERE id=?').bind(leaveId).first();
+    if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
+    if (leave.leave_type === 'sick') {
+      const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
+      if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่ปฏิเสธลาป่วยได้' }, 403);
+    } else {
+      if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    }
     await DB.prepare("UPDATE leaves SET status='rejected',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
-      .bind(currentUser.employee_id, pathname.split('/')[3]).run();
+      .bind(currentUser.employee_id, leaveId).run();
     return json({ message: 'ปฏิเสธสำเร็จ' });
   }
   if (pathname.match(/^\/api\/leaves\/\d+$/) && method === 'DELETE') {
