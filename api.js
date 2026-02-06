@@ -286,6 +286,13 @@ export async function handleAPI(request, env, url, currentUser) {
     const toEmp = allEmp.results.find(e => e.id === b.to_employee_id);
     if (!fromEmp || !toEmp) return json({ error: 'ไม่พบพนักงาน' }, 404);
 
+    // ตรวจสอบว่า date1 เป็นวันหยุดของผู้ขอ
+    const d1ShiftRow = await DB.prepare('SELECT shift_type FROM shifts WHERE date=? AND employee_id=?').bind(b.date1, b.from_employee_id).first();
+    const d1Dow = new Date(b.date1).getDay();
+    const fromOffs = (fromEmp.default_off_day || '6').split(',').map(Number);
+    const d1IsOff = d1ShiftRow ? d1ShiftRow.shift_type === 'off' : fromOffs.includes(d1Dow);
+    if (!d1IsOff) return json({ error: 'วันที่ ' + b.date1 + ' ไม่ใช่วันหยุดของผู้ขอ ไม่สามารถสลับได้' }, 400);
+
     // ดึงกะของทั้ง 2 วัน
     function getShiftForDate(emp, date, shiftsMap) {
       if (shiftsMap[emp.id]) return shiftsMap[emp.id];
