@@ -1238,7 +1238,7 @@ function rSwp() {
     h('div', { className: 'pg' }, ...emps.filter(e => e.id !== sf).map(e => h('button', { className: 'pl', id: 'st-' + e.id, style: { flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', gap: '2px' },
       onClick: () => { st = e.id; document.querySelectorAll('[id^=st-]').forEach(el => { const a = el.id === 'st-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } },
       h('div', {}, e.avatar + ' ' + dn(e)),
-      h('div', { style: { fontSize: '11px', opacity: 0.8 } }, SHIFT[e.default_shift]?.i + ' ' + stime(e)))))));}
+      h('div', { style: { fontSize: '11px', opacity: 0.8 } }, SHIFT[e.default_shift]?.i + ' ' + stime(e)))))));
 
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'sr', placeholder: '...' })));
   m.appendChild(h('button', { className: 'btn', style: { background: '#16a34a' }, onClick: async () => {
