@@ -216,21 +216,99 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'ส่งคำขอสำเร็จ — รอคู่สลับอนุมัติ' }, 201);
   }
 
+  // สลับวันหยุด (dayoff swap) — เลือก 2 วัน สลับวันหยุดกับวันทำงาน
+  if (pathname === '/api/swaps/dayoff' && method === 'POST') {
+    const b = await getBody();
+    // date1 = วันหยุดของคนขอ (จะมาทำงานแทน), date2 = วันหยุดของคู่สลับ (จะหยุดแทน)
+    if (!b.date1 || !b.date2 || !b.from_employee_id || !b.to_employee_id)
+      return json({ error: 'ข้อมูลไม่ครบ' }, 400);
+    if (b.from_employee_id === b.to_employee_id)
+      return json({ error: 'ต้องคนละคน' }, 400);
+
+    const allEmp = await DB.prepare('SELECT * FROM employees WHERE is_active=1 AND show_in_calendar=1').all();
+    const fromEmp = allEmp.results.find(e => e.id === b.from_employee_id);
+    const toEmp = allEmp.results.find(e => e.id === b.to_employee_id);
+    if (!fromEmp || !toEmp) return json({ error: 'ไม่พบพนักงาน' }, 404);
+
+    // ดึงกะของทั้ง 2 วัน
+    function getShiftForDate(emp, date, shiftsMap) {
+      if (shiftsMap[emp.id]) return shiftsMap[emp.id];
+      const dow = new Date(date).getDay();
+      const offs = (emp.default_off_day || '6').split(',').map(Number);
+      if (offs.includes(dow)) return 'off';
+      return emp.default_shift;
+    }
+
+    // ตรวจสอบ coverage ทั้ง 2 วัน หลังสลับ
+    for (const checkDate of [b.date1, b.date2]) {
+      const shifts = await DB.prepare('SELECT * FROM shifts WHERE date=?').bind(checkDate).all();
+      const sMap = {}; shifts.results.forEach(s => { sMap[s.employee_id] = s.shift_type; });
+
+      const afterSwap = {};
+      allEmp.results.forEach(emp => {
+        const orig = getShiftForDate(emp, checkDate, sMap);
+        if (emp.id === b.from_employee_id) {
+          // date1: คนขอจะมาทำงาน (ทำแทนวันหยุดตัวเอง), date2: คนขอจะหยุด
+          afterSwap[emp.id] = checkDate === b.date1 ? fromEmp.default_shift : 'off';
+        } else if (emp.id === b.to_employee_id) {
+          // date1: คู่สลับจะหยุด, date2: คู่สลับจะมาทำงาน (ทำแทนวันหยุดตัวเอง)
+          afterSwap[emp.id] = checkDate === b.date1 ? 'off' : toEmp.default_shift;
+        } else {
+          afterSwap[emp.id] = orig;
+        }
+      });
+
+      const origDay = allEmp.results.filter(e => getShiftForDate(e, checkDate, sMap) === 'day').length;
+      const origEvening = allEmp.results.filter(e => getShiftForDate(e, checkDate, sMap) === 'evening').length;
+      const newDay = Object.values(afterSwap).filter(s => s === 'day').length;
+      const newEvening = Object.values(afterSwap).filter(s => s === 'evening').length;
+
+      if (origDay > 0 && newDay === 0) return json({ error: 'ไม่สามารถสลับได้ — วันที่ ' + checkDate + ' ต้องมีคนกะกลางวันอย่างน้อย 1 คน' }, 400);
+      if (origEvening > 0 && newEvening === 0) return json({ error: 'ไม่สามารถสลับได้ — วันที่ ' + checkDate + ' ต้องมีคนกะกลางคืนอย่างน้อย 1 คน' }, 400);
+    }
+
+    await DB.prepare('INSERT INTO swap_requests (date,date2,from_employee_id,to_employee_id,from_shift,to_shift,swap_type,reason) VALUES (?,?,?,?,?,?,?,?)')
+      .bind(b.date1, b.date2, b.from_employee_id, b.to_employee_id, 'off', 'off', 'dayoff', b.reason || null).run();
+    await DB.prepare('UPDATE employees SET swap_count=COALESCE(swap_count,0)+1 WHERE id=?').bind(b.from_employee_id).run();
+
+    return json({ message: 'ส่งคำขอสลับวันหยุดสำเร็จ — รอคู่สลับอนุมัติ' }, 201);
+  }
+
   if (pathname.match(/^\/api\/swaps\/\d+\/approve$/) && method === 'PUT') {
     const id = pathname.split('/')[3];
     const sw = await DB.prepare('SELECT * FROM swap_requests WHERE id=?').bind(id).first();
     if (!sw) return json({ error: 'ไม่พบ' }, 404);
-    // คนถูกสลับ (to_employee_id) หรือ owner เท่านั้นอนุมัติได้
     if (currentUser.employee_id !== sw.to_employee_id && !isO) {
       return json({ error: 'เฉพาะคู่สลับหรือเจ้าของเท่านั้นที่อนุมัติได้' }, 403);
     }
-    await DB.batch([
-      DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
-        .bind(sw.from_employee_id, sw.date, sw.to_shift),
-      DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
-        .bind(sw.to_employee_id, sw.date, sw.from_shift),
-      DB.prepare("UPDATE swap_requests SET status='approved',approved_by=?,approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id),
-    ]);
+
+    if (sw.swap_type === 'dayoff' && sw.date2) {
+      // สลับวันหยุด: date1 = คนขอมาทำงาน + คู่หยุด, date2 = คนขอหยุด + คู่มาทำงาน
+      const fromEmp = await DB.prepare('SELECT * FROM employees WHERE id=?').bind(sw.from_employee_id).first();
+      const toEmp = await DB.prepare('SELECT * FROM employees WHERE id=?').bind(sw.to_employee_id).first();
+      await DB.batch([
+        // date1: คนขอ → มาทำงาน (กะปกติ), คู่สลับ → หยุด
+        DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
+          .bind(sw.from_employee_id, sw.date, fromEmp.default_shift),
+        DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
+          .bind(sw.to_employee_id, sw.date, 'off'),
+        // date2: คนขอ → หยุด, คู่สลับ → มาทำงาน (กะปกติ)
+        DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
+          .bind(sw.from_employee_id, sw.date2, 'off'),
+        DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
+          .bind(sw.to_employee_id, sw.date2, toEmp.default_shift),
+        DB.prepare("UPDATE swap_requests SET status='approved',approved_by=?,approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id),
+      ]);
+    } else {
+      // สลับกะปกติ
+      await DB.batch([
+        DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
+          .bind(sw.from_employee_id, sw.date, sw.to_shift),
+        DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
+          .bind(sw.to_employee_id, sw.date, sw.from_shift),
+        DB.prepare("UPDATE swap_requests SET status='approved',approved_by=?,approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id),
+      ]);
+    }
     return json({ message: 'อนุมัติสำเร็จ' });
   }
 

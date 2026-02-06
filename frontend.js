@@ -481,6 +481,7 @@ function rNav() {
     h('div', { className: 'sp' }),
     h('button', { className: 'ab', style: { background: '#fef2f2', color: '#ef4444' }, onClick: () => { D.sd = dk(D.y, D.m, new Date().getDate()); openModal('leave'); } }, '+ ลางาน'),
     h('button', { className: 'ab', style: { background: '#ecfdf5', color: '#10b981' }, onClick: () => { D.sd = dk(D.y, D.m, new Date().getDate()); openModal('swap'); } }, '🔄 สลับกะ'),
+    h('button', { className: 'ab', style: { background: '#fef3c7', color: '#d97706' }, onClick: () => { openModal('dayoffSwap'); } }, '📅 สลับวันหยุด'),
     isO ? h('button', { className: 'ab', style: { background: '#eff6ff', color: '#3b82f6' }, onClick: () => openModal('employee') }, '👤 จัดการพนักงาน') : '',
   );
 }
@@ -591,15 +592,22 @@ function rPnd() {
         h('button', { className: 'br', onClick: async () => { try { await api('/api/leaves/' + l.id + '/reject', 'PUT'); toast('❌ ปฏิเสธ'); load(); } catch (e) { toast(e.message, true); } } }, '❌ ปฏิเสธ')),
     ));
   });
-  s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔄 สลับกะรออนุมัติ (' + D.ps.length + ')'));
+  s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔄 สลับกะ/วันหยุดรออนุมัติ (' + D.ps.length + ')'));
   if (!D.ps.length) s.appendChild(h('p', { style: { color: '#94a3b8', fontSize: '14px' } }, 'ไม่มีรายการ ✅'));
   D.ps.forEach(sw => {
     const canApprove = isO || U.id === sw.to_employee_id;
+    const isDayoff = sw.swap_type === 'dayoff';
+    const typeLabel = isDayoff ? '📅 สลับวันหยุด' : '🔄 สลับกะ';
+    const dateInfo = isDayoff && sw.date2
+      ? fmtDate(sw.date) + ' ↔ ' + fmtDate(sw.date2)
+      : fmtDate(sw.date);
     s.appendChild(h('div', { className: 'pc' },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 } }, h('span', { style: { fontSize: '22px' } }, sw.from_avatar),
         h('div', {},
-          h('div', { style: { fontWeight: 700, fontSize: '14px' } }, (sw.from_nickname || sw.from_name) + ' ↔ ' + (sw.to_nickname || sw.to_name)),
-          h('div', { style: { fontSize: '13px', color: '#64748b' } }, fmtDate(sw.date) + ' | สลับครั้งที่ ' + (sw.from_swap_count || 0)),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+            h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isDayoff ? '#fef3c7' : '#d1fae5', color: isDayoff ? '#d97706' : '#10b981' } }, typeLabel),
+            h('span', { style: { fontWeight: 700, fontSize: '14px' } }, (sw.from_nickname || sw.from_name) + ' ↔ ' + (sw.to_nickname || sw.to_name))),
+          h('div', { style: { fontSize: '13px', color: '#64748b', marginTop: '2px' } }, dateInfo + ' | สลับครั้งที่ ' + (sw.from_swap_count || 0)),
           h('div', { style: { fontSize: '11px', color: '#f59e0b', fontWeight: 600, marginTop: '2px' } }, '👤 รออนุมัติจาก: ' + (sw.to_nickname || sw.to_name)))),
       canApprove ? h('div', { style: { display: 'flex', gap: '6px' } },
         h('button', { className: 'ba', onClick: async () => { try { await api('/api/swaps/' + sw.id + '/approve', 'PUT'); toast('✅ อนุมัติ'); load(); } catch (e) { toast(e.message, true); } } }, '✅ อนุมัติ'),
@@ -612,7 +620,7 @@ function rPnd() {
 
 // === MODALS ROUTER ===
 function rModal() {
-  const map = { day: rDay, leave: rLv, swap: rSwp, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet };
+  const map = { day: rDay, leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet };
   return (map[D.modal] || (() => h('div')))();
 }
 
@@ -760,6 +768,59 @@ function rSwp() {
     if (!d) { toast('เลือกวันที่', true); return; }
     try { await api('/api/swaps', 'POST', { date: d, from_employee_id: sf, to_employee_id: st, reason: r || null }); toast('✅ ส่งคำขอแล้ว — รอคู่สลับอนุมัติ'); closeModal(); load(); } catch (er) { toast(er.message, true); }
   } }, 'ส่งคำขอสลับกะ'));
+  o.appendChild(m); return o;
+}
+
+// === DAYOFF SWAP MODAL ===
+function rDayoffSwp() {
+  const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', onClick: e => e.stopPropagation() });
+  m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '📅 สลับวันหยุด'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
+
+  m.appendChild(h('div', { style: { padding: '10px 14px', background: '#fef3c7', borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '16px', border: '1px solid #fde68a', lineHeight: '1.6' } },
+    '💡 สลับวันหยุดระหว่าง 2 คน เช่น น้ำตาลหยุดเสาร์ ปุ้ยหยุดอาทิตย์ → น้ำตาลมาทำเสาร์แทน+หยุดอาทิตย์ ปุ้ยมาทำอาทิตย์แทน+หยุดเสาร์'));
+
+  // Auto-select ตัวเอง
+  const myEmp = ce().find(e => e.id === U.id);
+  let sf = (!isO && myEmp) ? myEmp.id : null;
+  let st = null;
+  const emps = ce();
+
+  if (!isO && myEmp) {
+    m.appendChild(h('div', { className: 'fg' },
+      h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
+        av(myEmp), h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
+        h('span', { style: { fontSize: '12px', color: '#92400e', marginLeft: '6px' } }, 'หยุด: ' + offD(myEmp).map(d => DAYF[d]).join(', ')))));
+  } else {
+    m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'คนที่ 1'),
+      h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'dsf-' + e.id,
+        onClick: () => { sf = e.id; document.querySelectorAll('[id^=dsf-]').forEach(el => { const a = el.id === 'dsf-' + e.id; el.style.borderColor = a ? '#d97706' : 'transparent'; el.style.background = a ? '#fef3c7' : '#f8fafc'; el.style.color = a ? '#d97706' : '#64748b'; }); } },
+        e.avatar + ' ' + dn(e) + ' (หยุด ' + offD(e).map(d => DAYF[d]).join(',') + ')')))));
+  }
+
+  m.appendChild(h('div', { style: { textAlign: 'center', fontSize: '22px', margin: '6px 0' } }, '⇅'));
+
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'สลับกับ (ผู้อนุมัติ)'),
+    h('div', { className: 'pg' }, ...emps.filter(e => e.id !== sf).map(e => h('button', { className: 'pl', id: 'dst-' + e.id,
+      onClick: () => { st = e.id; document.querySelectorAll('[id^=dst-]').forEach(el => { const a = el.id === 'dst-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } },
+      e.avatar + ' ' + dn(e) + ' (หยุด ' + offD(e).map(d => DAYF[d]).join(',') + ')')))));
+
+  m.appendChild(h('div', { className: 'fg', style: { display: 'flex', gap: '10px' } },
+    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '📅 วันหยุดของคุณ (จะมาทำงานแทน)'), datePicker('ds1', '')),
+    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '📅 วันที่จะหยุดแทน'), datePicker('ds2', ''))));
+
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'dsr', placeholder: 'เหตุผลการสลับ...' })));
+
+  m.appendChild(h('button', { className: 'btn', style: { background: '#d97706' }, onClick: async () => {
+    const d1 = dpVal('ds1'), d2 = dpVal('ds2'), r = document.getElementById('dsr').value;
+    if (!sf || !st) { toast('เลือกทั้ง 2 คน', true); return; }
+    if (!d1 || !d2) { toast('เลือกวันที่ทั้ง 2 วัน', true); return; }
+    if (d1 === d2) { toast('วันที่ต้องไม่ซ้ำกัน', true); return; }
+    try {
+      await api('/api/swaps/dayoff', 'POST', { date1: d1, date2: d2, from_employee_id: sf, to_employee_id: st, reason: r || null });
+      toast('✅ ส่งคำขอสลับวันหยุดแล้ว — รอคู่สลับอนุมัติ'); closeModal(); load();
+    } catch (er) { toast(er.message, true); }
+  } }, '📅 ส่งคำขอสลับวันหยุด'));
   o.appendChild(m); return o;
 }
 
