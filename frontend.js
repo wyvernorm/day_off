@@ -560,6 +560,7 @@ function rNav() {
     h('button', { className: 'ab', style: { background: '#fef2f2', color: '#ef4444' }, onClick: () => { D.sd = dk(D.y, D.m, new Date().getDate()); openModal('leave'); } }, '+ ลางาน'),
     h('button', { className: 'ab', style: { background: '#ecfdf5', color: '#10b981' }, onClick: () => { D.sd = dk(D.y, D.m, new Date().getDate()); openModal('swap'); } }, '🔄 สลับกะ'),
     h('button', { className: 'ab', style: { background: '#fef3c7', color: '#d97706' }, onClick: () => { openModal('dayoffSwap'); } }, '📅 สลับวันหยุด'),
+    h('button', { className: 'ab', style: { background: '#f5f3ff', color: '#7c3aed' }, onClick: () => { openModal('selfDayoff'); } }, '🔀 ย้ายวันหยุด'),
     isO ? h('button', { className: 'ab', style: { background: '#eff6ff', color: '#3b82f6' }, onClick: () => openModal('employee') }, '👤 จัดการพนักงาน') : '',
   );
 }
@@ -1289,7 +1290,7 @@ function rKpi() {
 
 // === MODALS ROUTER ===
 function rModal() {
-  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet };
+  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, selfDayoff: rSelfDayoff, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet };
   return (map[D.modal] || (() => h('div')))();
 }
 
@@ -1526,6 +1527,79 @@ function rDayoffSwp() {
       toast('✅ ส่งคำขอสลับวันหยุดแล้ว — รอคู่สลับอนุมัติ'); closeModal(); load();
     } catch (er) { toast(er.message, true); }
   } }, '📅 ส่งคำขอสลับวันหยุด'));
+  o.appendChild(m); return o;
+}
+
+// === SELF DAY-OFF SWAP MODAL ===
+function rSelfDayoff() {
+  const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', onClick: e => e.stopPropagation() });
+  m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '🔀 ย้ายวันหยุด'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
+
+  m.appendChild(h('div', { style: { padding: '12px 16px', background: '#f5f3ff', borderRadius: '10px', fontSize: '13px', color: '#5b21b6', marginBottom: '16px', border: '1px solid #ddd6fe', lineHeight: '1.7' } },
+    '💡 ย้ายวันหยุดของตัวเองไปวันอื่น', h('br'),
+    'เช่น ปกติหยุดวันพุธ → ย้ายไปหยุดวันอังคารแทน แล้วมาทำงานวันพุธ'));
+
+  const emps = ce();
+  let selEmpId = null;
+
+  if (isO) {
+    // Admin: เลือกพนักงานได้
+    m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '👤 เลือกพนักงาน'),
+      h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'sde-' + e.id,
+        onClick: () => { selEmpId = e.id; document.querySelectorAll('[id^=sde-]').forEach(el => { const a = el.id === 'sde-' + e.id; el.style.borderColor = a ? '#7c3aed' : 'transparent'; el.style.background = a ? '#f5f3ff' : '#f8fafc'; el.style.color = a ? '#7c3aed' : '#64748b'; }); } },
+        e.avatar + ' ' + dn(e) + ' (หยุด ' + offD(e).map(d => DAYF[d]).join(',') + ')')))));
+  } else {
+    const myEmp = D.emp.find(e => e.id === U.id);
+    selEmpId = myEmp ? myEmp.id : null;
+    if (myEmp) {
+      m.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#f5f3ff', borderRadius: '10px', border: '1px solid #ddd6fe', marginBottom: '14px' } },
+        av(myEmp), h('div', {}, h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
+          h('div', { style: { fontSize: '12px', color: '#7c3aed', marginTop: '2px' } }, 'หยุดปกติ: ' + offD(myEmp).map(d => DAYF[d]).join(', ')))));
+    }
+  }
+
+  m.appendChild(h('div', { style: { display: 'flex', gap: '12px', marginBottom: '6px' } },
+    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '📅 วันหยุดเดิม (จะมาทำงานแทน)'), datePicker('sdo1', '')),
+    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '📅 วันที่จะหยุดแทน'), datePicker('sdo2', ''))));
+
+  m.appendChild(h('div', { style: { textAlign: 'center', padding: '8px', color: '#94a3b8', fontSize: '22px' } }, '📅 → 🔀 → 📅'));
+
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'sdr', placeholder: 'เหตุผลที่ต้องย้ายวันหยุด...' })));
+
+  m.appendChild(h('button', { className: 'btn', style: { background: '#7c3aed' }, onClick: async () => {
+    const d1 = dpVal('sdo1'), d2 = dpVal('sdo2'), reason = document.getElementById('sdr').value;
+    if (!selEmpId) { toast('เลือกพนักงาน', true); return; }
+    if (!d1 || !d2) { toast('เลือกวันที่ทั้ง 2 วัน', true); return; }
+    if (d1 === d2) { toast('วันที่ต้องไม่ซ้ำกัน', true); return; }
+
+    const empObj = D.emp.find(e => e.id === selEmpId);
+    if (!empObj) { toast('ไม่พบพนักงาน', true); return; }
+
+    // ตรวจสอบว่า d1 เป็นวันหยุดจริง
+    const d1Shift = D.sh[selEmpId + '-' + d1];
+    const d1Dow = new Date(d1).getDay();
+    const empOffDays = offD(empObj);
+    const isOff = d1Shift === 'off' || (!d1Shift && empOffDays.includes(d1Dow));
+    if (!isOff) { toast('📅 ' + fmtDate(d1) + ' ไม่ใช่วันหยุดของ ' + dn(empObj), true); return; }
+
+    // ตรวจสอบว่า d2 เป็นวันทำงาน
+    const d2Shift = D.sh[selEmpId + '-' + d2];
+    const d2Dow = new Date(d2).getDay();
+    const isWork = d2Shift && d2Shift !== 'off' ? true : (!d2Shift && !empOffDays.includes(d2Dow));
+    if (!isWork) { toast('📅 ' + fmtDate(d2) + ' เป็นวันหยุดอยู่แล้ว', true); return; }
+
+    const defShift = empObj.default_shift || 'day';
+    if (!confirm('ยืนยันย้ายวันหยุด?\\n\\n✅ ' + fmtDate(d1) + ' → มาทำงาน (กะ' + (SHIFT[defShift]?.l||defShift) + ')\\n🏖️ ' + fmtDate(d2) + ' → หยุดแทน' + (reason ? '\\n💬 ' + reason : ''))) return;
+
+    try {
+      // Set d1 (old off-day) → work shift
+      await api('/api/shifts', 'POST', { employee_id: selEmpId, date: d1, shift_type: defShift, note: '🔀 ย้ายวันหยุดไป ' + fmtDate(d2) + (reason ? ' — ' + reason : '') });
+      // Set d2 (work day) → off
+      await api('/api/shifts', 'POST', { employee_id: selEmpId, date: d2, shift_type: 'off', note: '🔀 ย้ายวันหยุดจาก ' + fmtDate(d1) + (reason ? ' — ' + reason : '') });
+      toast('✅ ย้ายวันหยุดสำเร็จ! ' + fmtDate(d1) + ' → ทำงาน, ' + fmtDate(d2) + ' → หยุด');
+      closeModal(); load();
+    } catch (er) { toast(er.message, true); }
+  } }, '🔀 ยืนยันย้ายวันหยุด'));
   o.appendChild(m); return o;
 }
 
