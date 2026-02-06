@@ -13,6 +13,17 @@ export async function handleAPI(request, env, url, currentUser) {
   // Initialize Telegram env
   setTgEnv(env);
 
+  // Helper: ตรวจสิทธิ์อนุมัติ (admin/owner หรืออยู่ใน approvers list)
+  const _approversCache = {};
+  async function canApprove() {
+    if (isO) return true;
+    if (_approversCache.v !== undefined) return _approversCache.v;
+    const setting = await DB.prepare("SELECT value FROM settings WHERE key='sick_approvers'").first();
+    const approvers = setting ? setting.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+    _approversCache.v = approvers.includes(currentUser.email);
+    return _approversCache.v;
+  }
+
   // ==================== ME ====================
   if (pathname === '/api/me' && method === 'GET') {
     return json({ data: await DB.prepare('SELECT * FROM employees WHERE id=?').bind(currentUser.employee_id).first() });
@@ -174,19 +185,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const leaveId = pathname.split('/')[3];
     const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
-    if (leave.leave_type === 'sick') {
-      const approversSetting = await DB.prepare("SELECT value FROM settings WHERE key='sick_approvers'").first();
-      const sickApprovers = approversSetting ? approversSetting.value.split(',').map(s => s.trim()) : [];
-      if (sickApprovers.length > 0) {
-        if (!sickApprovers.includes(currentUser.email) && !isO) {
-          return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่อนุมัติลาป่วยได้' }, 403);
-        }
-      } else if (!isO) {
-        return json({ error: 'ไม่มีสิทธิ์' }, 403);
-      }
-    } else {
-      if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
-    }
+    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์อนุมัติ' }, 403);
     await DB.prepare("UPDATE leaves SET status='approved',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
       .bind(currentUser.employee_id, leaveId).run();
     // ส่ง Telegram เฉพาะเมื่อไม่ได้เรียกจาก batch (ดูจาก query param)
@@ -199,7 +198,7 @@ export async function handleAPI(request, env, url, currentUser) {
 
   // Batch approve/reject leaves (grouped consecutive) — sends 1 Telegram
   if (pathname === '/api/leaves/batch' && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     const ids = b.ids || [];
     const action = b.action; // 'approve' or 'reject'
@@ -234,19 +233,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const leaveId = pathname.split('/')[3];
     const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
-    if (leave.leave_type === 'sick') {
-      const approversSetting = await DB.prepare("SELECT value FROM settings WHERE key='sick_approvers'").first();
-      const sickApprovers = approversSetting ? approversSetting.value.split(',').map(s => s.trim()) : [];
-      if (sickApprovers.length > 0) {
-        if (!sickApprovers.includes(currentUser.email) && !isO) {
-          return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่ปฏิเสธลาป่วยได้' }, 403);
-        }
-      } else if (!isO) {
-        return json({ error: 'ไม่มีสิทธิ์' }, 403);
-      }
-    } else {
-      if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
-    }
+    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์ปฏิเสธ' }, 403);
     await DB.prepare("UPDATE leaves SET status='rejected',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
       .bind(currentUser.employee_id, leaveId).run();
     const reqEmpR = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(leave.employee_id).first();
@@ -403,7 +390,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const id = pathname.split('/')[3];
     const sw = await DB.prepare('SELECT * FROM swap_requests WHERE id=?').bind(id).first();
     if (!sw) return json({ error: 'ไม่พบ' }, 404);
-    if (currentUser.employee_id !== sw.to_employee_id && !isO) {
+    if (currentUser.employee_id !== sw.to_employee_id && !(await canApprove())) {
       return json({ error: 'เฉพาะคู่สลับหรือเจ้าของเท่านั้นที่อนุมัติได้' }, 403);
     }
 
@@ -449,7 +436,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const id = pathname.split('/')[3];
     const sw = await DB.prepare('SELECT * FROM swap_requests WHERE id=?').bind(id).first();
     if (!sw) return json({ error: 'ไม่พบ' }, 404);
-    if (currentUser.employee_id !== sw.to_employee_id && !isO) {
+    if (currentUser.employee_id !== sw.to_employee_id && !(await canApprove())) {
       return json({ error: 'เฉพาะคู่สลับหรือเจ้าของเท่านั้นที่ปฏิเสธได้' }, 403);
     }
     await DB.prepare("UPDATE swap_requests SET status='rejected',approved_by=?,approved_at=datetime('now') WHERE id=?")
@@ -652,7 +639,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: results });
   }
   if (pathname.match(/^\/api\/self-dayoff\/(\d+)\/(approve|reject)$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const [, id, action] = pathname.match(/^\/api\/self-dayoff\/(\d+)\/(approve|reject)$/);
     const req = await DB.prepare('SELECT * FROM self_dayoff_requests WHERE id=?').bind(id).first();
     if (!req) return json({ error: 'ไม่พบคำขอ' }, 404);
@@ -733,7 +720,8 @@ export async function handleAPI(request, env, url, currentUser) {
     // Swap requests for year
     const { results: swapReqs } = await DB.prepare("SELECT sr.*, e1.nickname as from_nick, e1.avatar as from_avatar, e2.nickname as to_nick, e2.avatar as to_avatar FROM swap_requests sr JOIN employees e1 ON sr.from_employee_id=e1.id JOIN employees e2 ON sr.to_employee_id=e2.id WHERE sr.date LIKE ? ORDER BY sr.date").bind(`${yr}%`).all();
     const settings = {}; st.results.forEach(r => { settings[r.key] = r.value; });
-    return json({ data: { employees: e.results, shifts: s.results, leaves: l.results, holidays: ho.results, settings, yearlyLeaves, yearlyLeaveDetails: yld, selfMoves, swapRequests: swapReqs } });
+    const isApprover = await canApprove();
+    return json({ data: { employees: e.results, shifts: s.results, leaves: l.results, holidays: ho.results, settings, yearlyLeaves, yearlyLeaveDetails: yld, selfMoves, swapRequests: swapReqs, isApprover } });
   }
 
   return json({ error: 'Not found' }, 404);

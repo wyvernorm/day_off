@@ -325,7 +325,7 @@ async function load() {
       api('/api/overview?month=' + ms),
       api('/api/leaves?status=pending'),
       api('/api/swaps?status=pending'),
-      isO ? api('/api/self-dayoff') : Promise.resolve({ data: [] }),
+      (isO || D.isApprover) ? api('/api/self-dayoff') : Promise.resolve({ data: [] }),
     ]);
     D.emp = o.data.employees;
     D.selfDayoffPending = sdp.data || [];
@@ -333,7 +333,7 @@ async function load() {
     // อัพเดท KPI admins จาก settings
     if (D.set.kpi_admins) KPI_ADMINS = D.set.kpi_admins.split(',').map(s => s.trim());
     else KPI_ADMINS = KPI_ADMINS_DEFAULT;
-    D.yl = o.data.yearlyLeaves || {}; D.yld = o.data.yearlyLeaveDetails || []; D.selfMoves = o.data.selfMoves || []; D.swapReqs = o.data.swapRequests || [];
+    D.yl = o.data.yearlyLeaves || {}; D.yld = o.data.yearlyLeaveDetails || []; D.selfMoves = o.data.selfMoves || []; D.swapReqs = o.data.swapRequests || []; D.isApprover = o.data.isApprover || false;
     D.sh = {}; o.data.shifts.forEach(s => { D.sh[s.employee_id + '-' + s.date] = s.shift_type; });
     D.lv = {}; o.data.leaves.forEach(l => { D.lv[l.employee_id + '-' + l.date] = { t: l.leave_type, s: l.status, id: l.id }; });
     D.hol = {}; o.data.holidays.forEach(h => { D.hol[h.date] = h.name; });
@@ -553,7 +553,7 @@ function rHdr() {
   const tabs = ['calendar', 'stats'];
   // นับ pending leaves แบบ group (ต่อเนื่องนับ 1)
   let groupedLeaveCount = 0;
-  if (isO && D.pl.length > 0) {
+  if ((isO || D.isApprover) && D.pl.length > 0) {
     const _sorted = [...D.pl].sort((a, b) => (a.employee_id + '|' + a.leave_type).localeCompare(b.employee_id + '|' + b.leave_type) || a.date.localeCompare(b.date));
     let _prev = null;
     _sorted.forEach(l => {
@@ -563,9 +563,9 @@ function rHdr() {
       _prev = l;
     });
   }
-  const myPendingCount = isO ? groupedLeaveCount + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
+  const myPendingCount = (isO || D.isApprover) ? groupedLeaveCount + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
   const hasPendingForMe = D.ps.some(sw => sw.to_employee_id === U.id);
-  if (isO || hasPendingForMe) tabs.push('pending');
+  if (isO || D.isApprover || hasPendingForMe) tabs.push('pending');
   tabs.push('history');
   tabs.push('kpi');
   return h('div', { className: 'hdr' },
@@ -949,8 +949,9 @@ function rSta() {
 // === PENDING ===
 function rPnd() {
   const s = h('div', { className: 'ps' });
-  const myLeaves = isO ? D.pl : [];
-  const mySwaps = isO ? D.ps : D.ps.filter(sw => sw.to_employee_id === U.id);
+  const canApproveLv = isO || D.isApprover;
+  const myLeaves = canApproveLv ? D.pl : [];
+  const mySwaps = isO || D.isApprover ? D.ps : D.ps.filter(sw => sw.to_employee_id === U.id);
 
   // Group consecutive leaves by employee + leave_type (only if dates are consecutive)
   const grouped = [];
@@ -1026,7 +1027,7 @@ function rPnd() {
   });
 
   // Self day-off requests pending (admin only)
-  if (isO && D.selfDayoffPending && D.selfDayoffPending.length > 0) {
+  if ((isO || D.isApprover) && D.selfDayoffPending && D.selfDayoffPending.length > 0) {
     s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔀 ย้ายวันหยุดรออนุมัติ (' + D.selfDayoffPending.length + ')'));
     D.selfDayoffPending.forEach(req => {
       s.appendChild(h('div', { className: 'pc' },
@@ -1926,7 +1927,7 @@ function rSet() {
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '⚙️ ตั้งค่า'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'ชื่อบริษัท'), h('input', { type: 'text', className: 'fi', id: 'sc', value: D.set.company_name || '' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันหยุดบริษัท/ปี'), h('input', { type: 'number', className: 'fi', id: 'shv', value: D.set.company_holidays_per_year || '20' })));
-  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'ผู้มีสิทธิ์อนุมัติลาป่วย (อีเมล, คั่นด้วย ,)'), h('input', { type: 'text', className: 'fi', id: 'ssa', value: D.set.sick_approvers || '', placeholder: 'email1@x.com,email2@x.com' })));
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '👮 ผู้มีสิทธิ์อนุมัติ (อีเมล, คั่นด้วย ,)'), h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '6px' } }, 'ครอบคลุม: ลาป่วย, ลากิจ, ลาพักร้อน, สลับกะ, สลับวันหยุด, ย้ายวันหยุด'), h('input', { type: 'text', className: 'fi', id: 'ssa', value: D.set.sick_approvers || '', placeholder: 'email1@x.com,email2@x.com' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วัน Blackout (ไม่แสดงข้อมูล, คั่นด้วย ,)'), h('input', { type: 'text', className: 'fi', id: 'sbd', value: D.set.blackout_dates || '', placeholder: '2026-01-01,2026-01-02' })));
   // Super admins
   m.appendChild(h('div', { className: 'fg' },
