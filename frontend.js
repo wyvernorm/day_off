@@ -464,11 +464,9 @@ function render() {
   // First-login onboarding: ถ้ายังไม่กรอกเบอร์โทร (ไม่รวม owner)
   if (!D.onboarded && D.emp.length > 0) {
     D.onboarded = true;
-    if (!isO) {
-      const me = D.emp.find(e => e.id === U.id);
-      if (me && !me.phone) {
-        setTimeout(() => openModal('onboard'), 500);
-      }
+    const me = D.emp.find(e => e.id === U.id);
+    if (me && !me.phone) {
+      setTimeout(() => openModal('onboard'), 500);
     }
   }
   a.appendChild(rHdr());

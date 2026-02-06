@@ -66,10 +66,13 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: { id: r.meta.last_row_id }, message: 'เพิ่มสำเร็จ' }, 201);
   }
   if (pathname.match(/^\/api\/employees\/\d+$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const id = pathname.split('/').pop(), b = await getBody();
-    const al = ['name','nickname','email','role','department','default_shift','shift_start','shift_end',
-                'default_off_day','avatar','phone','line_id','show_in_calendar','max_leave_per_year','is_active'];
+    const isSelf = String(currentUser.employee_id) === String(id);
+    // ตัวเองแก้ได้เฉพาะ phone, line_id
+    const selfFields = ['phone','line_id'];
+    if (!isO && !isSelf) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const al = isO ? ['name','nickname','email','role','department','default_shift','shift_start','shift_end',
+                'default_off_day','avatar','phone','line_id','show_in_calendar','max_leave_per_year','is_active'] : selfFields;
     const f = [], v = [];
     for (const [k, val] of Object.entries(b)) { if (al.includes(k)) { f.push(`${k}=?`); v.push(val); } }
     if (!f.length) return json({ error: 'ไม่มีข้อมูล' }, 400);
