@@ -293,6 +293,13 @@ export async function handleAPI(request, env, url, currentUser) {
     const d1IsOff = d1ShiftRow ? d1ShiftRow.shift_type === 'off' : fromOffs.includes(d1Dow);
     if (!d1IsOff) return json({ error: 'วันที่ ' + b.date1 + ' ไม่ใช่วันหยุดของผู้ขอ ไม่สามารถสลับได้' }, 400);
 
+    // ตรวจสอบว่า date2 ต้องเป็นวันหยุดของคู่สลับ
+    const d2ShiftRow = await DB.prepare('SELECT shift_type FROM shifts WHERE date=? AND employee_id=?').bind(b.date2, b.to_employee_id).first();
+    const d2Dow = new Date(b.date2).getDay();
+    const toOffs = (toEmp.default_off_day || '6').split(',').map(Number);
+    const d2IsOff = d2ShiftRow ? d2ShiftRow.shift_type === 'off' : toOffs.includes(d2Dow);
+    if (!d2IsOff) return json({ error: 'วันที่ ' + b.date2 + ' ไม่ใช่วันหยุดของคู่สลับ — เลือกได้เฉพาะวันที่คู่สลับหยุดเท่านั้น' }, 400);
+
     // ดึงกะของทั้ง 2 วัน
     function getShiftForDate(emp, date, shiftsMap) {
       if (shiftsMap[emp.id]) return shiftsMap[emp.id];
