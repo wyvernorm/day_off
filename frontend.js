@@ -1098,23 +1098,26 @@ function rKpi() {
     hero.appendChild(heroGrid);
     w.appendChild(hero);
 
-    // Category breakdown — horizontal bars
+    // Category breakdown — bars left, donut right
     if (sum.byCategory.length) {
       const catBox = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', marginBottom: '20px' } });
       catBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📂 แต้มตามหมวดหมู่'));
       const tp = sum.totals.points || 1;
+      const catRow = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '24px', alignItems: 'center' } });
+      // Left: bars
+      const barsDiv = h('div', {});
       sum.byCategory.forEach(c => {
         const pct = (c.total_points / tp * 100).toFixed(1);
-        catBox.appendChild(h('div', { style: { marginBottom: '12px' } },
+        barsDiv.appendChild(h('div', { style: { marginBottom: '10px' } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' } },
             h('span', { style: { fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' } },
               h('div', { style: { width: '10px', height: '10px', borderRadius: '50%', background: c.color } }), c.name),
-            h('span', { style: { fontWeight: 700, color: c.color } }, c.total_points + ' แต้ม (' + pct + '%)')),
+            h('span', { style: { fontWeight: 700, color: c.color } }, c.total_points + ' (' + pct + '%)')),
           h('div', { style: { height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden' } },
             h('div', { style: { width: pct + '%', height: '100%', background: 'linear-gradient(90deg, ' + c.color + ', ' + c.color + '99)', borderRadius: '5px', transition: 'width 0.6s ease' } }))));
       });
-
-      // Donut chart for categories
+      catRow.appendChild(barsDiv);
+      // Right: donut
       let accumulated = 0;
       const segments = sum.byCategory.map(c => {
         const pct = (c.total_points / tp * 100);
@@ -1123,18 +1126,13 @@ function rKpi() {
         return c.color + ' ' + start + '% ' + accumulated + '%';
       });
       const catGrad = 'conic-gradient(' + segments.join(', ') + ')';
-      const donutRow = h('div', { style: { display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' } });
-      donutRow.appendChild(h('div', { style: { width: '120px', height: '120px', borderRadius: '50%', background: catGrad, position: 'relative', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' } },
-        h('div', { style: { position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
+      const donutDiv = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' } });
+      donutDiv.appendChild(h('div', { style: { width: '130px', height: '130px', borderRadius: '50%', background: catGrad, position: 'relative', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' } },
+        h('div', { style: { position: 'absolute', top: '22px', left: '22px', right: '22px', bottom: '22px', borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
           h('div', { style: { fontSize: '22px', fontWeight: 800, color: '#1e293b' } }, String(sum.totals.points)),
           h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้มรวม'))));
-      const legCol = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } });
-      sum.byCategory.forEach(c => legCol.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } },
-        h('div', { style: { width: '12px', height: '12px', borderRadius: '50%', background: c.color } }),
-        h('span', { style: { fontWeight: 600 } }, c.name),
-        h('span', { style: { color: '#94a3b8' } }, c.total_points + ' แต้ม'))));
-      donutRow.appendChild(legCol);
-      catBox.appendChild(donutRow);
+      catRow.appendChild(donutDiv);
+      catBox.appendChild(catRow);
       w.appendChild(catBox);
     }
 
@@ -1394,101 +1392,100 @@ function rLv() {
 function rSwp() {
   const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', onClick: e => e.stopPropagation() });
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '🔄 สลับกะ'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
-
   m.appendChild(h('div', { style: { padding: '10px 14px', background: '#fffbeb', borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '16px', border: '1px solid #fde68a' } },
     '⚠️ คู่สลับจะเป็นผู้อนุมัติ — ต้องมีคนทำงานทุกช่วงเวลาอย่างน้อย 1 คน'));
-
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันที่'), datePicker('sd', D.sd || '')));
-
-  // Auto-select ตัวเองเสมอ
-  const myEmp = D.emp.find(e => e.id === U.id);
-  let sf = myEmp ? myEmp.id : null;
-  let st = null;
   const emps = ce();
-
-  if (myEmp) {
-    m.appendChild(h('div', { className: 'fg' },
-      h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
-      h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
-        av(myEmp), h('div', {}, h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
-          h('div', { style: { fontSize: '12px', color: '#92400e', marginTop: '2px' } }, SHIFT[myEmp.default_shift]?.i + ' ' + stime(myEmp) + ' | สลับแล้ว ' + (myEmp.swap_count || 0) + ' ครั้ง')))));
+  let sf = null, st = null;
+  if (isO) {
+    m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '👤 ผู้ขอสลับ'),
+      h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'sf-' + e.id, style: { flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', gap: '2px' },
+        onClick: () => { sf = e.id; document.querySelectorAll('[id^=sf-]').forEach(el => { const a = el.id === 'sf-' + e.id; el.style.borderColor = a ? '#3b82f6' : 'transparent'; el.style.background = a ? '#eff6ff' : '#f8fafc'; el.style.color = a ? '#3b82f6' : '#64748b'; });
+          document.querySelectorAll('[id^=st-]').forEach(el => { el.style.display = el.id === 'st-' + e.id ? 'none' : ''; }); } },
+        h('div', {}, e.avatar + ' ' + dn(e)),
+        h('div', { style: { fontSize: '11px', opacity: 0.8 } }, SHIFT[e.default_shift]?.i + ' ' + stime(e)))))));
+  } else {
+    const myEmp = D.emp.find(e => e.id === U.id);
+    sf = myEmp ? myEmp.id : null;
+    if (myEmp) {
+      m.appendChild(h('div', { className: 'fg' },
+        h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
+          av(myEmp), h('div', {}, h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
+            h('div', { style: { fontSize: '12px', color: '#92400e', marginTop: '2px' } }, SHIFT[myEmp.default_shift]?.i + ' ' + stime(myEmp) + ' | สลับแล้ว ' + (myEmp.swap_count || 0) + ' ครั้ง')))));
+    }
   }
-
   m.appendChild(h('div', { style: { textAlign: 'center', fontSize: '22px', margin: '6px 0' } }, '⇅'));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'สลับกับ (ผู้อนุมัติ)'),
-    h('div', { className: 'pg' }, ...emps.filter(e => e.id !== sf).map(e => h('button', { className: 'pl', id: 'st-' + e.id, style: { flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', gap: '2px' },
+    h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'st-' + e.id, style: { flexDirection: 'column', alignItems: 'flex-start', padding: '8px 12px', gap: '2px' },
       onClick: () => { st = e.id; document.querySelectorAll('[id^=st-]').forEach(el => { const a = el.id === 'st-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } },
       h('div', {}, e.avatar + ' ' + dn(e)),
       h('div', { style: { fontSize: '11px', opacity: 0.8 } }, SHIFT[e.default_shift]?.i + ' ' + stime(e)))))));
-
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'sr', placeholder: '...' })));
   m.appendChild(h('button', { className: 'btn', style: { background: '#16a34a' }, onClick: async () => {
     const d = dpVal('sd'), r = document.getElementById('sr').value;
     if (!sf || !st) { toast('เลือกคู่สลับ', true); return; }
+    if (sf === st) { toast('ผู้ขอและคู่สลับต้องเป็นคนละคน', true); return; }
     if (!d) { toast('เลือกวันที่', true); return; }
     try { await api('/api/swaps', 'POST', { date: d, from_employee_id: sf, to_employee_id: st, reason: r || null }); toast('✅ ส่งคำขอแล้ว — รอคู่สลับอนุมัติ'); closeModal(); load(); } catch (er) { toast(er.message, true); }
   } }, 'ส่งคำขอสลับกะ'));
   o.appendChild(m); return o;
 }
-
 // === DAYOFF SWAP MODAL ===
 function rDayoffSwp() {
   const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', onClick: e => e.stopPropagation() });
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '📅 สลับวันหยุด'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
-
   m.appendChild(h('div', { style: { padding: '10px 14px', background: '#fef3c7', borderRadius: '8px', fontSize: '13px', color: '#92400e', marginBottom: '16px', border: '1px solid #fde68a', lineHeight: '1.6' } },
     '💡 สลับวันหยุดระหว่าง 2 คน เช่น น้ำตาลหยุดเสาร์ ปุ้ยหยุดอาทิตย์ → น้ำตาลมาทำเสาร์แทน+หยุดอาทิตย์ ปุ้ยมาทำอาทิตย์แทน+หยุดเสาร์'));
-
-  // Auto-select ตัวเองเสมอ
-  const myEmp = D.emp.find(e => e.id === U.id);
-  let sf = myEmp ? myEmp.id : null;
-  let st = null;
   const emps = ce();
-
-  if (myEmp) {
-    m.appendChild(h('div', { className: 'fg' },
-      h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
-      h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
-        av(myEmp), h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
-        h('span', { style: { fontSize: '12px', color: '#92400e', marginLeft: '6px' } }, 'หยุด: ' + offD(myEmp).map(d => DAYF[d]).join(', ')))));
+  let sf = null, st = null;
+  if (isO) {
+    m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '👤 ผู้ขอสลับ'),
+      h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'dsf-' + e.id,
+        onClick: () => { sf = e.id; document.querySelectorAll('[id^=dsf-]').forEach(el => { const a = el.id === 'dsf-' + e.id; el.style.borderColor = a ? '#3b82f6' : 'transparent'; el.style.background = a ? '#eff6ff' : '#f8fafc'; el.style.color = a ? '#3b82f6' : '#64748b'; });
+          document.querySelectorAll('[id^=dst-]').forEach(el => { el.style.display = el.id === 'dst-' + e.id ? 'none' : ''; }); } },
+        e.avatar + ' ' + dn(e) + ' (หยุด ' + offD(e).map(d => DAYF[d]).join(',') + ')')))));
+  } else {
+    const myEmp = D.emp.find(e => e.id === U.id);
+    sf = myEmp ? myEmp.id : null;
+    if (myEmp) {
+      m.appendChild(h('div', { className: 'fg' },
+        h('label', { className: 'fl' }, 'ผู้ขอสลับ (คุณ)'),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a' } },
+          av(myEmp), h('span', { style: { fontWeight: 700 } }, dn(myEmp)),
+          h('span', { style: { fontSize: '12px', color: '#92400e', marginLeft: '6px' } }, 'หยุด: ' + offD(myEmp).map(d => DAYF[d]).join(', ')))));
+    }
   }
-
   m.appendChild(h('div', { style: { textAlign: 'center', fontSize: '22px', margin: '6px 0' } }, '⇅'));
-
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'สลับกับ (ผู้อนุมัติ)'),
-    h('div', { className: 'pg' }, ...emps.filter(e => e.id !== sf).map(e => h('button', { className: 'pl', id: 'dst-' + e.id,
+    h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'dst-' + e.id,
       onClick: () => { st = e.id; document.querySelectorAll('[id^=dst-]').forEach(el => { const a = el.id === 'dst-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } },
       e.avatar + ' ' + dn(e) + ' (หยุด ' + offD(e).map(d => DAYF[d]).join(',') + ')')))));
-
   m.appendChild(h('div', { className: 'fg', style: { display: 'flex', gap: '10px' } },
-    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '📅 วันหยุดของคุณ (จะมาทำงานแทน)'), datePicker('ds1', '')),
+    h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '📅 วันหยุดของผู้ขอ (จะมาทำงานแทน)'), datePicker('ds1', '')),
     h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, '📅 วันที่จะหยุดแทน'), datePicker('ds2', ''))));
-
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'dsr', placeholder: 'เหตุผลการสลับ...' })));
-
   m.appendChild(h('button', { className: 'btn', style: { background: '#d97706' }, onClick: async () => {
     const d1 = dpVal('ds1'), d2 = dpVal('ds2'), r = document.getElementById('dsr').value;
     if (!sf || !st) { toast('เลือกคู่สลับ', true); return; }
+    if (sf === st) { toast('ผู้ขอและคู่สลับต้องเป็นคนละคน', true); return; }
     if (!d1 || !d2) { toast('เลือกวันที่ทั้ง 2 วัน', true); return; }
     if (d1 === d2) { toast('วันที่ต้องไม่ซ้ำกัน', true); return; }
-    // ตรวจสอบว่า d1 เป็นวันหยุดของผู้ขอ (sf)
     const fromEmpObj = D.emp.find(e => e.id === sf);
     const toEmpObj = D.emp.find(e => e.id === st);
     if (fromEmpObj) {
-      const d1Key = d1;
-      const d1Shift = D.sh[sf + '-' + d1Key];
+      const d1Shift = D.sh[sf + '-' + d1];
       const d1Dow = new Date(d1).getDay();
       const fromOffDays = offD(fromEmpObj);
       const isFromOff = d1Shift === 'off' || (!d1Shift && fromOffDays.includes(d1Dow));
-      if (!isFromOff) { toast('📅 วันที่ ' + fmtDate(d1) + ' ไม่ใช่วันหยุดของคุณ', true); return; }
+      if (!isFromOff) { toast('📅 วันที่ ' + fmtDate(d1) + ' ไม่ใช่วันหยุดของ ' + dn(fromEmpObj), true); return; }
     }
-    // ตรวจสอบว่า d2 เป็นวันหยุดของคู่สลับ (st) — ต้องเป็นวันหยุดของเขา จึงจะสลับได้
     if (toEmpObj) {
       const d2Shift = D.sh[st + '-' + d2];
       const d2Dow = new Date(d2).getDay();
       const toOffDays = offD(toEmpObj);
       const isToOff = d2Shift === 'off' || (!d2Shift && toOffDays.includes(d2Dow));
-      if (!isToOff) { toast('📅 วันที่ ' + fmtDate(d2) + ' ไม่ใช่วันหยุดของ ' + dn(toEmpObj) + ' — เลือกได้เฉพาะวันที่คู่สลับหยุดเท่านั้น', true); return; }
+      if (!isToOff) { toast('📅 วันที่ ' + fmtDate(d2) + ' ไม่ใช่วันหยุดของ ' + dn(toEmpObj), true); return; }
     }
     try {
       await api('/api/swaps/dayoff', 'POST', { date1: d1, date2: d2, from_employee_id: sf, to_employee_id: st, reason: r || null });
