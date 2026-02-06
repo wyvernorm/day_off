@@ -341,6 +341,7 @@ function h(t, a = {}, ...ch) {
     else if (k === 'className') el.className = v;
     else if (k === 'innerHTML') el.innerHTML = v;
     else if (k === 'src') el.src = v;
+    else if (k === 'disabled' || k === 'checked' || k === 'selected') { if (v) el.setAttribute(k, ''); else el.removeAttribute(k); }
     else el.setAttribute(k, v);
   }
   ch.flat(Infinity).forEach(c => {
