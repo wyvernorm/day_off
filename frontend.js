@@ -627,7 +627,11 @@ function rRos() {
   }
   if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push(week); }
 
-  const emps = ce();
+  const emps = [...ce()].sort((a, b) => {
+    const sa = a.default_shift === 'day' ? 0 : 1;
+    const sb = b.default_shift === 'day' ? 0 : 1;
+    return sa - sb;
+  });
 
   weeks.forEach((wk, wi) => {
     // Week header
