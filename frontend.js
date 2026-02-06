@@ -566,6 +566,8 @@ function rNav() {
 
 // === LEGEND ===
 function rLgd() {
+  // ซ่อน legend ในหน้า KPI และ history
+  if (D.v === 'kpi' || D.v === 'history') return h('div');
   return h('div', { className: 'lgd' },
     ...Object.entries(SHIFT).map(([, v]) => h('div', { className: 'li' }, h('span', { className: 'lic', style: { background: v.b } }, v.i), h('span', { style: { fontWeight: 600 } }, v.l))),
     h('div', { className: 'lsep' }),
@@ -820,13 +822,12 @@ function rHist() {
   if (!D.hist) return w;
   if (!D.histFilter) D.histFilter = { type: 'all', status: 'all', page: 0 };
   const hf = D.histFilter;
-  const PER_PAGE = 15;
+  const PER_PAGE = 20;
 
   // รวมทุกอย่างเป็น 1 timeline
   const all = [];
   D.hist.leaves.forEach(l => all.push({ kind: 'leave', status: l.status, date: l.date, approvedAt: l.approved_at, data: l }));
   D.hist.swaps.forEach(s => all.push({ kind: s.swap_type === 'dayoff' ? 'dayoff' : 'swap', status: s.status, date: s.date, approvedAt: s.approved_at, data: s }));
-  // sort by approved_at desc
   all.sort((a, b) => (b.approvedAt || '').localeCompare(a.approvedAt || ''));
 
   // filter
@@ -834,64 +835,76 @@ function rHist() {
   if (hf.type !== 'all') filtered = filtered.filter(i => i.kind === hf.type);
   if (hf.status !== 'all') filtered = filtered.filter(i => i.status === hf.status);
 
-  w.appendChild(h('div', { className: 'pt' }, '📜 ประวัติการอนุมัติ (' + (D.y+543) + ')'));
+  // Header + Stats
+  const approved = all.filter(i => i.status === 'approved').length;
+  const rejected = all.filter(i => i.status === 'rejected').length;
+  w.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' } },
+    h('div', { className: 'pt' }, '📜 ประวัติ (' + (D.y+543) + ')'),
+    h('div', { style: { display: 'flex', gap: '8px' } },
+      h('div', { style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, background: '#dcfce7', color: '#16a34a' } }, '✅ ' + approved),
+      h('div', { style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, background: '#fee2e2', color: '#dc2626' } }, '❌ ' + rejected),
+      h('div', { style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, background: '#f1f5f9', color: '#64748b' } }, 'ทั้งหมด ' + all.length),
+    )));
 
-  // Filter bar
-  const fb = h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' } });
+  // Compact filter
+  const fb = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px', alignItems: 'center' } });
+  fb.appendChild(h('span', { style: { fontSize: '12px', color: '#94a3b8', fontWeight: 600 } }, 'ประเภท:'));
   [['all','ทั้งหมด'],['leave','วันลา'],['swap','สลับกะ'],['dayoff','สลับวันหยุด']].forEach(([v,l]) => {
-    fb.appendChild(h('button', { className: 'pl', style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, border: '2px solid', borderColor: hf.type === v ? '#6366f1' : '#e2e8f0', background: hf.type === v ? '#e0e7ff' : '#fff', color: hf.type === v ? '#6366f1' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.type = v; hf.page = 0; render(); } }, l));
+    fb.appendChild(h('button', { style: { padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600, border: 'none', background: hf.type === v ? '#6366f1' : '#f1f5f9', color: hf.type === v ? '#fff' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.type = v; hf.page = 0; render(); } }, l));
   });
-  fb.appendChild(h('span', { style: { margin: '0 4px', color: '#cbd5e1' } }, '|'));
-  [['all','ทุกสถานะ'],['approved','✅ อนุมัติ'],['rejected','❌ ปฏิเสธ']].forEach(([v,l]) => {
-    fb.appendChild(h('button', { className: 'pl', style: { padding: '6px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, border: '2px solid', borderColor: hf.status === v ? '#6366f1' : '#e2e8f0', background: hf.status === v ? '#e0e7ff' : '#fff', color: hf.status === v ? '#6366f1' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.status = v; hf.page = 0; render(); } }, l));
+  fb.appendChild(h('span', { style: { width: '1px', height: '16px', background: '#e2e8f0', margin: '0 4px' } }));
+  fb.appendChild(h('span', { style: { fontSize: '12px', color: '#94a3b8', fontWeight: 600 } }, 'สถานะ:'));
+  [['all','ทั้งหมด'],['approved','✅'],['rejected','❌']].forEach(([v,l]) => {
+    fb.appendChild(h('button', { style: { padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 600, border: 'none', background: hf.status === v ? '#6366f1' : '#f1f5f9', color: hf.status === v ? '#fff' : '#64748b', cursor: 'pointer' }, onClick: () => { hf.status = v; hf.page = 0; render(); } }, l));
   });
   w.appendChild(fb);
 
-  w.appendChild(h('div', { style: { fontSize: '13px', color: '#94a3b8', marginBottom: '8px' } }, 'แสดง ' + filtered.length + ' รายการ'));
-
   const LTH = {sick:'🏥 ลาป่วย',personal:'📋 ลากิจ',vacation:'✈️ ลาพักร้อน'};
   const page = filtered.slice(hf.page * PER_PAGE, (hf.page + 1) * PER_PAGE);
-  if (!page.length) w.appendChild(h('p', { style: { color: '#94a3b8' } }, 'ไม่มีรายการ'));
+  if (!page.length) w.appendChild(h('div', { style: { textAlign: 'center', padding: '40px', color: '#94a3b8' } }, '📭 ไม่มีรายการ'));
 
+  // Compact list
+  const list = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } });
   page.forEach(item => {
     const isA = item.status === 'approved';
-    const bd = isA ? '#f0fdf4' : '#fef2f2', bc = isA ? '#bbf7d0' : '#fecaca';
-    const badge = h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isA ? '#dcfce7' : '#fee2e2', color: isA ? '#16a34a' : '#dc2626' } }, isA ? '✅' : '❌');
-    let content;
+    const statusDot = h('div', { style: { width: '8px', height: '8px', borderRadius: '50%', background: isA ? '#22c55e' : '#ef4444', flexShrink: 0, marginTop: '6px' } });
+
+    let icon, title, detail, meta;
     if (item.kind === 'leave') {
       const l = item.data;
-      const kindBadge = h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: '#ede9fe', color: '#8b5cf6' } }, LTH[l.leave_type] || l.leave_type);
-      content = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: bd, borderRadius: '8px', marginBottom: '4px', border: '1px solid ' + bc } },
-        h('span', { style: { fontSize: '20px' } }, l.emp_avatar || '👤'),
-        h('div', { style: { flex: 1, fontSize: '13px' } },
-          h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' } },
-            h('b', {}, l.emp_nick || l.emp_name), kindBadge, badge),
-          h('div', { style: { color: '#64748b', marginTop: '2px' } },
-            fmtDate(l.date) + (l.reason ? ' — ' + l.reason : '') +
-            ' | ✍️ ' + (l.approver_nick || l.approver_name || '—') + ' ' + fmtDateTime(l.approved_at))));
+      icon = (LEAVE[l.leave_type]||LEAVE.sick).i;
+      title = (l.emp_nick || l.emp_name);
+      detail = (LTH[l.leave_type] || l.leave_type) + '  ·  ' + fmtDate(l.date);
+      meta = (l.reason ? l.reason + '  ·  ' : '') + (l.approver_nick || l.approver_name || '—') + '  ·  ' + fmtDateTime(l.approved_at);
     } else {
       const s = item.data;
       const isDO = item.kind === 'dayoff';
-      const kindBadge = h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isDO ? '#fef3c7' : '#d1fae5', color: isDO ? '#d97706' : '#10b981' } }, isDO ? '📅 สลับวันหยุด' : '🔄 สลับกะ');
-      content = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: bd, borderRadius: '8px', marginBottom: '4px', border: '1px solid ' + bc } },
-        h('span', { style: { fontSize: '20px' } }, s.from_avatar || '👤'),
-        h('div', { style: { flex: 1, fontSize: '13px' } },
-          h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' } },
-            h('b', {}, (s.from_nick || s.from_name) + ' ↔ ' + (s.to_nick || s.to_name)), kindBadge, badge),
-          h('div', { style: { color: '#64748b', marginTop: '2px' } },
-            fmtDate(s.date) + (s.date2 ? ' ↔ ' + fmtDate(s.date2) : '') +
-            ' | ✍️ ' + (s.approver_nick || s.approver_name || '—') + ' ' + fmtDateTime(s.approved_at))));
+      icon = isDO ? '📅' : '🔄';
+      title = (s.from_nick || s.from_name) + ' ↔ ' + (s.to_nick || s.to_name);
+      detail = (isDO ? 'สลับวันหยุด' : 'สลับกะ') + '  ·  ' + fmtDate(s.date) + (s.date2 ? ' ↔ ' + fmtDate(s.date2) : '');
+      meta = (s.approver_nick || s.approver_name || '—') + '  ·  ' + fmtDateTime(s.approved_at);
     }
-    w.appendChild(content);
+
+    list.appendChild(h('div', { style: { display: 'flex', gap: '10px', padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #f1f5f9' } },
+      statusDot,
+      h('div', { style: { flex: 1, minWidth: 0 } },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' } },
+          h('span', { style: { fontSize: '14px' } }, icon),
+          h('span', { style: { fontWeight: 700, fontSize: '14px' } }, title),
+          h('span', { style: { fontSize: '11px', padding: '1px 8px', borderRadius: '10px', fontWeight: 600, background: isA ? '#dcfce7' : '#fee2e2', color: isA ? '#16a34a' : '#dc2626' } }, isA ? 'อนุมัติ' : 'ปฏิเสธ')),
+        h('div', { style: { fontSize: '12px', color: '#64748b', marginTop: '2px' } }, detail),
+        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '1px' } }, '✍️ ' + meta)),
+    ));
   });
+  w.appendChild(list);
 
   // Pagination
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   if (totalPages > 1) {
-    const pg = h('div', { style: { display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '12px' } });
-    if (hf.page > 0) pg.appendChild(h('button', { className: 'pl', style: { padding: '6px 14px', borderRadius: '8px', cursor: 'pointer' }, onClick: () => { hf.page--; render(); } }, '‹ ก่อนหน้า'));
+    const pg = h('div', { style: { display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '14px' } });
+    if (hf.page > 0) pg.appendChild(h('button', { style: { padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#f1f5f9', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }, onClick: () => { hf.page--; render(); } }, '‹ ก่อนหน้า'));
     pg.appendChild(h('span', { style: { padding: '6px 14px', fontSize: '13px', color: '#64748b' } }, (hf.page+1) + '/' + totalPages));
-    if (hf.page < totalPages - 1) pg.appendChild(h('button', { className: 'pl', style: { padding: '6px 14px', borderRadius: '8px', cursor: 'pointer' }, onClick: () => { hf.page++; render(); } }, 'ถัดไป ›'));
+    if (hf.page < totalPages - 1) pg.appendChild(h('button', { style: { padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#f1f5f9', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }, onClick: () => { hf.page++; render(); } }, 'ถัดไป ›'));
     w.appendChild(pg);
   }
   return w;
