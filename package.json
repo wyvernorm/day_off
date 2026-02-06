@@ -1,0 +1,16 @@
+{
+  "name": "shift-manager",
+  "version": "1.0.0",
+  "description": "ระบบจัดการกะ & วันลา - Cloudflare Worker + D1",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute shift-manager-db --file=schema.sql",
+    "db:init:local": "wrangler d1 execute shift-manager-db --local --file=schema.sql",
+    "dev:local": "wrangler dev --local"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
