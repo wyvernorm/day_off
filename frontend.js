@@ -157,8 +157,8 @@ button { font-family: inherit; cursor: pointer; }
 .br { border: 1px solid var(--dg); background: #fff; color: var(--dg); padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; }
 
 /* === MODAL === */
-.mo { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.35); backdrop-filter: blur(4px); opacity: 0; transition: opacity .2s; }
-.mo.show { opacity: 1; }
+.mo { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.35); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .2s; }
+.mo.show { opacity: 1; pointer-events: auto; }
 .md { background: #fff; border-radius: 16px; padding: 28px; min-width: 400px; max-width: 560px; box-shadow: var(--sl); max-height: 88vh; overflow: auto; transform: translateY(20px); transition: transform .2s; }
 .mo.show .md { transform: translateY(0); }
 .mh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
@@ -461,11 +461,15 @@ function closeModal() {
 function render() {
   const a = document.getElementById('app');
   a.innerHTML = '';
-  // First-login onboarding: ถ้ายังไม่กรอกเบอร์โทร
+  // First-login onboarding: ถ้ายังไม่กรอกเบอร์โทร (ไม่รวม owner)
   if (!D.onboarded && D.emp.length > 0) {
-    const me = D.emp.find(e => e.id === U.id);
-    if (me && !me.phone) { D.modal = 'onboard'; }
     D.onboarded = true;
+    if (!isO) {
+      const me = D.emp.find(e => e.id === U.id);
+      if (me && !me.phone) {
+        setTimeout(() => openModal('onboard'), 500);
+      }
+    }
   }
   a.appendChild(rHdr());
   a.appendChild(rNav());
@@ -476,7 +480,7 @@ function render() {
   else if (D.v === 'pending') a.appendChild(rPnd());
   else if (D.v === 'history') a.appendChild(rHist());
   else if (D.v === 'kpi') a.appendChild(rKpi());
-  if (D.modal) a.appendChild(rModal());
+  if (D.modal) { a.appendChild(rModal()); requestAnimationFrame(() => { const m = document.querySelector('.mo'); if (m) m.classList.add('show'); }); }
 }
 
 // === HEADER ===
