@@ -84,6 +84,9 @@ export default {
           'INSERT INTO sessions (token, employee_id, email, expires_at) VALUES (?, ?, ?, ?)'
         ).bind(token, employee.id, user.email, expires.toISOString()).run();
 
+        // Update last_login
+        await env.DB.prepare("UPDATE employees SET last_login=datetime('now') WHERE id=?").bind(employee.id).run();
+
         // Set cookie and redirect
         return new Response(null, {
           status: 302,
