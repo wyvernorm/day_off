@@ -880,7 +880,7 @@ function rSta() {
     const empSwaps = (D.swapReqs || []).filter(sr => sr.from_employee_id === emp.id || sr.to_employee_id === emp.id);
     const moveCount = Math.floor(empMoves.length / 2); // pairs (off→work, work→off)
     const swapCount = emp.swap_count || 0;
-    const dayoffSwapCount = empSwaps.filter(sr => sr.swap_type === 'dayoff' && sr.status === 'approved').length;
+    const dayoffSwapCount = emp.dayoff_swap_count || 0;
     const card = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '20px', border: isMe ? '2px solid #3b82f6' : '1px solid #e2e8f0', position: 'relative', overflow: 'hidden' } });
     if (isMe) card.appendChild(h('div', { style: { position: 'absolute', top: 0, right: 0, background: '#3b82f6', color: '#fff', fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '0 0 0 10px' } }, 'คุณ'));
     // Header

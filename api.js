@@ -388,8 +388,8 @@ export async function handleAPI(request, env, url, currentUser) {
         DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
           .bind(sw.to_employee_id, sw.date2, toEmp.default_shift),
         DB.prepare("UPDATE swap_requests SET status='approved',approved_by=?,approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id),
-        // นับครั้งสลับตอนอนุมัติ
-        DB.prepare('UPDATE employees SET swap_count=COALESCE(swap_count,0)+1 WHERE id=?').bind(sw.from_employee_id),
+        // นับครั้งสลับวันหยุดตอนอนุมัติ
+        DB.prepare('UPDATE employees SET dayoff_swap_count=COALESCE(dayoff_swap_count,0)+1 WHERE id=?').bind(sw.from_employee_id),
       ]);
     } else {
       // สลับกะปกติ
@@ -744,6 +744,8 @@ export async function ensureTables(DB) {
       approved_at DATETIME,
       created_at DATETIME DEFAULT (datetime('now'))
     )`).run();
+    // Add dayoff_swap_count column if not exists
+    try { await DB.prepare('ALTER TABLE employees ADD COLUMN dayoff_swap_count INTEGER DEFAULT 0').run(); } catch(e) { /* already exists */ }
   } catch (e) { /* ignore */ }
 }
 function fmtDateTH(iso) { if (!iso) return ''; const [y,m,d] = iso.split('-'); return d+'/'+m+'/'+(+y+543); }
