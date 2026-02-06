@@ -123,12 +123,16 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/approve$/) && method === 'PUT') {
     const leaveId = pathname.split('/')[3];
-    const leave = await DB.prepare('SELECT * FROM leaves WHERE id=?').bind(leaveId).first();
+    const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
-    // ลาป่วย: เฉพาะ น้ำตาล + ToP อนุมัติได้
-    const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
+    // ลาป่วย: ถ้าน้ำตาลลา → เฉพาะ ToP อนุมัติ, ถ้าคนอื่นลา → น้ำตาล+ToP อนุมัติ
     if (leave.leave_type === 'sick') {
-      if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่อนุมัติลาป่วยได้' }, 403);
+      if (leave.requester_email === 'iiiiinamtaniiiii@gmail.com') {
+        if (currentUser.email !== 'wyvernorm@gmail.com') return json({ error: 'เฉพาะ ToP เท่านั้นที่อนุมัติลาป่วยของน้ำตาลได้' }, 403);
+      } else {
+        const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
+        if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่อนุมัติลาป่วยได้' }, 403);
+      }
     } else {
       if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     }
@@ -138,11 +142,15 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname.match(/^\/api\/leaves\/\d+\/reject$/) && method === 'PUT') {
     const leaveId = pathname.split('/')[3];
-    const leave = await DB.prepare('SELECT * FROM leaves WHERE id=?').bind(leaveId).first();
+    const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
     if (leave.leave_type === 'sick') {
-      const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
-      if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่ปฏิเสธลาป่วยได้' }, 403);
+      if (leave.requester_email === 'iiiiinamtaniiiii@gmail.com') {
+        if (currentUser.email !== 'wyvernorm@gmail.com') return json({ error: 'เฉพาะ ToP เท่านั้นที่ปฏิเสธลาป่วยของน้ำตาลได้' }, 403);
+      } else {
+        const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
+        if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่ปฏิเสธลาป่วยได้' }, 403);
+      }
     } else {
       if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     }

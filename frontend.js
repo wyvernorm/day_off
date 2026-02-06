@@ -107,7 +107,9 @@ button { font-family: inherit; cursor: pointer; }
 .dn.tn { font-weight: 800; color: var(--pr); }
 .dn .badge { font-size: 9px; padding: 2px 6px; border-radius: 6px; font-weight: 700; }
 .hn { font-size: 10px; color: #d97706; font-weight: 600; margin-bottom: 3px; }
-.et { display: flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.et { display: flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.et.lv { border: 2px solid; font-size: 13px; padding: 4px 8px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .75; } }
 
 /* === ROSTER === */
 .rw { overflow-x: auto; border-radius: var(--rd); border: 1px solid var(--bd); background: var(--sf); }
@@ -309,7 +311,12 @@ function isOff(e, y, m, d) { return offD(e).includes(gdow(y, m, d)); }
 function stime(e) { return (e.shift_start || '09:00') + '-' + (e.shift_end || '17:00'); }
 function dn(e) { return e.nickname || e.name; }
 function fmtDate(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return d + '/' + m + '/' + (+y + 543); }
-function canGoPrev() { return D.y > MIN_YEAR || (D.y === MIN_YEAR && D.m >= MIN_MONTH + 1); }
+function canGoPrev() {
+  // ถอยได้ถ้าเดือนหลังจากถอยยังอยู่ใน 2026 ขึ้นไป
+  let py = D.y, pm = D.m - 1;
+  if (pm < 0) { pm = 11; py--; }
+  return py >= MIN_YEAR;
+}
 
 function disp(e, k, y, m, d) {
   const lv = D.lv[e.id + '-' + k];
@@ -510,7 +517,7 @@ function rCal() {
     if (hl) dy.appendChild(h('div', { className: 'hn' }, '🔴 ' + hl));
     ce().forEach(emp => {
       const inf = disp(emp, k, D.y, D.m, d);
-      dy.appendChild(h('div', { className: 'et', style: { background: inf.b, color: inf.c } }, inf.i + ' ' + dn(emp)));
+      dy.appendChild(h('div', { className: 'et' + (inf.isL ? ' lv' : ''), style: inf.isL ? { background: inf.b, color: inf.c, borderColor: inf.c } : { background: inf.b, color: inf.c } }, inf.i + ' ' + dn(emp) + (inf.isL ? ' (' + inf.l + ')' : '')));
     });
     g.appendChild(dy);
   }
@@ -535,7 +542,7 @@ function rRos() {
     r.appendChild(h('td', { className: 'sk' }, h('div', { className: 'ec' }, av(emp), h('div', {}, h('div', { className: 'en' }, dn(emp)), h('div', { className: 'er' }, stime(emp) + ' | หยุด: ' + offD(emp).map(d => DAYF[d]).join(','))))));
     for (let d = 1; d <= dm; d++) {
       const k = dk(D.y, D.m, d), td = itd(D.y, D.m, d), inf = disp(emp, k, D.y, D.m, d);
-      r.appendChild(h('td', { className: td ? 'tc' : '' }, h('div', { className: 'sc', style: { background: inf.b }, title: (inf.l || ''), onClick: () => { D.sd = k; D.se = emp.id; openModal('day'); } }, inf.i)));
+      r.appendChild(h('td', { className: td ? 'tc' : '' }, h('div', { className: 'sc', style: inf.isL ? { background: inf.b, border: '2px solid ' + inf.c, boxShadow: '0 0 6px ' + inf.c + '40' } : { background: inf.b }, title: (inf.l || ''), onClick: () => { D.sd = k; D.se = emp.id; openModal('day'); } }, inf.i)));
     }
     bd.appendChild(r);
   });
