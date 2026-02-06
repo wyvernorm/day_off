@@ -10,6 +10,9 @@ export async function handleAPI(request, env, url, currentUser) {
   const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
   const getBody = async () => { try { return await request.json(); } catch { return {}; } };
 
+  // Initialize Telegram env
+  setTgEnv(env);
+
   // ==================== ME ====================
   if (pathname === '/api/me' && method === 'GET') {
     return json({ data: await DB.prepare('SELECT * FROM employees WHERE id=?').bind(currentUser.employee_id).first() });
@@ -99,14 +102,17 @@ export async function handleAPI(request, env, url, currentUser) {
   if (pathname === '/api/leaves' && method === 'GET') {
     const mo = url.searchParams.get('month'), ei = url.searchParams.get('employee_id'),
           st = url.searchParams.get('status'), yr = url.searchParams.get('year');
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 200, 500);
+    const offset = parseInt(url.searchParams.get('offset')) || 0;
     let q = 'SELECT l.*,e.name as employee_name,e.avatar,e.nickname FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE 1=1';
     const p = [];
     if (mo) { q += " AND l.date LIKE ?"; p.push(`${mo}%`); }
     if (ei) { q += " AND l.employee_id=?"; p.push(ei); }
     if (st) { q += " AND l.status=?"; p.push(st); }
     if (yr) { q += " AND l.date LIKE ?"; p.push(`${yr}%`); }
-    q += ' ORDER BY l.date DESC';
-    const { results } = p.length ? await DB.prepare(q).bind(...p).all() : await DB.prepare(q).all();
+    q += ' ORDER BY l.date DESC LIMIT ? OFFSET ?';
+    p.push(limit, offset);
+    const { results } = await DB.prepare(q).bind(...p).all();
     return json({ data: results });
   }
   if (pathname === '/api/leaves' && method === 'POST') {
@@ -147,13 +153,17 @@ export async function handleAPI(request, env, url, currentUser) {
     const leaveId = pathname.split('/')[3];
     const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
-    // ลาป่วย: ถ้าน้ำตาลลา → เฉพาะ ToP อนุมัติ, ถ้าคนอื่นลา → น้ำตาล+ToP อนุมัติ
+    // ลาป่วย: ตรวจสิทธิ์จาก settings (sick_approvers) แทน hardcode
     if (leave.leave_type === 'sick') {
-      if (leave.requester_email === 'iiiiinamtaniiiii@gmail.com') {
-        if (currentUser.email !== 'wyvernorm@gmail.com') return json({ error: 'เฉพาะ ToP เท่านั้นที่อนุมัติลาป่วยของน้ำตาลได้' }, 403);
-      } else {
-        const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
-        if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่อนุมัติลาป่วยได้' }, 403);
+      const approversSetting = await DB.prepare("SELECT value FROM settings WHERE key='sick_approvers'").first();
+      const sickApprovers = approversSetting ? approversSetting.value.split(',').map(s => s.trim()) : [];
+      // ถ้าไม่มี setting → ใช้ admin/owner ปกติ
+      if (sickApprovers.length > 0) {
+        if (!sickApprovers.includes(currentUser.email) && !isO) {
+          return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่อนุมัติลาป่วยได้' }, 403);
+        }
+      } else if (!isO) {
+        return json({ error: 'ไม่มีสิทธิ์' }, 403);
       }
     } else {
       if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
@@ -170,11 +180,14 @@ export async function handleAPI(request, env, url, currentUser) {
     const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
     if (leave.leave_type === 'sick') {
-      if (leave.requester_email === 'iiiiinamtaniiiii@gmail.com') {
-        if (currentUser.email !== 'wyvernorm@gmail.com') return json({ error: 'เฉพาะ ToP เท่านั้นที่ปฏิเสธลาป่วยของน้ำตาลได้' }, 403);
-      } else {
-        const SICK_APPROVERS = ['iiiiinamtaniiiii@gmail.com', 'wyvernorm@gmail.com'];
-        if (!SICK_APPROVERS.includes(currentUser.email)) return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่ปฏิเสธลาป่วยได้' }, 403);
+      const approversSetting = await DB.prepare("SELECT value FROM settings WHERE key='sick_approvers'").first();
+      const sickApprovers = approversSetting ? approversSetting.value.split(',').map(s => s.trim()) : [];
+      if (sickApprovers.length > 0) {
+        if (!sickApprovers.includes(currentUser.email) && !isO) {
+          return json({ error: 'เฉพาะผู้มีสิทธิ์เท่านั้นที่ปฏิเสธลาป่วยได้' }, 403);
+        }
+      } else if (!isO) {
+        return json({ error: 'ไม่มีสิทธิ์' }, 403);
       }
     } else {
       if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
@@ -187,7 +200,14 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'ปฏิเสธสำเร็จ' });
   }
   if (pathname.match(/^\/api\/leaves\/\d+$/) && method === 'DELETE') {
-    await DB.prepare('DELETE FROM leaves WHERE id=?').bind(pathname.split('/').pop()).run();
+    const leaveId = pathname.split('/').pop();
+    const leave = await DB.prepare('SELECT * FROM leaves WHERE id=?').bind(leaveId).first();
+    if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
+    // เฉพาะเจ้าของวันลาหรือ admin/owner เท่านั้นที่ลบได้
+    if (!isO && leave.employee_id !== currentUser.employee_id) {
+      return json({ error: 'ไม่มีสิทธิ์ลบวันลาของคนอื่น' }, 403);
+    }
+    await DB.prepare('DELETE FROM leaves WHERE id=?').bind(leaveId).run();
     return json({ message: 'ยกเลิกสำเร็จ' });
   }
 
@@ -246,8 +266,7 @@ export async function handleAPI(request, env, url, currentUser) {
     await DB.prepare('INSERT INTO swap_requests (date,from_employee_id,to_employee_id,from_shift,to_shift,reason) VALUES (?,?,?,?,?,?)')
       .bind(b.date, b.from_employee_id, b.to_employee_id, fromShift, toShift, b.reason || null).run();
 
-    // นับครั้งสลับกะ
-    await DB.prepare('UPDATE employees SET swap_count=COALESCE(swap_count,0)+1 WHERE id=?').bind(b.from_employee_id).run();
+    // swap_count จะเพิ่มตอนอนุมัติเท่านั้น (ไม่นับตอนขอ)
 
     tgSend(`🔄 <b>คำขอสลับกะ</b>\n👤 ${fromEmp.nickname||fromEmp.name} ↔ ${toEmp.nickname||toEmp.name}\n📅 ${fmtDateTH(b.date)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รอ ${toEmp.nickname||toEmp.name} อนุมัติ`);
     return json({ message: 'ส่งคำขอสำเร็จ — รอคู่สลับอนุมัติ' }, 201);
@@ -306,7 +325,7 @@ export async function handleAPI(request, env, url, currentUser) {
 
     await DB.prepare('INSERT INTO swap_requests (date,date2,from_employee_id,to_employee_id,from_shift,to_shift,swap_type,reason) VALUES (?,?,?,?,?,?,?,?)')
       .bind(b.date1, b.date2, b.from_employee_id, b.to_employee_id, 'off', 'off', 'dayoff', b.reason || null).run();
-    await DB.prepare('UPDATE employees SET swap_count=COALESCE(swap_count,0)+1 WHERE id=?').bind(b.from_employee_id).run();
+    // swap_count จะเพิ่มตอนอนุมัติเท่านั้น
 
     tgSend(`📅 <b>คำขอสลับวันหยุด</b>\n👤 ${fromEmp.nickname||fromEmp.name} ↔ ${toEmp.nickname||toEmp.name}\n📅 ${fmtDateTH(b.date1)} ↔ ${fmtDateTH(b.date2)}${b.reason ? '\n💬 '+b.reason : ''}\n⏳ รอ ${toEmp.nickname||toEmp.name} อนุมัติ`);
     return json({ message: 'ส่งคำขอสลับวันหยุดสำเร็จ — รอคู่สลับอนุมัติ' }, 201);
@@ -336,6 +355,8 @@ export async function handleAPI(request, env, url, currentUser) {
         DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
           .bind(sw.to_employee_id, sw.date2, toEmp.default_shift),
         DB.prepare("UPDATE swap_requests SET status='approved',approved_by=?,approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id),
+        // นับครั้งสลับตอนอนุมัติ
+        DB.prepare('UPDATE employees SET swap_count=COALESCE(swap_count,0)+1 WHERE id=?').bind(sw.from_employee_id),
       ]);
     } else {
       // สลับกะปกติ
@@ -345,6 +366,8 @@ export async function handleAPI(request, env, url, currentUser) {
         DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
           .bind(sw.to_employee_id, sw.date, sw.from_shift),
         DB.prepare("UPDATE swap_requests SET status='approved',approved_by=?,approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id),
+        // นับครั้งสลับตอนอนุมัติ
+        DB.prepare('UPDATE employees SET swap_count=COALESCE(swap_count,0)+1 WHERE id=?').bind(sw.from_employee_id),
       ]);
     }
     const sa1 = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(sw.from_employee_id).first();
@@ -405,6 +428,8 @@ export async function handleAPI(request, env, url, currentUser) {
     const yr = url.searchParams.get('year') || String(new Date().getFullYear());
     const mo = url.searchParams.get('month');
     const empId = url.searchParams.get('employee_id');
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 200, 500);
+    const offset = parseInt(url.searchParams.get('offset')) || 0;
     let q = `SELECT ke.*, e.name as emp_name, e.nickname as emp_nick, e.avatar as emp_avatar,
       c.name as cat_name, c.color as cat_color, d.description as detail_desc,
       cr.name as creator_name, cr.nickname as creator_nick
@@ -416,7 +441,8 @@ export async function handleAPI(request, env, url, currentUser) {
       WHERE ke.date LIKE ?`;
     const p = [mo ? `${yr}-${mo.padStart(2,'0')}%` : `${yr}%`];
     if (empId) { q += ' AND ke.employee_id=?'; p.push(empId); }
-    q += ' ORDER BY ke.date DESC, ke.id DESC';
+    q += ' ORDER BY ke.date DESC, ke.id DESC LIMIT ? OFFSET ?';
+    p.push(limit, offset);
     const { results } = await DB.prepare(q).bind(...p).all();
     return json({ data: results });
   }
@@ -544,15 +570,20 @@ async function getQuotaLeaveUsed(DB, empId, year) {
 }
 function dateRange(s, e) { const d = [], c = new Date(s), ed = new Date(e); while (c <= ed) { d.push(c.toISOString().split('T')[0]); c.setDate(c.getDate() + 1); } return d; }
 
-// Telegram notification
-const TG_BOT = '8491422431:AAGXw5Fv5WeQApYeGSNB1-3OP7yrKBazJ4w';
-const TG_CHAT = '-5134064630';
+// Telegram notification — ใช้ env secrets แทน hardcode
+// ตั้งค่า: npx wrangler secret put TG_BOT_TOKEN
+//         npx wrangler secret put TG_CHAT_ID
+let _tgEnv = null;
+function setTgEnv(env) { _tgEnv = env; }
 async function tgSend(msg) {
   try {
-    await fetch(`https://api.telegram.org/bot${TG_BOT}/sendMessage`, {
+    const token = _tgEnv?.TG_BOT_TOKEN;
+    const chatId = _tgEnv?.TG_CHAT_ID;
+    if (!token || !chatId) return; // skip if not configured
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TG_CHAT, text: msg, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
     });
   } catch (e) { /* ignore telegram errors */ }
 }

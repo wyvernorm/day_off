@@ -5,6 +5,29 @@
 import { handleAPI } from './api.js';
 import { getLoginHTML, getHTML } from './frontend.js';
 
+// Simple in-memory rate limiter (resets on worker restart)
+const rateLimiter = new Map();
+const RATE_LIMIT = 60; // requests per minute per session
+const RATE_WINDOW = 60000; // 1 minute in ms
+
+function checkRateLimit(token) {
+  if (!token) return true;
+  const now = Date.now();
+  const key = token.substring(0, 16); // ใช้แค่ prefix เพื่อประหยัด memory
+  let entry = rateLimiter.get(key);
+  if (!entry || now - entry.start > RATE_WINDOW) {
+    entry = { start: now, count: 1 };
+    rateLimiter.set(key, entry);
+    // Clean up old entries every 100 requests
+    if (rateLimiter.size > 1000) {
+      for (const [k, v] of rateLimiter) { if (now - v.start > RATE_WINDOW) rateLimiter.delete(k); }
+    }
+    return true;
+  }
+  entry.count++;
+  return entry.count <= RATE_LIMIT;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -65,7 +88,8 @@ export default {
         ).bind(user.email).first();
 
         if (!employee) {
-          return new Response(getLoginHTML(APP_URL, 'อีเมล ' + user.email + ' ไม่มีสิทธิ์เข้าใช้ระบบ'), {
+          const safeEmail = user.email.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          return new Response(getLoginHTML(APP_URL, 'อีเมล ' + safeEmail + ' ไม่มีสิทธิ์เข้าใช้ระบบ'), {
             headers: { 'Content-Type': 'text/html; charset=utf-8' },
           });
         }
@@ -130,6 +154,12 @@ export default {
             status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders },
           });
         }
+        // Rate limiting
+        if (!checkRateLimit(token)) {
+          return new Response(JSON.stringify({ error: 'คำขอมากเกินไป กรุณารอสักครู่' }), {
+            status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          });
+        }
         const response = await handleAPI(request, env, url, currentUser);
         const headers = new Headers(response.headers);
         Object.entries(corsHeaders).forEach(([k, v]) => headers.set(k, v));
@@ -148,7 +178,8 @@ export default {
       });
 
     } catch (err) {
-      return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
+      console.error('Worker error:', err.message, err.stack);
+      return new Response(JSON.stringify({ error: 'เกิดข้อผิดพลาดภายในระบบ' }), {
         status: 500, headers: { 'Content-Type': 'application/json' },
       });
     }

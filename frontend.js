@@ -22,7 +22,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:linear-gradient(135deg,#
   <div class="icon">📅</div>
   <div class="title">ระบบจัดการกะ & วันลา</div>
   <div class="sub">เข้าสู่ระบบด้วย Google Account</div>
-  ${errorMsg ? '<div class="error">⚠️ ' + errorMsg + '</div>' : ''}
+  ${errorMsg ? '<div class="error">⚠️ ' + errorMsg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') + '</div>' : ''}
   <a href="/auth/login" class="google-btn">
     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G">
     เข้าสู่ระบบด้วย Google
@@ -251,7 +251,7 @@ const LEAVE = {
 
 const MIN_YEAR = 2026, MIN_MONTH = 0; // ม.ค. 2569 เป็นต้นไป
 const isO = U.role === 'owner' || U.role === 'admin';
-const KPI_ADMINS_DEFAULT = ['wyvernorm@gmail.com'];
+const KPI_ADMINS_DEFAULT = []; // ตั้งค่าจาก settings key: kpi_admins
 let KPI_ADMINS = KPI_ADMINS_DEFAULT;
 
 // === STATE ===
@@ -310,9 +310,9 @@ async function load() {
 }
 
 // === HELPERS ===
-// วันที่ 1-4 ม.ค. 2569 ไม่แสดง/ไม่นับ
-const BLACKOUT = ['2026-01-01','2026-01-02','2026-01-03','2026-01-04'];
-function isBlackout(dateKey) { return BLACKOUT.includes(dateKey); }
+// วัน blackout ดึงจาก settings (key: blackout_dates, format: "2026-01-01,2026-01-02,...")
+function getBlackout() { return (D.set.blackout_dates || '').split(',').map(s => s.trim()).filter(Boolean); }
+function isBlackout(dateKey) { return getBlackout().includes(dateKey); }
 function dk(y, m, d) { return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
 function itd(y, m, d) { const t = new Date(); return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d; }
 function gdow(y, m, d) { return new Date(y, m, d).getDay(); }
@@ -791,7 +791,7 @@ function rKpi() {
   }
   if (!D.kpi) return w;
   const { sum, cats, errs } = D.kpi;
-  const canAdmin = KPI_ADMINS.includes(U.email);
+  const canAdmin = isO || KPI_ADMINS.includes(U.email);
 
   if (!D.kpiTab) D.kpiTab = 'summary';
   const subTabs = [['summary', '📊 สรุป'], ['myErrors', '👤 ของฉัน']];
@@ -1297,10 +1297,12 @@ function rSet() {
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '⚙️ ตั้งค่า'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'ชื่อบริษัท'), h('input', { type: 'text', className: 'fi', id: 'sc', value: D.set.company_name || '' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันหยุดบริษัท/ปี'), h('input', { type: 'number', className: 'fi', id: 'shv', value: D.set.company_holidays_per_year || '20' })));
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'ผู้มีสิทธิ์อนุมัติลาป่วย (อีเมล, คั่นด้วย ,)'), h('input', { type: 'text', className: 'fi', id: 'ssa', value: D.set.sick_approvers || '', placeholder: 'email1@x.com,email2@x.com' })));
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วัน Blackout (ไม่แสดงข้อมูล, คั่นด้วย ,)'), h('input', { type: 'text', className: 'fi', id: 'sbd', value: D.set.blackout_dates || '', placeholder: '2026-01-01,2026-01-02' })));
   m.appendChild(h('div', { style: { background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px' } },
     h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '8px' } }, '📊 สรุป'),
     h('div', { style: { fontSize: '14px' } }, 'วันหยุดนักขัตฤกษ์เดือนนี้: ' + Object.keys(D.hol).length + ' วัน')));
-  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value }); toast('✅ บันทึกสำเร็จ'); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
+  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim() }); toast('✅ บันทึกสำเร็จ'); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
   o.appendChild(m); return o;
 }
 
