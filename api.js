@@ -1,5 +1,5 @@
 // =============================================
-// API v5 - combined leave quota = 20/year
+// API v7 - swap rules, leave rules, swap_count
 // =============================================
 
 export async function handleAPI(request, env, url, currentUser) {
@@ -10,7 +10,7 @@ export async function handleAPI(request, env, url, currentUser) {
   const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
   const getBody = async () => { try { return await request.json(); } catch { return {}; } };
 
-  // ME
+  // ==================== ME ====================
   if (pathname === '/api/me' && method === 'GET') {
     return json({ data: await DB.prepare('SELECT * FROM employees WHERE id=?').bind(currentUser.employee_id).first() });
   }
@@ -24,7 +24,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'อัพเดทสำเร็จ' });
   }
 
-  // SETTINGS
+  // ==================== SETTINGS ====================
   if (pathname === '/api/settings' && method === 'GET') {
     const { results } = await DB.prepare('SELECT * FROM settings').all();
     const s = {}; results.forEach(r => { s[r.key] = r.value; }); return json({ data: s });
@@ -37,7 +37,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'บันทึกสำเร็จ' });
   }
 
-  // EMPLOYEES
+  // ==================== EMPLOYEES ====================
   if (pathname === '/api/employees' && method === 'GET') {
     const { results } = await DB.prepare('SELECT * FROM employees WHERE is_active=1 ORDER BY show_in_calendar DESC,role DESC,name').all();
     return json({ data: results });
@@ -70,7 +70,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'ลบสำเร็จ' });
   }
 
-  // SHIFTS
+  // ==================== SHIFTS ====================
   if (pathname === '/api/shifts' && method === 'POST') {
     const b = await getBody();
     await DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type,note,created_by) VALUES (?,?,?,?,?)
@@ -79,7 +79,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'บันทึกกะสำเร็จ' });
   }
 
-  // LEAVES
+  // ==================== LEAVES ====================
   if (pathname === '/api/leaves' && method === 'GET') {
     const mo = url.searchParams.get('month'), ei = url.searchParams.get('employee_id'),
           st = url.searchParams.get('status'), yr = url.searchParams.get('year');
@@ -96,7 +96,6 @@ export async function handleAPI(request, env, url, currentUser) {
   if (pathname === '/api/leaves' && method === 'POST') {
     const b = await getBody();
     const yr = b.date.substring(0, 4);
-    // ลาป่วยไม่จำกัด, ลากิจ+ลาพักร้อน รวมกัน ≤ 20
     if (b.leave_type !== 'sick') {
       const q = await getQuotaLeaveUsed(DB, b.employee_id, yr);
       const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(b.employee_id).first();
@@ -111,7 +110,6 @@ export async function handleAPI(request, env, url, currentUser) {
   if (pathname === '/api/leaves/range' && method === 'POST') {
     const b = await getBody();
     const dates = dateRange(b.start_date, b.end_date), yr = b.start_date.substring(0, 4);
-    // ลาป่วยไม่จำกัด, ลากิจ+ลาพักร้อน รวมกัน ≤ 20
     if (b.leave_type !== 'sick') {
       const q = await getQuotaLeaveUsed(DB, b.employee_id, yr);
       const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(b.employee_id).first();
@@ -140,23 +138,11 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'ยกเลิกสำเร็จ' });
   }
 
-  // LEAVE QUOTA
-  if (pathname === '/api/leave-quota' && method === 'GET') {
-    const ei = url.searchParams.get('employee_id'), yr = url.searchParams.get('year') || String(new Date().getFullYear());
-    if (!ei) return json({ error: 'ต้องระบุ employee_id' }, 400);
-    const emp = await DB.prepare('SELECT max_leave_per_year FROM employees WHERE id=?').bind(ei).first();
-    const max = emp?.max_leave_per_year || 20;
-    const total = await getTotalLeaveUsed(DB, ei, yr);
-    const { results } = await DB.prepare("SELECT leave_type, COUNT(*) as c FROM leaves WHERE employee_id=? AND date LIKE ? AND status!='rejected' GROUP BY leave_type").bind(ei, `${yr}%`).all();
-    const byType = {}; results.forEach(r => { byType[r.leave_type] = r.c; });
-    return json({ data: { max, used: total, remaining: max - total, byType } });
-  }
-
-  // SWAPS
+  // ==================== SWAPS ====================
   if (pathname === '/api/swaps' && method === 'GET') {
     const st = url.searchParams.get('status');
-    let q = `SELECT sr.*,e1.name as from_name,e1.avatar as from_avatar,e1.nickname as from_nickname,
-      e2.name as to_name,e2.avatar as to_avatar,e2.nickname as to_nickname
+    let q = `SELECT sr.*,e1.name as from_name,e1.avatar as from_avatar,e1.nickname as from_nickname,COALESCE(e1.swap_count,0) as from_swap_count,
+      e2.name as to_name,e2.avatar as to_avatar,e2.nickname as to_nickname,COALESCE(e2.swap_count,0) as to_swap_count
       FROM swap_requests sr JOIN employees e1 ON sr.from_employee_id=e1.id JOIN employees e2 ON sr.to_employee_id=e2.id`;
     const p = [];
     if (st) { q += ' WHERE sr.status=?'; p.push(st); }
@@ -164,19 +150,63 @@ export async function handleAPI(request, env, url, currentUser) {
     const { results } = p.length ? await DB.prepare(q).bind(...p).all() : await DB.prepare(q).all();
     return json({ data: results });
   }
+
   if (pathname === '/api/swaps' && method === 'POST') {
     const b = await getBody();
-    const fs = await DB.prepare('SELECT shift_type FROM shifts WHERE employee_id=? AND date=?').bind(b.from_employee_id, b.date).first();
-    const ts = await DB.prepare('SELECT shift_type FROM shifts WHERE employee_id=? AND date=?').bind(b.to_employee_id, b.date).first();
+
+    // ดึงข้อมูลพนักงานทุกคน + กะในวันนั้น
+    const allEmp = await DB.prepare('SELECT * FROM employees WHERE is_active=1 AND show_in_calendar=1').all();
+    const allShifts = await DB.prepare('SELECT * FROM shifts WHERE date=?').bind(b.date).all();
+    const shiftMap = {}; allShifts.results.forEach(s => { shiftMap[s.employee_id] = s.shift_type; });
+
+    const dayOfWeek = new Date(b.date).getDay();
+    function getShift(emp) {
+      if (shiftMap[emp.id]) return shiftMap[emp.id];
+      const offs = (emp.default_off_day || '6').split(',').map(Number);
+      if (offs.includes(dayOfWeek)) return 'off';
+      return emp.default_shift;
+    }
+
+    const fromEmp = allEmp.results.find(e => e.id === b.from_employee_id);
+    const toEmp = allEmp.results.find(e => e.id === b.to_employee_id);
+    if (!fromEmp || !toEmp) return json({ error: 'ไม่พบพนักงาน' }, 404);
+
+    const fromShift = getShift(fromEmp);
+    const toShift = getShift(toEmp);
+
+    // จำลองหลังสลับ — ตรวจสอบว่าทุกช่วงเวลายังมีคนทำงาน
+    const afterSwap = {};
+    allEmp.results.forEach(emp => {
+      if (emp.id === b.from_employee_id) afterSwap[emp.id] = toShift;
+      else if (emp.id === b.to_employee_id) afterSwap[emp.id] = fromShift;
+      else afterSwap[emp.id] = getShift(emp);
+    });
+
+    const origDay = allEmp.results.filter(e => getShift(e) === 'day').length;
+    const origEvening = allEmp.results.filter(e => getShift(e) === 'evening').length;
+    const newDay = Object.values(afterSwap).filter(s => s === 'day').length;
+    const newEvening = Object.values(afterSwap).filter(s => s === 'evening').length;
+
+    if (origDay > 0 && newDay === 0) return json({ error: 'ไม่สามารถสลับได้ — ต้องมีคนทำงานกะกลางวันอย่างน้อย 1 คน' }, 400);
+    if (origEvening > 0 && newEvening === 0) return json({ error: 'ไม่สามารถสลับได้ — ต้องมีคนทำงานกะกลางคืนอย่างน้อย 1 คน' }, 400);
+
     await DB.prepare('INSERT INTO swap_requests (date,from_employee_id,to_employee_id,from_shift,to_shift,reason) VALUES (?,?,?,?,?,?)')
-      .bind(b.date, b.from_employee_id, b.to_employee_id, fs?.shift_type || 'day', ts?.shift_type || 'day', b.reason || null).run();
-    return json({ message: 'ส่งคำขอสำเร็จ' }, 201);
+      .bind(b.date, b.from_employee_id, b.to_employee_id, fromShift, toShift, b.reason || null).run();
+
+    // นับครั้งสลับกะ
+    await DB.prepare('UPDATE employees SET swap_count=COALESCE(swap_count,0)+1 WHERE id=?').bind(b.from_employee_id).run();
+
+    return json({ message: 'ส่งคำขอสำเร็จ — รอคู่สลับอนุมัติ' }, 201);
   }
+
   if (pathname.match(/^\/api\/swaps\/\d+\/approve$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const id = pathname.split('/')[3];
     const sw = await DB.prepare('SELECT * FROM swap_requests WHERE id=?').bind(id).first();
     if (!sw) return json({ error: 'ไม่พบ' }, 404);
+    // คนถูกสลับ (to_employee_id) หรือ owner เท่านั้นอนุมัติได้
+    if (currentUser.employee_id !== sw.to_employee_id && !isO) {
+      return json({ error: 'เฉพาะคู่สลับหรือเจ้าของเท่านั้นที่อนุมัติได้' }, 403);
+    }
     await DB.batch([
       DB.prepare(`INSERT INTO shifts (employee_id,date,shift_type) VALUES (?,?,?) ON CONFLICT(employee_id,date) DO UPDATE SET shift_type=excluded.shift_type,updated_at=datetime('now')`)
         .bind(sw.from_employee_id, sw.date, sw.to_shift),
@@ -186,14 +216,20 @@ export async function handleAPI(request, env, url, currentUser) {
     ]);
     return json({ message: 'อนุมัติสำเร็จ' });
   }
+
   if (pathname.match(/^\/api\/swaps\/\d+\/reject$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const id = pathname.split('/')[3];
+    const sw = await DB.prepare('SELECT * FROM swap_requests WHERE id=?').bind(id).first();
+    if (!sw) return json({ error: 'ไม่พบ' }, 404);
+    if (currentUser.employee_id !== sw.to_employee_id && !isO) {
+      return json({ error: 'เฉพาะคู่สลับหรือเจ้าของเท่านั้นที่ปฏิเสธได้' }, 403);
+    }
     await DB.prepare("UPDATE swap_requests SET status='rejected',approved_by=?,approved_at=datetime('now') WHERE id=?")
-      .bind(currentUser.employee_id, pathname.split('/')[3]).run();
+      .bind(currentUser.employee_id, id).run();
     return json({ message: 'ปฏิเสธสำเร็จ' });
   }
 
-  // HOLIDAYS
+  // ==================== HOLIDAYS ====================
   if (pathname === '/api/holidays' && method === 'GET') {
     const yr = url.searchParams.get('year') || String(new Date().getFullYear());
     const { results } = await DB.prepare('SELECT * FROM holidays WHERE date LIKE ? ORDER BY date').bind(`${yr}%`).all();
@@ -211,7 +247,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'ลบสำเร็จ' });
   }
 
-  // OVERVIEW
+  // ==================== OVERVIEW ====================
   if (pathname === '/api/overview' && method === 'GET') {
     const mo = url.searchParams.get('month');
     if (!mo) return json({ error: 'ต้องระบุ month' }, 400);
@@ -223,13 +259,9 @@ export async function handleAPI(request, env, url, currentUser) {
       DB.prepare('SELECT * FROM holidays WHERE date LIKE ?').bind(`${mo}%`).all(),
       DB.prepare('SELECT * FROM settings').all(),
     ]);
-    // Also get yearly leave totals per employee
     const yearlyLeaves = {};
     const { results: ylr } = await DB.prepare("SELECT employee_id, leave_type, COUNT(*) as c FROM leaves WHERE date LIKE ? AND status!='rejected' GROUP BY employee_id, leave_type").bind(`${yr}%`).all();
-    ylr.forEach(r => {
-      if (!yearlyLeaves[r.employee_id]) yearlyLeaves[r.employee_id] = {};
-      yearlyLeaves[r.employee_id][r.leave_type] = r.c;
-    });
+    ylr.forEach(r => { if (!yearlyLeaves[r.employee_id]) yearlyLeaves[r.employee_id] = {}; yearlyLeaves[r.employee_id][r.leave_type] = r.c; });
     const settings = {}; st.results.forEach(r => { settings[r.key] = r.value; });
     return json({ data: { employees: e.results, shifts: s.results, leaves: l.results, holidays: ho.results, settings, yearlyLeaves } });
   }
@@ -238,7 +270,6 @@ export async function handleAPI(request, env, url, currentUser) {
 }
 
 async function getQuotaLeaveUsed(DB, empId, year) {
-  // นับเฉพาะ ลากิจ+ลาพักร้อน ที่นับรวมลิมิต 20 วัน (ลาป่วยไม่จำกัด)
   const r = await DB.prepare("SELECT COUNT(*) as c FROM leaves WHERE employee_id=? AND date LIKE ? AND status!='rejected' AND leave_type IN ('personal','vacation')").bind(empId, `${year}%`).first();
   return r?.c || 0;
 }
