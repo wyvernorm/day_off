@@ -193,6 +193,24 @@ textarea.fi { resize: vertical; min-height: 60px; }
 .save-ok { display: inline-flex; align-items: center; gap: 4px; color: var(--su); font-size: 13px; font-weight: 700; margin-left: 8px; opacity: 0; transition: opacity .3s; }
 .save-ok.show { opacity: 1; }
 
+/* === DATE PICKER === */
+.dp-wrap { position: relative; }
+.dp-input { width: 100%; padding: 10px 14px; border: 1px solid var(--bd); border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; cursor: pointer; background: #fff; transition: border-color .15s; }
+.dp-input:focus { border-color: var(--pr); }
+.dp-pop { position: absolute; top: 100%; left: 0; z-index: 100; background: #fff; border-radius: 12px; box-shadow: var(--sl); border: 1px solid var(--bd); padding: 12px; margin-top: 4px; min-width: 280px; }
+.dp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.dp-header span { font-size: 14px; font-weight: 700; }
+.dp-nav { border: none; background: #f1f5f9; width: 28px; height: 28px; border-radius: 6px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.dp-nav:hover { background: #e2e8f0; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.dp-dow { font-size: 11px; font-weight: 700; color: var(--ts); padding: 4px 0; }
+.dp-day { padding: 6px 0; border-radius: 6px; font-size: 13px; cursor: pointer; transition: all .1s; font-weight: 500; }
+.dp-day:hover { background: var(--pb); color: var(--pr); }
+.dp-day.sel { background: var(--pr); color: #fff; font-weight: 700; }
+.dp-day.today { border: 1px solid var(--pr); }
+.dp-day.empty { cursor: default; }
+.dp-day.empty:hover { background: transparent; }
+
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
   .cg { gap: 3px; }
@@ -325,6 +343,88 @@ function h(t, a = {}, ...ch) {
     el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(c) : c);
   });
   return el;
+}
+
+// === CUSTOM DATE PICKER (DD/MM/YYYY พ.ศ.) ===
+function datePicker(id, initVal) {
+  // initVal = ISO string "YYYY-MM-DD" or ""
+  let val = initVal || '';
+  let viewY = val ? +val.split('-')[0] : new Date().getFullYear();
+  let viewM = val ? +val.split('-')[1] - 1 : new Date().getMonth();
+  let open = false;
+
+  const wrap = h('div', { className: 'dp-wrap', id: id + '-wrap' });
+  const input = h('div', { className: 'dp-input', id: id, 'data-value': val }, val ? fmtDate(val) : 'เลือกวันที่...');
+  input.style.color = val ? 'var(--tx)' : '#94a3b8';
+
+  function buildCal() {
+    let pop = wrap.querySelector('.dp-pop');
+    if (pop) pop.remove();
+    if (!open) return;
+
+    pop = h('div', { className: 'dp-pop' });
+    pop.addEventListener('click', e => e.stopPropagation());
+
+    const hdr = h('div', { className: 'dp-header' },
+      h('button', { className: 'dp-nav', onClick: (e) => { e.stopPropagation(); if (viewM === 0) { viewM = 11; viewY--; } else viewM--; buildCal(); } }, '‹'),
+      h('span', {}, MON[viewM] + ' ' + (viewY + 543)),
+      h('button', { className: 'dp-nav', onClick: (e) => { e.stopPropagation(); if (viewM === 11) { viewM = 0; viewY++; } else viewM++; buildCal(); } }, '›'),
+    );
+    pop.appendChild(hdr);
+
+    const grid = h('div', { className: 'dp-grid' });
+    ['จ','อ','พ','พฤ','ศ','ส','อา'].forEach(d => grid.appendChild(h('div', { className: 'dp-dow' }, d)));
+
+    const first = new Date(viewY, viewM, 1).getDay();
+    const offset = first === 0 ? 6 : first - 1;
+    for (let i = 0; i < offset; i++) grid.appendChild(h('div', { className: 'dp-day empty' }));
+
+    const dim = new Date(viewY, viewM + 1, 0).getDate();
+    const todayISO = new Date().toISOString().split('T')[0];
+
+    for (let d = 1; d <= dim; d++) {
+      const iso = viewY + '-' + String(viewM + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      const isSel = iso === val;
+      const isToday = iso === todayISO;
+      const cls = 'dp-day' + (isSel ? ' sel' : '') + (isToday ? ' today' : '');
+      grid.appendChild(h('div', { className: cls, onClick: (e) => {
+        e.stopPropagation();
+        val = iso;
+        input.textContent = fmtDate(iso);
+        input.style.color = 'var(--tx)';
+        input.setAttribute('data-value', iso);
+        open = false;
+        buildCal();
+      } }, String(d)));
+    }
+    pop.appendChild(grid);
+    wrap.appendChild(pop);
+  }
+
+  input.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Close other open date pickers
+    document.querySelectorAll('.dp-pop').forEach(p => p.remove());
+    document.querySelectorAll('.dp-wrap').forEach(w => { if (w !== wrap) w._dpOpen = false; });
+    open = !open;
+    wrap._dpOpen = open;
+    if (open && val) { viewY = +val.split('-')[0]; viewM = +val.split('-')[1] - 1; }
+    buildCal();
+  });
+
+  wrap.appendChild(input);
+  return wrap;
+}
+
+// Close date pickers on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.dp-pop').forEach(p => p.remove());
+});
+
+// Helper to get date picker value
+function dpVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.getAttribute('data-value') || '' : '';
 }
 
 // === MODAL HELPERS (smooth open/close) ===
@@ -547,9 +647,9 @@ function rLv() {
   Object.entries(LEAVE).forEach(([t, i]) => { tp.appendChild(h('button', { className: 'pl', id: 'lt-' + t, style: t === 'dayoff' ? { borderColor: i.c, background: i.b, color: i.c } : {},
     onClick: () => { slt = t; document.querySelectorAll('[id^=lt-]').forEach(el => { const tt = el.id.replace('lt-', ''), ii = LEAVE[tt]; el.style.borderColor = tt === t ? ii.c : 'transparent'; el.style.background = tt === t ? ii.b : '#f8fafc'; el.style.color = tt === t ? ii.c : '#64748b'; }); } }, i.i + ' ' + i.l)); });
   tg.appendChild(tp); m.appendChild(tg);
-  m.appendChild(h('div', { className: 'fg', style: { display: 'flex', gap: '10px' } }, h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, 'เริ่ม'), h('input', { type: 'date', className: 'fi', id: 'ls', value: D.sd || '' })), h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, 'สิ้นสุด'), h('input', { type: 'date', className: 'fi', id: 'le', value: D.sd || '' }))));
+  m.appendChild(h('div', { className: 'fg', style: { display: 'flex', gap: '10px' } }, h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, 'เริ่ม'), datePicker('ls', D.sd || '')), h('div', { style: { flex: 1 } }, h('label', { className: 'fl' }, 'สิ้นสุด'), datePicker('le', D.sd || ''))));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'lr', placeholder: 'ระบุเหตุผล...' })));
-  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { if (!D.se) { toast('เลือกพนักงาน', true); return; } const s = document.getElementById('ls').value, e = document.getElementById('le').value, r = document.getElementById('lr').value; if (!s) { toast('เลือกวันที่', true); return; } try { if (s === e || !e) await api('/api/leaves', 'POST', { employee_id: D.se, date: s, leave_type: slt, reason: r || null }); else await api('/api/leaves/range', 'POST', { employee_id: D.se, start_date: s, end_date: e, leave_type: slt, reason: r || null }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึกวันลา'));
+  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { if (!D.se) { toast('เลือกพนักงาน', true); return; } const s = dpVal('ls'), e = dpVal('le'), r = document.getElementById('lr').value; if (!s) { toast('เลือกวันที่', true); return; } try { if (s === e || !e) await api('/api/leaves', 'POST', { employee_id: D.se, date: s, leave_type: slt, reason: r || null }); else await api('/api/leaves/range', 'POST', { employee_id: D.se, start_date: s, end_date: e, leave_type: slt, reason: r || null }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึกวันลา'));
   o.appendChild(m); return o;
 }
 
@@ -557,13 +657,13 @@ function rLv() {
 function rSwp() {
   const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', onClick: e => e.stopPropagation() });
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '🔄 สลับกะ'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
-  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันที่'), h('input', { type: 'date', className: 'fi', id: 'sd', value: D.sd || '' })));
+  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันที่'), datePicker('sd', D.sd || '')));
   let sf = null, st = null; const emps = ce();
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'คนที่ 1'), h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'sf-' + e.id, onClick: () => { sf = e.id; document.querySelectorAll('[id^=sf-]').forEach(el => { const a = el.id === 'sf-' + e.id; el.style.borderColor = a ? '#f59e0b' : 'transparent'; el.style.background = a ? '#fef3c7' : '#f8fafc'; el.style.color = a ? '#f59e0b' : '#64748b'; }); } }, e.avatar + ' ' + dn(e))))));
   m.appendChild(h('div', { style: { textAlign: 'center', fontSize: '22px', margin: '6px 0' } }, '⇅'));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'คนที่ 2'), h('div', { className: 'pg' }, ...emps.map(e => h('button', { className: 'pl', id: 'st-' + e.id, onClick: () => { st = e.id; document.querySelectorAll('[id^=st-]').forEach(el => { const a = el.id === 'st-' + e.id; el.style.borderColor = a ? '#6366f1' : 'transparent'; el.style.background = a ? '#e0e7ff' : '#f8fafc'; el.style.color = a ? '#6366f1' : '#64748b'; }); } }, e.avatar + ' ' + dn(e))))));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เหตุผล'), h('textarea', { className: 'fi', id: 'sr', placeholder: '...' })));
-  m.appendChild(h('button', { className: 'btn', style: { background: '#16a34a' }, onClick: async () => { const d = document.getElementById('sd').value, r = document.getElementById('sr').value; if (!sf || !st) { toast('เลือกทั้ง 2 คน', true); return; } if (sf === st) { toast('ต้องคนละคน', true); return; } if (!d) { toast('เลือกวันที่', true); return; } try { await api('/api/swaps', 'POST', { date: d, from_employee_id: sf, to_employee_id: st, reason: r || null }); toast('✅ สำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'ส่งคำขอ'));
+  m.appendChild(h('button', { className: 'btn', style: { background: '#16a34a' }, onClick: async () => { const d = dpVal('sd'), r = document.getElementById('sr').value; if (!sf || !st) { toast('เลือกทั้ง 2 คน', true); return; } if (sf === st) { toast('ต้องคนละคน', true); return; } if (!d) { toast('เลือกวันที่', true); return; } try { await api('/api/swaps', 'POST', { date: d, from_employee_id: sf, to_employee_id: st, reason: r || null }); toast('✅ สำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'ส่งคำขอ'));
   o.appendChild(m); return o;
 }
 
