@@ -589,6 +589,19 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: { leaves, swaps } });
   }
 
+  // ==================== DELETE HISTORY ====================
+  if (pathname.match(/^\/api\/history\/(leave|swap)\/\d+$/) && method === 'DELETE') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const [, kind, id] = pathname.match(/^\/api\/history\/(leave|swap)\/(\d+)$/);
+    if (kind === 'leave') {
+      await DB.prepare('DELETE FROM leaves WHERE id=?').bind(id).run();
+    } else {
+      await DB.prepare('DELETE FROM swap_requests WHERE id=?').bind(id).run();
+    }
+    await logActivity(DB, currentUser.employee_id, 'delete_history', `ลบ ${kind} #${id}`);
+    return json({ message: 'ลบแล้ว' });
+  }
+
   // ==================== SELF DAY-OFF (PENDING) ====================
   if (pathname === '/api/self-dayoff' && method === 'POST') {
     const b = await getBody();

@@ -1090,6 +1090,7 @@ function rHist() {
     h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'รายละเอียด'),
     h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'สถานะ'),
     h('th', { style: { padding: '10px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b' } }, 'ผู้อนุมัติ'),
+    isO ? h('th', { style: { padding: '10px 12px', textAlign: 'center', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, fontSize: '12px', color: '#64748b', width: '50px' } }, '🗑️') : '',
   ));
   tb.appendChild(thd);
 
@@ -1118,6 +1119,19 @@ function rHist() {
       approver = (s.approver_nick || s.approver_name || '—');
     }
 
+    const deleteBtn = isO ? h('td', { style: { ...cs, textAlign: 'center' } },
+      h('button', { style: { border: 'none', background: '#fee2e2', color: '#dc2626', width: '28px', height: '28px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 },
+        onClick: async () => {
+          if (!confirm('ลบรายการนี้?')) return;
+          try {
+            const kind = item.kind === 'leave' ? 'leave' : 'swap';
+            const id = item.data.id;
+            await api('/api/history/' + kind + '/' + id, 'DELETE');
+            toast('🗑️ ลบแล้ว');
+            D.histLoaded = false; D.hist = null; render();
+          } catch (e) { toast(e.message, true); }
+        } }, '🗑️')) : '';
+
     bd.appendChild(h('tr', {},
       h('td', { style: { ...cs, whiteSpace: 'nowrap' } }, dateStr),
       h('td', { style: cs }, empName),
@@ -1125,6 +1139,7 @@ function rHist() {
       h('td', { style: { ...cs, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' } }, detail),
       h('td', { style: cs }, h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: isA ? '#dcfce7' : '#fee2e2', color: isA ? '#16a34a' : '#dc2626' } }, isA ? '✅ อนุมัติ' : '❌ ปฏิเสธ')),
       h('td', { style: cs }, approver),
+      deleteBtn,
     ));
   });
   tb.appendChild(bd);
