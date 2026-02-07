@@ -181,7 +181,7 @@ button { font-family: inherit; cursor: pointer; }
 /* === MODAL === */
 .mo { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.4); backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity .25s; }
 .mo.show { opacity: 1; pointer-events: auto; }
-.md { background: #fff; border-radius: 24px; padding: 32px; min-width: 420px; max-width: 580px; box-shadow: 0 24px 60px rgba(0,0,0,.12); max-height: 88vh; overflow-y: auto; overflow-x: visible; transform: translateY(24px) scale(.97); transition: all .3s cubic-bezier(.22,1,.36,1); position: relative; }
+.md { background: #fff; border-radius: 24px; padding: 32px; min-width: 420px; max-width: 680px; width: 90vw; box-shadow: 0 24px 60px rgba(0,0,0,.12); max-height: 88vh; overflow-y: auto; overflow-x: visible; transform: translateY(24px) scale(.97); transition: all .3s cubic-bezier(.22,1,.36,1); position: relative; }
 .mo.show .md { transform: translateY(0) scale(1); }
 .mh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .mt { font-size: 20px; font-weight: 800; }
@@ -273,7 +273,7 @@ textarea.fi { resize: vertical; min-height: 70px; }
   .et { font-size: 10px; }
   .hdr h1 { font-size: 20px; }
   .sg { grid-template-columns: 1fr; }
-  .md { min-width: 320px; margin: 10px; }
+  .md { min-width: 0; width: 95vw; margin: 10px; padding: 20px; }
 }
 </style>
 </head><body>
