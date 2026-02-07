@@ -843,7 +843,10 @@ export async function handleAPI(request, env, url, currentUser) {
       try {
         const fs = JSON.parse(flashSetting.value);
         if (fs.active && fs.expires && new Date(fs.expires) > new Date()) {
-          actualCost = Math.ceil(reward.cost * (100 - (fs.discount || 50)) / 100);
+          const saleIds = fs.reward_ids; // null = all, array = specific
+          if (!saleIds || saleIds.includes(reward.id)) {
+            actualCost = Math.ceil(reward.cost * (100 - (fs.discount || 50)) / 100);
+          }
         }
       } catch(e) {}
     }

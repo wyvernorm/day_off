@@ -3775,6 +3775,7 @@ function rWallet() {
   try { shopFlash = JSON.parse(D.set.flash_sale || 'null'); } catch(e) {}
   const shopFlashActive = shopFlash && shopFlash.active && shopFlash.expires && new Date(shopFlash.expires) > new Date();
   const flashDisc = shopFlashActive ? (shopFlash.discount || 50) : 0;
+  const flashRewardIds = shopFlashActive && shopFlash.reward_ids ? new Set(shopFlash.reward_ids) : null; // null = all
 
   const shopSection = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '20px', marginBottom: '20px', border: shopFlashActive ? '2px solid #f59e0b' : '1px solid #e2e8f0' } });
   // Flash sale banner
@@ -3782,8 +3783,7 @@ function rWallet() {
     const flashBanner = h('div', { style: { background: 'linear-gradient(135deg, #dc2626, #f59e0b)', borderRadius: '12px', padding: '12px 16px', marginBottom: '14px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', animation: 'pulse 2s infinite' } });
     flashBanner.appendChild(h('div', {},
       h('div', { style: { fontWeight: 900, fontSize: '16px' } }, '⚡ FLASH SALE ' + flashDisc + '% OFF!'),
-      h('div', { style: { fontSize: '11px', opacity: 0.9 } }, '⏰ หมดเวลา ' + new Date(shopFlash.expires).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))));
-    flashBanner.appendChild(h('div', { style: { fontSize: '28px' } }, '🔥'));
+      h('div', { style: { fontSize: '11px', opacity: 0.9 } }, '⏰ หมดเวลา ' + new Date(shopFlash.expires).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (flashRewardIds ? ' • ' + flashRewardIds.size + ' รางวัล' : ' • ทั้งหมด'))));    flashBanner.appendChild(h('div', { style: { fontSize: '28px' } }, '🔥'));
     shopSection.appendChild(flashBanner);
   }
   shopSection.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' } },
@@ -3805,15 +3805,17 @@ function rWallet() {
       const rGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px', marginBottom: '8px' } });
       items.forEach(reward => {
         const outOfStock = reward.stock !== null && reward.stock !== -1 && reward.stock <= 0;
-        const saleCostChk = shopFlashActive ? Math.ceil(reward.cost * (100 - flashDisc) / 100) : reward.cost;
+        const isOnSale = shopFlashActive && (!flashRewardIds || flashRewardIds.has(reward.id));
+        const saleCostChk = isOnSale ? Math.ceil(reward.cost * (100 - flashDisc) / 100) : reward.cost;
         const canAfford = (D.walletBal || 0) >= saleCostChk && !outOfStock;
         const rCard = h('div', { style: { borderRadius: '14px', padding: '16px', textAlign: 'center', border: outOfStock ? '1px solid #fca5a5' : canAfford ? '2px solid #86efac' : '1px solid #e2e8f0', background: outOfStock ? '#fef2f2' : canAfford ? '#f0fdf4' : '#fafafa', transition: 'all .2s', opacity: outOfStock ? 0.5 : canAfford ? 1 : 0.6, position: 'relative' } });
         if (outOfStock) rCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: '#fee2e2', color: '#dc2626', fontWeight: 700 } }, '❌ หมด'));
+        else if (isOnSale) rCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: '#dc2626', color: '#fff', fontWeight: 700 } }, '⚡ -' + flashDisc + '%'));
         else if (reward.stock > 0) rCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: '#eff6ff', color: '#3b82f6', fontWeight: 700 } }, '📦 ' + reward.stock));
         rCard.appendChild(h('div', { style: { fontSize: '36px', marginBottom: '6px' } }, reward.icon));
         rCard.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', marginBottom: '4px' } }, reward.name));
-        const saleCost = shopFlashActive ? Math.ceil(reward.cost * (100 - flashDisc) / 100) : reward.cost;
-        if (shopFlashActive) {
+        const saleCost = isOnSale ? Math.ceil(reward.cost * (100 - flashDisc) / 100) : reward.cost;
+        if (isOnSale) {
           rCard.appendChild(h('div', { style: { marginBottom: '8px' } },
             h('span', { style: { fontSize: '11px', color: '#94a3b8', textDecoration: 'line-through', marginRight: '6px' } }, reward.cost + ' แต้ม'),
             h('span', { style: { fontSize: '15px', fontWeight: 900, color: '#dc2626' } }, saleCost + ' แต้ม'),
@@ -3968,7 +3970,7 @@ function rRewardMgr() {
     h('div', {},
       h('div', { style: { fontWeight: 800, fontSize: '15px' } }, 'Flash Sale'),
       h('div', { style: { fontSize: '11px', opacity: 0.8 } }, isFlashActive
-        ? '🔥 กำลังลดอยู่ ' + flashSale.discount + '% — หมดเวลา ' + new Date(flashSale.expires).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        ? '🔥 ลด ' + flashSale.discount + '% — หมดเวลา ' + new Date(flashSale.expires).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (flashSale.reward_ids ? ' • ' + flashSale.reward_ids.length + ' รางวัล' : ' • ทั้งหมด')
         : 'ปิดอยู่ — กดเปิดเพื่อลดราคาพิเศษ'))));
   if (isFlashActive) {
     flashHdr.appendChild(h('button', { style: { background: 'rgba(0,0,0,0.3)', border: 'none', color: '#fff', padding: '6px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }, onClick: async () => {
@@ -3977,27 +3979,58 @@ function rRewardMgr() {
       toast('⚡ ปิด Flash Sale แล้ว'); closeModal(); render();
     } }, '⏹️ ปิด'));
   } else {
-    const flashForm = h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } });
-    flashForm.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } },
+    const flashForm = h('div', { style: { marginTop: '10px' } });
+    const row1 = h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' } });
+    row1.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } },
       h('span', { style: { fontSize: '11px' } }, 'ลด'),
-      (() => { const sel = h('select', { id: 'fs-disc', className: 'fi', style: { width: '60px', padding: '4px', fontSize: '12px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' } });
+      (() => { const sel = h('select', { id: 'fs-disc', style: { width: '65px', padding: '5px', fontSize: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.3)', background: '#1e293b', color: '#fbbf24', fontWeight: 700 } });
         [20, 30, 40, 50].forEach(v => { const opt = h('option', { value: v }, v + '%'); if (v === 50) opt.selected = true; sel.appendChild(opt); }); return sel; })(),
       h('span', { style: { fontSize: '11px' } }, 'หมดเวลาใน'),
-      (() => { const sel = h('select', { id: 'fs-dur', className: 'fi', style: { width: '80px', padding: '4px', fontSize: '12px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' } });
+      (() => { const sel = h('select', { id: 'fs-dur', style: { width: '85px', padding: '5px', fontSize: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.3)', background: '#1e293b', color: '#fbbf24', fontWeight: 700 } });
         [[6,'6 ชม.'],[12,'12 ชม.'],[24,'24 ชม.'],[48,'2 วัน']].forEach(([v,l]) => { sel.appendChild(h('option', { value: v }, l)); }); return sel; })()));
-    flashForm.appendChild(h('button', { style: { background: '#fbbf24', color: '#1e293b', border: 'none', padding: '6px 14px', borderRadius: '8px', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }, onClick: async () => {
+    flashForm.appendChild(row1);
+    // Reward picker
+    const rewardList = D.rewardsList || [];
+    if (rewardList.length > 0) {
+      flashForm.appendChild(h('div', { style: { fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '6px' } }, '🎯 เลือกรางวัลที่ลด (ไม่เลือก = ลดทั้งหมด):'));
+      const pickGrid = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' } });
+      const selectedIds = new Set();
+      rewardList.forEach(rw => {
+        const chip = h('button', { style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', fontSize: '11px', cursor: 'pointer', transition: 'all .15s', fontWeight: 400 }, onClick: () => {
+          if (selectedIds.has(rw.id)) {
+            selectedIds.delete(rw.id);
+            chip.style.border = '2px solid rgba(255,255,255,0.15)';
+            chip.style.background = 'rgba(255,255,255,0.05)';
+            chip.style.color = 'rgba(255,255,255,0.7)';
+            chip.style.fontWeight = '400';
+          } else {
+            selectedIds.add(rw.id);
+            chip.style.border = '2px solid #fbbf24';
+            chip.style.background = 'rgba(251,191,36,0.2)';
+            chip.style.color = '#fbbf24';
+            chip.style.fontWeight = '700';
+          }
+        } }, rw.icon + ' ' + rw.name);
+        pickGrid.appendChild(chip);
+      });
+      flashForm.appendChild(pickGrid);
+      // Save selectedIds ref for use in submit
+      flashForm._getSelectedIds = () => [...selectedIds];
+    }
+    flashForm.appendChild(h('button', { style: { background: '#fbbf24', color: '#1e293b', border: 'none', padding: '8px 18px', borderRadius: '10px', fontWeight: 800, fontSize: '13px', cursor: 'pointer' }, onClick: async () => {
       const disc = +document.getElementById('fs-disc').value;
       const hrs = +document.getElementById('fs-dur').value;
       const expires = new Date(Date.now() + hrs * 3600000).toISOString();
-      const val = JSON.stringify({ active: true, discount: disc, expires });
+      const ids = flashForm._getSelectedIds ? flashForm._getSelectedIds() : [];
+      const val = JSON.stringify({ active: true, discount: disc, expires, reward_ids: ids.length > 0 ? ids : null });
       await api('/api/settings', 'PUT', { key: 'flash_sale', value: val });
       D.set.flash_sale = val;
-      toast('⚡ เปิด Flash Sale ' + disc + '%!'); closeModal(); render();
+      toast('⚡ เปิด Flash Sale ' + disc + '%!' + (ids.length ? ' (' + ids.length + ' รางวัล)' : ' (ทั้งหมด)')); closeModal(); render();
     } }, '⚡ เปิด Flash Sale'));
     flashCard.appendChild(flashHdr);
     flashCard.appendChild(flashForm);
   }
-  if (!isFlashActive) { /* flashForm already appended above */ } else { flashCard.appendChild(flashHdr); }
+  if (isFlashActive) { flashCard.appendChild(flashHdr); }
   m.appendChild(flashCard);
 
   // === ADD NEW REWARD ===
