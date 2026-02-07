@@ -1209,15 +1209,6 @@ function computeAchievements(empStats) {
     // Build email → empId map
     const emailToEmp = {};
     empStats.forEach(({ emp }) => { if (emp.email) emailToEmp[emp.email.toLowerCase()] = emp.id; });
-    // Store debug info for guide display
-    D._monitorDebug = { empEmails: Object.keys(emailToEmp), monitorEmails: [], matches: [] };
-    Object.values(D.monitorData).forEach(md => {
-      if (md && md.users) md.users.forEach(u => {
-        if (!D._monitorDebug.monitorEmails.includes(u.email)) D._monitorDebug.monitorEmails.push(u.email);
-        const matched = emailToEmp[u.email.toLowerCase()];
-        D._monitorDebug.matches.push({ email: u.email, count: u.count, matched: !!matched });
-      });
-    });
 
     // Per-month monitor badges
     pastMonths.forEach(m => {
@@ -1453,39 +1444,6 @@ function showAchGuide(achData, targetId) {
       updRow.appendChild(refreshBtn);
       sec.appendChild(updRow);
 
-      // Owner debug: email matching
-      if (isO) {
-        const dbg = D._monitorDebug || { empEmails: [], monitorEmails: [], matches: [] };
-        const dbgBox = h('div', { style: { marginBottom: '14px', padding: '10px 12px', background: 'rgba(239,68,68,0.05)', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.15)', fontSize: '11px' } });
-        dbgBox.appendChild(h('div', { style: { fontWeight: 700, color: '#f87171', marginBottom: '6px' } }, '🔧 Debug: Email Matching (owner only)'));
-        // Raw data check
-        const monKeys = D.monitorData ? Object.keys(D.monitorData) : [];
-        dbgBox.appendChild(h('div', { style: { color: '#fbbf24', marginBottom: '4px' } }, '📦 monitorData keys: [' + monKeys.join(', ') + '] (' + monKeys.length + ' เดือน)'));
-        monKeys.forEach(k => {
-          const md = D.monitorData[k];
-          const userCount = md?.users?.length || 0;
-          const total = md?.total_monitor_adds || 0;
-          dbgBox.appendChild(h('div', { style: { color: '#94a3b8', padding: '1px 0' } }, '  เดือน ' + k + ': ' + userCount + ' คน, total=' + total + (md?.period ? ' (period:' + md.period + ')' : '')));
-        });
-        dbgBox.appendChild(h('div', { style: { color: '#94a3b8', marginTop: '4px', marginBottom: '4px' } }, '👥 Employee emails (' + dbg.empEmails.length + '): ' + dbg.empEmails.join(', ')));
-        dbgBox.appendChild(h('div', { style: { color: '#94a3b8', marginBottom: '4px' } }, '📡 Monitor emails (' + dbg.monitorEmails.length + '): ' + dbg.monitorEmails.join(', ')));
-        dbg.matches.filter((v, i, a) => a.findIndex(t => t.email === v.email) === i).forEach(m => {
-          dbgBox.appendChild(h('div', { style: { color: m.matched ? '#34d399' : '#f87171', padding: '2px 0' } },
-            (m.matched ? '✅' : '❌') + ' ' + m.email + ' (count: ' + m.count + ')'));
-        });
-        if (dbg.monitorEmails.length === 0 && monKeys.length === 0) {
-          dbgBox.appendChild(h('div', { style: { color: '#f87171', fontWeight: 700, marginTop: '6px' } }, '⚠️ ไม่มีข้อมูล Monitor เลย — ตรวจสอบว่า api.js deploy ล่าสุดหรือยัง'));
-        }
-        // API response debug
-        if (D._monitorApiDebug) {
-          dbgBox.appendChild(h('div', { style: { color: '#fbbf24', fontWeight: 700, marginTop: '6px' } }, '🌐 API Response Debug:'));
-          D._monitorApiDebug.forEach(d => {
-            const info = d._debug ? JSON.stringify(d._debug) : 'no debug info';
-            dbgBox.appendChild(h('div', { style: { color: '#94a3b8', fontSize: '10px', wordBreak: 'break-all' } }, 'month ' + d.month + ': hasUsers=' + d.hasUsers + ' | ' + info));
-          });
-        }
-        sec.appendChild(dbgBox);
-      }
     }
 
     // Badge cards grid
@@ -1899,8 +1857,7 @@ function rSta() {
     ]).then(([kpiR, monResults]) => {
       D.kpiYear = kpiR.data || [];
       D.monitorData = {};
-      D._monitorApiDebug = [];
-      monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; D._monitorApiDebug.push({ month: mr.month, _debug: mr._debug, hasUsers: !!(mr.data?.users?.length) }); });
+      monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; });
       D.monitorLastFetch = Date.now();
       render();
     }).catch(() => { D.kpiYear = []; D.monitorData = {}; });
@@ -3585,6 +3542,28 @@ function rAchMgr() {
 // === WALLET PAGE 💰 ===
 function rWallet() {
   const w = h('div', {});
+  // Owner: employee selector
+  if (!D._walletViewId) D._walletViewId = U.id;
+  const viewId = isO ? D._walletViewId : U.id;
+
+  if (isO) {
+    const selRow = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' } });
+    selRow.appendChild(h('span', { style: { fontSize: '13px', fontWeight: 700, color: '#94a3b8' } }, '👁️ ดูกระเป๋าของ:'));
+    const allEmpsWallet = ce();
+    allEmpsWallet.forEach(emp => {
+      const active = emp.id === viewId;
+      const btn = h('button', { style: { display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '10px', border: active ? '2px solid #818cf8' : '1px solid rgba(255,255,255,0.1)', background: active ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)', color: active ? '#c4b5fd' : '#94a3b8', fontSize: '12px', fontWeight: active ? 700 : 400, cursor: 'pointer', transition: 'all .15s' }, onClick: () => {
+        D._walletViewId = emp.id;
+        D.walletLoaded = false; // force reload for new employee
+        render();
+      } });
+      btn.appendChild(emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', { style: { fontSize: '14px' } }, emp.avatar));
+      btn.appendChild(h('span', {}, dn(emp)));
+      if (active) btn.appendChild(h('span', { style: { fontSize: '10px' } }, '✓'));
+      selRow.appendChild(btn);
+    });
+    w.appendChild(selRow);
+  }
 
   // Load wallet data + kpiYear + monitor (จำเป็นสำหรับ compute achievements)
   if (!D.walletLoaded) {
@@ -3602,11 +3581,11 @@ function rWallet() {
       return Promise.all(ps);
     })() : Promise.resolve(null);
     Promise.all([
-      api('/api/wallet/balance'),
-      api('/api/wallet/transactions'),
-      api('/api/achievements/claims'),
+      api('/api/wallet/balance?employee_id=' + viewId),
+      api('/api/wallet/transactions?employee_id=' + viewId),
+      api('/api/achievements/claims?employee_id=' + viewId),
       api('/api/rewards'),
-      isO ? api('/api/rewards/redemptions') : api('/api/rewards/redemptions?employee_id=' + U.id),
+      isO ? api('/api/rewards/redemptions') : api('/api/rewards/redemptions?employee_id=' + viewId),
       kpiPromise,
       monitorPromises,
     ]).then(([bal, txn, claims, rewards, redemptions, kpi, monResults]) => {
@@ -3628,9 +3607,10 @@ function rWallet() {
     return w;
   }
 
-  const me = D.emp.find(e => e.id === U.id) || U;
+  const me = D.emp.find(e => e.id === viewId) || U;
   const allClaimed = new Set((D.achClaims || []).map(c => c.achievement_id + '|' + c.month));
   const rate = parseInt(D.set.point_rate) || 1;
+  const isViewingSelf = viewId === U.id;
 
   // === BALANCE CARD ===
   const balCard = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #334155 100%)', borderRadius: '20px', padding: '28px', color: '#fff', position: 'relative', overflow: 'hidden', marginBottom: '20px' } });
@@ -3668,7 +3648,7 @@ function rWallet() {
     empStatMe.push({ emp, sc, yl: D.yl[emp.id] || {} });
   });
   const achData = computeAchievements(empStatMe);
-  const myData = achData[U.id] || { badges: [], badgeDetails: [], totalPoints: 0 };
+  const myData = achData[viewId] || { badges: [], badgeDetails: [], totalPoints: 0 };
   const myBadges = myData.badges;
   const myDetails = myData.badgeDetails || [];
 
@@ -3735,7 +3715,8 @@ function rWallet() {
         card.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#1e293b', marginBottom: '2px' } }, ach.name));
         card.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '4px' } }, ach.desc));
         card.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, color: tc.text, marginBottom: '8px' } }, '+' + ach.points + ' แต้ม'));
-        const claimBtn = h('button', { style: { width: '100%', padding: '8px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, ' + tc.border + ', ' + tc.text + ')', color: '#fff', fontWeight: 700, fontSize: '12px', cursor: 'pointer', transition: 'all .15s' }, onClick: async (e) => {
+        const claimBtn = h('button', { style: { width: '100%', padding: '8px', borderRadius: '10px', border: 'none', background: isViewingSelf ? 'linear-gradient(135deg, ' + tc.border + ', ' + tc.text + ')' : '#475569', color: '#fff', fontWeight: 700, fontSize: '12px', cursor: isViewingSelf ? 'pointer' : 'default', transition: 'all .15s', opacity: isViewingSelf ? 1 : 0.5 }, onClick: async (e) => {
+          if (!isViewingSelf) return;
           e.stopPropagation();
           claimBtn.disabled = true; claimBtn.textContent = '⏳...';
           try {
@@ -3748,7 +3729,7 @@ function rWallet() {
             balNum.textContent = D.walletBal.toLocaleString();
             setTimeout(() => { card.style.opacity = '0.4'; card.style.transform = 'scale(0.95)'; }, 1500);
           } catch (er) { toast(er.message, true); claimBtn.textContent = '🎁 เคลม'; claimBtn.disabled = false; }
-        } }, '🎁 เคลม');
+        } }, isViewingSelf ? '🎁 เคลม' : '🔒 ดูอย่างเดียว');
         card.appendChild(claimBtn);
         card.onmouseenter = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 6px 20px ' + tc.border + '40'; };
         card.onmouseleave = () => { card.style.transform = 'translateY(0)'; card.style.boxShadow = 'none'; };
@@ -3808,7 +3789,7 @@ function rWallet() {
       if (reward.type === 'cash') rCard.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '6px' } }, '= ' + (reward.cost * rate) + ' บาท'));
       const todayDay = new Date().getDay(); // 0=อาทิตย์, 6=เสาร์
       const isWeekend = todayDay === 0 || todayDay === 6;
-      const canRedeem = canAfford && isWeekend;
+      const canRedeem = canAfford && isWeekend && isViewingSelf;
       const redeemBtn = h('button', { style: { width: '100%', padding: '7px', borderRadius: '8px', border: 'none', background: canRedeem ? '#16a34a' : '#cbd5e1', color: '#fff', fontWeight: 700, fontSize: '11px', cursor: canRedeem ? 'pointer' : 'not-allowed' }, onClick: canRedeem ? async () => {
         if (!confirm('แลก ' + reward.icon + ' ' + reward.name + ' (' + reward.cost + ' แต้ม)?')) return;
         try {
@@ -3816,7 +3797,7 @@ function rWallet() {
           toast('🎁 แลกรางวัลสำเร็จ!');
           D.walletLoaded = false; render();
         } catch (er) { toast(er.message, true); }
-      } : null }, canRedeem ? '🛒 แลกเลย' : !isWeekend ? '📅 แลกได้เฉพาะ ส.-อา.' : '🔒 แต้มไม่พอ');
+      } : null }, canRedeem ? '🛒 แลกเลย' : !isViewingSelf ? '👁️ ดูอย่างเดียว' : !isWeekend ? '📅 แลกได้เฉพาะ ส.-อา.' : '🔒 แต้มไม่พอ');
       rCard.appendChild(redeemBtn);
       rGrid.appendChild(rCard);
     });
