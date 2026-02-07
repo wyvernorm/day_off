@@ -511,7 +511,7 @@ export async function handleAPI(request, env, url, currentUser) {
     // Telegram
     const emp = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(b.employee_id).first();
     const cat = await DB.prepare('SELECT name FROM kpi_categories WHERE id=?').bind(b.category_id).first();
-    await tgSend(tgKpiError(emp?.nickname||emp?.name, cat?.name, b.date, b.points||1, b.damage_cost||0, b.note));
+    // (ไม่ส่ง Telegram สำหรับ KPI error)
     return json({ data: { id: r.meta.last_row_id }, message: 'บันทึกสำเร็จ' }, 201);
   }
   if (pathname.match(/^\/api\/kpi\/errors\/\d+$/) && method === 'PUT') {
