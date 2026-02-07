@@ -2084,43 +2084,99 @@ function rKpi() {
   const subTabs = [['summary', '📊 สรุป'], ['myErrors', '👤 ของฉัน']];
   if (canAdmin) { subTabs.push(['manage', '⚡ บันทึก']); subTabs.push(['settings', '⚙️ ตั้งค่า']); }
   const tb = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } });
-  subTabs.forEach(([k, l]) => tb.appendChild(h('button', { style: { padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: '2px solid', borderColor: D.kpiTab === k ? '#6366f1' : '#e2e8f0', background: D.kpiTab === k ? '#e0e7ff' : '#fff', color: D.kpiTab === k ? '#6366f1' : '#64748b', cursor: 'pointer' }, onClick: () => { D.kpiTab = k; render(); } }, l)));
+  subTabs.forEach(([k, l]) => tb.appendChild(h('button', { style: { padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: '2px solid', borderColor: D.kpiTab === k ? '#818cf8' : 'rgba(255,255,255,0.1)', background: D.kpiTab === k ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)', color: D.kpiTab === k ? '#818cf8' : '#94a3b8', cursor: 'pointer', transition: 'all .15s' }, onClick: () => { D.kpiTab = k; render(); } }, l)));
   w.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' } },
     h('div', { className: 'pt' }, '⚡ KPI ข้อผิดพลาด (' + (D.y+543) + ')'), tb));
 
   if (D.kpiTab === 'summary') {
-    // Hero stats
-    const hero = h('div', { style: { background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%)', borderRadius: '16px', padding: '28px', color: '#fff', marginBottom: '20px' } });
-    hero.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 600, opacity: 0.7, marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' } }, '⚡ สรุป KPI ข้อผิดพลาด (' + (D.y+543) + ')'));
-    const heroGrid = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' } });
-    [[sum.totals.count, '📊', 'ข้อผิดพลาดรวม'], [sum.totals.points, '🔢', 'แต้มรวม'], [(sum.totals.damage || 0).toFixed(0) + ' ฿', '💰', 'ค่าเสียหาย']].forEach(([v, ic, lb]) =>
-      heroGrid.appendChild(h('div', { style: { background: 'rgba(255,255,255,0.15)', borderRadius: '12px', padding: '18px', textAlign: 'center', backdropFilter: 'blur(4px)' } },
-        h('div', { style: { fontSize: '28px', marginBottom: '4px' } }, ic),
-        h('div', { style: { fontSize: '30px', fontWeight: 800 } }, String(v)),
-        h('div', { style: { fontSize: '11px', opacity: 0.7 } }, lb))));
+    // === HERO BANNER ===
+    const hero = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 100%)', borderRadius: '20px', padding: '28px', color: '#fff', marginBottom: '20px', position: 'relative', overflow: 'hidden' } });
+    // Decorative elements
+    hero.appendChild(h('div', { style: { position: 'absolute', top: '-40px', right: '-40px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%)', borderRadius: '50%' } }));
+    hero.appendChild(h('div', { style: { position: 'absolute', bottom: '-30px', left: '20%', width: '160px', height: '160px', background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', borderRadius: '50%' } }));
+    hero.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 600, opacity: 0.5, marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '2px', position: 'relative', zIndex: 1 } }, '⚡ KPI DASHBOARD ' + (D.y+543)));
+
+    const heroGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', position: 'relative', zIndex: 1 } });
+    const heroItems = [
+      { val: sum.totals.count, icon: '⚠️', label: 'ข้อผิดพลาดรวม', color: '#f87171', bg: 'rgba(239,68,68,0.12)' },
+      { val: sum.totals.points, icon: '🔢', label: 'แต้มรวม', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+      { val: (sum.totals.damage || 0).toLocaleString() + ' ฿', icon: '💸', label: 'ค่าเสียหาย', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+    ];
+    heroItems.forEach(item => {
+      const card = h('div', { style: { background: item.bg, borderRadius: '14px', padding: '18px', textAlign: 'center', border: '1px solid ' + item.color + '20', backdropFilter: 'blur(8px)' } });
+      card.appendChild(h('div', { style: { fontSize: '28px', marginBottom: '6px' } }, item.icon));
+      const numEl = h('div', { style: { fontSize: '32px', fontWeight: 900, color: item.color, letterSpacing: '-1px' } }, '0');
+      card.appendChild(numEl);
+      card.appendChild(h('div', { style: { fontSize: '11px', opacity: 0.6, marginTop: '2px' } }, item.label));
+      heroGrid.appendChild(card);
+      // Animate number
+      setTimeout(() => {
+        const target = typeof item.val === 'string' ? item.val : item.val;
+        if (typeof item.val === 'number' && item.val > 0) {
+          let cur = 0;
+          const step = () => { cur += Math.ceil(item.val / 15); if (cur >= item.val) { numEl.textContent = String(item.val); return; } numEl.textContent = String(cur); requestAnimationFrame(step); };
+          requestAnimationFrame(step);
+        } else { numEl.textContent = String(target); }
+      }, 200);
+    });
     hero.appendChild(heroGrid);
+
+    // Zero error celebration
+    if (sum.totals.count === 0) {
+      hero.appendChild(h('div', { style: { textAlign: 'center', marginTop: '20px', padding: '14px', background: 'rgba(34,197,94,0.12)', borderRadius: '12px', border: '1px solid rgba(34,197,94,0.2)', position: 'relative', zIndex: 1 } },
+        h('div', { style: { fontSize: '32px', marginBottom: '4px' } }, '🎉'),
+        h('div', { style: { fontSize: '16px', fontWeight: 800, color: '#34d399' } }, 'ไม่มีข้อผิดพลาดเลย! เยี่ยมมาก!')));
+    }
     w.appendChild(hero);
 
-    // Category breakdown — bars left, donut right
+    // === MONTHLY TREND ===
+    if (errs.length > 0) {
+      const trendBox = h('div', { style: { background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '20px 24px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '20px' } });
+      trendBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📈 แนวโน้มรายเดือน'));
+      const monthData = {};
+      for (let m = 0; m < 12; m++) monthData[m] = { count: 0, points: 0 };
+      errs.forEach(e => { const mo = parseInt(e.date.split('-')[1]) - 1; if (monthData[mo] !== undefined) { monthData[mo].count++; monthData[mo].points += e.points; } });
+      const maxPts = Math.max(...Object.values(monthData).map(m => m.points), 1);
+      const trendGrid = h('div', { style: { display: 'flex', gap: '4px', alignItems: 'flex-end', height: '120px' } });
+      const now = new Date();
+      for (let m = 0; m < 12; m++) {
+        const md = monthData[m];
+        const barH = md.points > 0 ? Math.max((md.points / maxPts) * 100, 8) : 0;
+        const isCurrent = D.y === now.getFullYear() && m === now.getMonth();
+        const isPast = D.y < now.getFullYear() || (D.y === now.getFullYear() && m < now.getMonth());
+        const barColor = md.points === 0 ? (isPast ? '#22c55e' : '#334155') : md.points >= 5 ? '#ef4444' : md.points >= 3 ? '#f59e0b' : '#fb923c';
+        const col = h('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }, title: MON[m] + ': ' + md.count + ' ครั้ง (' + md.points + ' แต้ม)' });
+        if (md.points > 0) col.appendChild(h('div', { style: { fontSize: '9px', fontWeight: 700, color: barColor } }, String(md.points)));
+        const bar = h('div', { style: { width: '100%', maxWidth: '32px', height: '0px', background: barColor, borderRadius: '4px 4px 0 0', transition: 'height 0.6s ease', minHeight: isPast && md.points === 0 ? '4px' : '0' } });
+        col.appendChild(bar);
+        col.appendChild(h('div', { style: { fontSize: '9px', color: isCurrent ? '#818cf8' : '#64748b', fontWeight: isCurrent ? 700 : 400 } }, MON[m].substring(0, 3)));
+        if (isPast && md.points === 0) col.appendChild(h('div', { style: { fontSize: '8px', color: '#22c55e' } }, '✓'));
+        trendGrid.appendChild(col);
+        setTimeout(() => { bar.style.height = barH + 'px'; }, 100 + m * 50);
+      }
+      trendBox.appendChild(trendGrid);
+      w.appendChild(trendBox);
+    }
+
+    // === CATEGORY BREAKDOWN ===
     if (sum.byCategory.length) {
-      const catBox = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', marginBottom: '20px' } });
+      const catBox = h('div', { style: { background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '24px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '20px' } });
       catBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📂 แต้มตามหมวดหมู่'));
       const tp = sum.totals.points || 1;
       const catRow = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '24px', alignItems: 'center' } });
-      // Left: bars
       const barsDiv = h('div', {});
-      sum.byCategory.forEach(c => {
+      sum.byCategory.forEach((c, ci) => {
         const pct = (c.total_points / tp * 100).toFixed(1);
-        barsDiv.appendChild(h('div', { style: { marginBottom: '10px' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' } },
+        barsDiv.appendChild(h('div', { style: { marginBottom: '12px' } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' } },
             h('span', { style: { fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' } },
               h('div', { style: { width: '10px', height: '10px', borderRadius: '50%', background: c.color } }), c.name),
-            h('span', { style: { fontWeight: 700, color: c.color } }, c.total_points + ' (' + pct + '%)')),
-          h('div', { style: { height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden' } },
-            h('div', { style: { width: pct + '%', height: '100%', background: 'linear-gradient(90deg, ' + c.color + ', ' + c.color + '99)', borderRadius: '5px', transition: 'width 0.6s ease' } }))));
+            h('span', { style: { fontWeight: 700, color: c.color } }, c.total_points + ' แต้ม (' + pct + '%)')),
+          h('div', { style: { height: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden' } },
+            (() => { const bar = h('div', { style: { width: '0%', height: '100%', background: 'linear-gradient(90deg, ' + c.color + ', ' + c.color + 'cc)', borderRadius: '6px', transition: 'width 0.8s ease' } }); setTimeout(() => { bar.style.width = pct + '%'; }, 150 + ci * 100); return bar; })())));
       });
       catRow.appendChild(barsDiv);
-      // Right: donut
+      // Donut
       let accumulated = 0;
       const segments = sum.byCategory.map(c => {
         const pct = (c.total_points / tp * 100);
@@ -2128,57 +2184,64 @@ function rKpi() {
         accumulated += pct;
         return c.color + ' ' + start + '% ' + accumulated + '%';
       });
-      const catGrad = 'conic-gradient(' + segments.join(', ') + ')';
-      const donutDiv = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' } });
-      donutDiv.appendChild(h('div', { style: { width: '130px', height: '130px', borderRadius: '50%', background: catGrad, position: 'relative', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' } },
-        h('div', { style: { position: 'absolute', top: '22px', left: '22px', right: '22px', bottom: '22px', borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
-          h('div', { style: { fontSize: '22px', fontWeight: 800, color: '#1e293b' } }, String(sum.totals.points)),
+      const donutDiv = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } });
+      donutDiv.appendChild(h('div', { style: { width: '130px', height: '130px', borderRadius: '50%', background: 'conic-gradient(' + segments.join(', ') + ')', position: 'relative', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' } },
+        h('div', { style: { position: 'absolute', top: '22px', left: '22px', right: '22px', bottom: '22px', borderRadius: '50%', background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
+          h('div', { style: { fontSize: '24px', fontWeight: 800, color: '#f87171' } }, String(sum.totals.points)),
           h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้มรวม'))));
       catRow.appendChild(donutDiv);
       catBox.appendChild(catRow);
       w.appendChild(catBox);
     }
 
-    // Employee ranking
+    // === EMPLOYEE RANKING ===
     w.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '12px' } }, '🏆 อันดับพนักงาน'));
-    const empBox = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '16px' } });
+    const empBox = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px', marginBottom: '16px' } });
     const em = {}; sum.byEmployee.forEach(e => { em[e.employee_id] = e; });
-    const sortedEmps = [...ce()].sort((a, b) => ((em[b.id]?.total_points||0) - (em[a.id]?.total_points||0)));
+    const sortedEmps = [...ce()].sort((a, b) => ((em[a.id]?.total_points||0) - (em[b.id]?.total_points||0)));
     sortedEmps.forEach((emp, idx) => {
       const d = em[emp.id] || { error_count: 0, total_points: 0, total_damage: 0 };
       const ok = d.total_points === 0, me = emp.id === U.id;
-      const medal = ok ? '🏆' : idx === 0 ? '💀' : idx === 1 ? '😱' : idx === 2 ? '😬' : '';
-      const borderCol = ok ? '#10b981' : d.total_points >= 10 ? '#ef4444' : d.total_points >= 5 ? '#f59e0b' : '#e2e8f0';
-      empBox.appendChild(h('div', { style: { background: me ? '#eff6ff' : '#fff', borderRadius: '14px', padding: '16px', border: '2px solid ' + borderCol, position: 'relative' } },
-        medal ? h('div', { style: { position: 'absolute', top: '8px', right: '10px', fontSize: '20px' } }, medal) : '',
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' } },
-          emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' } }) : h('div', { style: { fontSize: '28px' } }, emp.avatar),
-          h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '14px' } }, dn(emp)),
-            me ? h('div', { style: { fontSize: '10px', color: '#3b82f6', fontWeight: 700 } }, 'คุณ') : '')),
-        h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
-          h('div', { style: { textAlign: 'center', padding: '8px', background: '#f8fafc', borderRadius: '8px' } },
-            h('div', { style: { fontSize: '18px', fontWeight: 800, color: d.total_points > 0 ? '#ef4444' : '#10b981' } }, String(d.total_points)),
-            h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้ม')),
-          h('div', { style: { textAlign: 'center', padding: '8px', background: '#f8fafc', borderRadius: '8px' } },
-            h('div', { style: { fontSize: '18px', fontWeight: 800, color: '#6366f1' } }, String(d.error_count)),
-            h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ครั้ง'))),
-        d.total_damage > 0 ? h('div', { style: { marginTop: '8px', textAlign: 'center', fontSize: '12px', color: '#d97706', fontWeight: 700 } }, '💰 ' + d.total_damage.toFixed(2) + ' ฿') : ''));
+      const medal = ok ? '🏆' : '';
+      const borderCol = ok ? '#22c55e' : d.total_points >= 10 ? '#ef4444' : d.total_points >= 5 ? '#f59e0b' : 'rgba(255,255,255,0.08)';
+      const cardBg = ok ? 'rgba(34,197,94,0.06)' : d.total_points >= 10 ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)';
+      const card = h('div', { style: { background: me ? 'rgba(99,102,241,0.08)' : cardBg, borderRadius: '16px', padding: '18px', border: '2px solid ' + borderCol, position: 'relative', transition: 'all .15s' } });
+      card.onmouseenter = () => { card.style.transform = 'translateY(-2px)'; card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)'; };
+      card.onmouseleave = () => { card.style.transform = 'translateY(0)'; card.style.boxShadow = 'none'; };
+      if (medal) card.appendChild(h('div', { style: { position: 'absolute', top: '10px', right: '12px', fontSize: '22px' } }, medal));
+      card.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' } },
+        emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + borderCol } }) : h('div', { style: { fontSize: '32px' } }, emp.avatar),
+        h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '15px' } }, dn(emp)),
+          me ? h('div', { style: { fontSize: '10px', color: '#818cf8', fontWeight: 700 } }, '⭐ คุณ') : '')));
+      // Stats row
+      const statsRow = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } });
+      const ptsBg = ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+      const ptsColor = ok ? '#22c55e' : '#ef4444';
+      statsRow.appendChild(h('div', { style: { textAlign: 'center', padding: '10px', background: ptsBg, borderRadius: '10px' } },
+        h('div', { style: { fontSize: '22px', fontWeight: 800, color: ptsColor } }, ok ? '✨' : String(d.total_points)),
+        h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, ok ? '0 แต้ม' : 'แต้ม')));
+      statsRow.appendChild(h('div', { style: { textAlign: 'center', padding: '10px', background: 'rgba(99,102,241,0.1)', borderRadius: '10px' } },
+        h('div', { style: { fontSize: '22px', fontWeight: 800, color: '#818cf8' } }, String(d.error_count)),
+        h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ครั้ง')));
+      card.appendChild(statsRow);
+      if (d.total_damage > 0) card.appendChild(h('div', { style: { marginTop: '10px', textAlign: 'center', fontSize: '12px', color: '#f97316', fontWeight: 700, padding: '6px', background: 'rgba(249,115,22,0.1)', borderRadius: '8px' } }, '💸 ' + d.total_damage.toLocaleString() + ' ฿'));
+      empBox.appendChild(card);
     });
     w.appendChild(empBox);
   } else if (D.kpiTab === 'myErrors') {
     const my = errs.filter(e => e.employee_id === U.id);
     w.appendChild(h('div', { style: { fontWeight: 700, fontSize: '15px', marginBottom: '10px' } }, '👤 ข้อผิดพลาดของฉัน (' + my.length + ')'));
-    if (!my.length) { w.appendChild(h('div', { style: { textAlign: 'center', padding: '40px' } }, h('div', { style: { fontSize: '48px', marginBottom: '8px' } }, '🏆'), h('div', { style: { fontSize: '16px', fontWeight: 700, color: '#10b981' } }, 'ยังไม่มีข้อผิดพลาด!'))); return w; }
+    if (!my.length) { w.appendChild(h('div', { style: { textAlign: 'center', padding: '40px', background: 'rgba(34,197,94,0.06)', borderRadius: '16px', border: '1px solid rgba(34,197,94,0.15)' } }, h('div', { style: { fontSize: '48px', marginBottom: '8px' } }, '🏆'), h('div', { style: { fontSize: '16px', fontWeight: 700, color: '#34d399' } }, 'ยังไม่มีข้อผิดพลาด! 🎉'))); return w; }
     const mp = my.reduce((s, e) => s + e.points, 0), md = my.reduce((s, e) => s + (e.damage_cost || 0), 0);
     w.appendChild(h('div', { style: { display: 'flex', gap: '12px', marginBottom: '16px' } },
-      h('div', { style: { flex: 1, background: '#fef2f2', borderRadius: '10px', padding: '14px', textAlign: 'center' } }, h('div', { style: { fontSize: '12px', color: '#ef4444' } }, 'แต้มรวม'), h('div', { style: { fontSize: '24px', fontWeight: 800, color: '#ef4444' } }, String(mp))),
-      h('div', { style: { flex: 1, background: '#fffbeb', borderRadius: '10px', padding: '14px', textAlign: 'center' } }, h('div', { style: { fontSize: '12px', color: '#d97706' } }, 'ค่าเสียหาย'), h('div', { style: { fontSize: '24px', fontWeight: 800, color: '#d97706' } }, md.toFixed(2) + ' ฿'))));
+      h('div', { style: { flex: 1, background: 'rgba(239,68,68,0.08)', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid rgba(239,68,68,0.15)' } }, h('div', { style: { fontSize: '12px', color: '#f87171' } }, 'แต้มรวม'), h('div', { style: { fontSize: '28px', fontWeight: 800, color: '#f87171' } }, String(mp))),
+      h('div', { style: { flex: 1, background: 'rgba(249,115,22,0.08)', borderRadius: '12px', padding: '16px', textAlign: 'center', border: '1px solid rgba(249,115,22,0.15)' } }, h('div', { style: { fontSize: '12px', color: '#fb923c' } }, 'ค่าเสียหาย'), h('div', { style: { fontSize: '28px', fontWeight: 800, color: '#fb923c' } }, md.toLocaleString() + ' ฿'))));
     my.forEach(er => {
-      w.appendChild(h('div', { style: { padding: '10px 14px', background: '#fff', borderRadius: '8px', marginBottom: '4px', border: '1px solid #e2e8f0', borderLeft: '4px solid ' + (er.cat_color || '#6366f1'), fontSize: '13px' } },
+      w.appendChild(h('div', { style: { padding: '12px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', marginBottom: '6px', border: '1px solid rgba(255,255,255,0.06)', borderLeft: '4px solid ' + (er.cat_color || '#6366f1'), fontSize: '13px' } },
         h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } },
           h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: er.cat_color + '20', color: er.cat_color } }, er.cat_name),
-          h('b', {}, er.detail_desc || er.note || '—'), h('span', { style: { color: '#94a3b8' } }, '🔢 ' + er.points)),
-        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '2px' } }, '📅 ' + fmtDate(er.date) + (er.damage_cost > 0 ? ' | 💰 ' + er.damage_cost + ' ฿' : ''))));
+          h('b', {}, er.detail_desc || er.note || '—'), h('span', { style: { color: '#f87171', fontWeight: 700 } }, '🔢 ' + er.points)),
+        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '4px' } }, '📅 ' + fmtDate(er.date) + (er.damage_cost > 0 ? ' | 💸 ' + er.damage_cost.toLocaleString() + ' ฿' : ''))));
     });
   } else if (D.kpiTab === 'manage') {
     w.appendChild(h('button', { className: 'btn', style: { background: '#6366f1', marginBottom: '16px' }, onClick: () => openModal('kpiAdd') }, '+ บันทึกข้อผิดพลาดใหม่'));
