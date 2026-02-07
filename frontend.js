@@ -1116,9 +1116,9 @@ function computeAchievements(empStats) {
     const prog = results[emp.id].progress;
     const earned = new Set(results[emp.id].badges);
     // Streak badges
-    prog['streak_30'] = { current: maxStreak, target: 30, unit: 'วัน' };
-    prog['streak_60'] = { current: maxStreak, target: 60, unit: 'วัน' };
-    prog['streak_90'] = { current: maxStreak, target: 90, unit: 'วัน' };
+    prog['streak_30'] = { current: streak, target: 30, unit: 'วัน' };
+    prog['streak_60'] = { current: streak, target: 60, unit: 'วัน' };
+    prog['streak_90'] = { current: streak, target: 90, unit: 'วัน' };
     // Diamond (3 months no leave)
     let noLeaveMonths = 0;
     for (let i = pastMonths.length - 1; i >= 0; i--) {
