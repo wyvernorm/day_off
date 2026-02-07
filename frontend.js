@@ -1195,7 +1195,7 @@ function showAchGuide(achData) {
     sec.appendChild(catHdr);
 
     // Badge cards grid
-    const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' } });
+    const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' } });
     catAchs.forEach(a => {
       const tc = TIER_COLORS[a.tier];
       const earned = myBadges.has(a.id);
@@ -1205,42 +1205,41 @@ function showAchGuide(achData) {
 
       const bCard = h('div', { style: {
         background: earned ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.03)',
-        borderRadius: '14px', padding: '14px',
+        borderRadius: '16px', padding: '16px 14px',
         border: earned ? '1.5px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', gap: '12px', alignItems: 'flex-start', transition: 'all .15s',
-        position: 'relative', overflow: 'hidden'
+        textAlign: 'center', transition: 'all .15s',
+        position: 'relative', opacity: earned ? 1 : 0.6
       } });
       bCard.onmouseenter = () => { bCard.style.transform = 'translateY(-2px)'; bCard.style.boxShadow = earned ? '0 4px 20px rgba(34,197,94,0.15)' : '0 4px 20px rgba(255,255,255,0.05)'; };
       bCard.onmouseleave = () => { bCard.style.transform = 'translateY(0)'; bCard.style.boxShadow = 'none'; };
 
-      // Earned checkmark or count
-      if (earned && isMonthly && myCnt > 1) {
-        bCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', background: '#16a34a', color: '#fff', minWidth: '22px', height: '22px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, padding: '0 6px', boxShadow: '0 2px 8px rgba(22,163,74,0.3)' } }, '×' + myCnt));
-      } else if (earned) {
-        bCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', background: '#16a34a', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(22,163,74,0.3)' } }, '✓'));
-      }
+      // Icon
+      bCard.appendChild(h('div', { style: { fontSize: '36px', marginBottom: '8px', filter: earned ? 'none' : 'grayscale(0.8)' } }, a.icon));
 
-      // Icon — grayscale if not earned
-      bCard.appendChild(h('div', { style: { fontSize: '28px', width: '40px', textAlign: 'center', flexShrink: 0, filter: earned ? 'none' : 'grayscale(0.7) opacity(0.5)' } }, a.icon));
+      // Name + tier
+      bCard.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: earned ? '#fff' : '#94a3b8', marginBottom: '4px' } }, a.name));
 
-      // Info
-      const info = h('div', { style: { flex: 1, minWidth: 0 } });
-      info.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' } },
-        h('span', { style: { fontWeight: 700, fontSize: '13px', color: earned ? '#fff' : '#94a3b8' } }, a.name),
-        h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label),
-        isMonthly ? h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 600 } }, '🔄 รายเดือน') : ''));
-      info.appendChild(h('div', { style: { fontSize: '11px', color: earned ? '#cbd5e1' : '#64748b', marginBottom: '6px', lineHeight: '1.4' } }, a.desc));
+      // Description
+      bCard.appendChild(h('div', { style: { fontSize: '10px', color: earned ? '#cbd5e1' : '#64748b', marginBottom: '8px', lineHeight: '1.4' } }, a.desc));
 
-      // Bottom row
-      const bottom = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' } });
+      // Tags row
+      const tags = h('div', { style: { display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '8px' } });
+      tags.appendChild(h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label));
+      if (isMonthly) tags.appendChild(h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 600 } }, '🔄 รายเดือน'));
+      bCard.appendChild(tags);
+
+      // Points / status
       if (earned && isMonthly) {
-        bottom.appendChild(h('span', { style: { fontSize: '12px', fontWeight: 800, color: '#34d399', background: 'rgba(34,197,94,0.15)', padding: '2px 8px', borderRadius: '8px' } }, '✅ ' + myCnt + ' เดือน (+' + (a.points * myCnt) + ' แต้ม)'));
+        bCard.appendChild(h('div', { style: { fontSize: '12px', fontWeight: 800, color: '#34d399', background: 'rgba(34,197,94,0.15)', padding: '4px 10px', borderRadius: '8px', display: 'inline-block' } }, '✅ ' + myCnt + ' เดือน (+' + (a.points * myCnt) + ' แต้ม)'));
+      } else if (earned) {
+        bCard.appendChild(h('div', { style: { fontSize: '12px', fontWeight: 800, color: '#34d399', background: 'rgba(34,197,94,0.15)', padding: '4px 10px', borderRadius: '8px', display: 'inline-block' } }, '✅ +' + a.points + ' แต้ม'));
       } else {
-        bottom.appendChild(h('span', { style: { fontSize: '12px', fontWeight: 800, color: earned ? '#34d399' : tc.text, background: earned ? 'rgba(34,197,94,0.15)' : tc.bg, padding: '2px 8px', borderRadius: '8px' } }, earned ? '✅ +' + a.points + ' แต้ม' : '+' + a.points + ' แต้ม'));
+        bCard.appendChild(h('div', { style: { fontSize: '12px', fontWeight: 800, color: tc.text, background: tc.bg, padding: '4px 10px', borderRadius: '8px', display: 'inline-block' } }, '+' + a.points + ' แต้ม'));
       }
-      if (count > 0) bottom.appendChild(h('span', { style: { fontSize: '10px', color: '#64748b' } }, count + ' คนได้'));
-      info.appendChild(bottom);
-      bCard.appendChild(info);
+
+      // How many people got it
+      if (count > 0) bCard.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginTop: '6px' } }, count + ' คนได้'));
+
       grid.appendChild(bCard);
     });
     sec.appendChild(grid);
