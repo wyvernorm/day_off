@@ -867,26 +867,40 @@ function computeAchievements(empStats) {
   const countKpiErrors = (empId, prefix) => (D.kpiYear || []).filter(e => e.employee_id === empId && e.date && e.date.startsWith(prefix)).length;
   const countSwaps = (empId, prefix) => (D.swapReqs || []).filter(sr => sr.from_employee_id === empId && sr.status === 'approved' && sr.date && sr.date.startsWith(prefix)).length;
 
+  // Helper: check if employee has shift data in a month (actually working)
+  const hasWorkedInMonth = (empId, prefix) => {
+    // Check if there are shifts or the month is current/past (not future)
+    const [y, m] = prefix.split('-').map(Number);
+    const now = new Date();
+    const monthEnd = new Date(y, m, 0); // last day of that month
+    if (monthEnd > now) return false; // future month — no badge
+    // For current month, only valid if at least some days have passed
+    const monthStart = new Date(y, m - 1, 1);
+    if (monthStart > now) return false;
+    return true;
+  };
+
   empStats.forEach(({ emp, sc, yl }) => {
     const badges = [];
     const quotaUsed = (yl.personal || 0) + (yl.vacation || 0);
     const maxLv = emp.max_leave_per_year || 20;
     const quotaPct = maxLv > 0 ? quotaUsed / maxLv : 0;
+    const workedThisMonth = hasWorkedInMonth(emp.id, monthPrefix);
 
     // === 🎯 ATTENDANCE ===
-    if (achIds.has('iron_will') && countLeaves(emp.id, monthPrefix) === 0) badges.push('iron_will');
+    if (achIds.has('iron_will') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0) badges.push('iron_will');
 
     if (achIds.has('diamond')) {
       let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } if (countLeaves(emp.id, getMonthPrefix(cy, cm)) > 0) { ok = false; break; } }
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
       if (ok) badges.push('diamond');
     }
 
-    if (achIds.has('good_start') && countLeaves(emp.id, D.y + '-01') === 0) badges.push('good_start');
+    if (achIds.has('good_start') && hasWorkedInMonth(emp.id, D.y + '-01') && countLeaves(emp.id, D.y + '-01') === 0) badges.push('good_start');
 
     if (achIds.has('half_year_gold')) {
       let ok = true;
-      for (let m = 0; m < 6; m++) { if (countLeaves(emp.id, getMonthPrefix(D.y, m)) > 0) { ok = false; break; } }
+      for (let m = 0; m < 6; m++) { const mp = getMonthPrefix(D.y, m); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
       if (ok && D.m >= 5) badges.push('half_year_gold');
     }
 
@@ -907,14 +921,14 @@ function computeAchievements(empStats) {
 
     // === ⚡ KPI ===
     const kpiThisMonth = countKpiErrors(emp.id, monthPrefix);
-    if (achIds.has('perfect_kpi') && kpiThisMonth === 0) badges.push('perfect_kpi');
+    if (achIds.has('perfect_kpi') && workedThisMonth && kpiThisMonth === 0) badges.push('perfect_kpi');
 
     const kpiDmg = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix)).reduce((s, e) => s + (e.damage_cost || 0), 0);
-    if (achIds.has('zero_damage') && kpiDmg === 0) badges.push('zero_damage');
+    if (achIds.has('zero_damage') && workedThisMonth && kpiDmg === 0) badges.push('zero_damage');
 
     if (achIds.has('kpi_3months')) {
       let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } if (countKpiErrors(emp.id, getMonthPrefix(cy, cm)) > 0) { ok = false; break; } }
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countKpiErrors(emp.id, mp) > 0) { ok = false; break; } }
       if (ok) badges.push('kpi_3months');
     }
 
@@ -925,16 +939,16 @@ function computeAchievements(empStats) {
     }
 
     // === 🦸 STABILITY ===
-    if (achIds.has('no_swap') && countSwaps(emp.id, monthPrefix) === 0) badges.push('no_swap');
+    if (achIds.has('no_swap') && workedThisMonth && countSwaps(emp.id, monthPrefix) === 0) badges.push('no_swap');
 
     if (achIds.has('rock_solid')) {
       let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } if (countSwaps(emp.id, getMonthPrefix(cy, cm)) > 0) { ok = false; break; } }
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countSwaps(emp.id, mp) > 0) { ok = false; break; } }
       if (ok) badges.push('rock_solid');
     }
 
     // === 🏥 HEALTH ===
-    if (achIds.has('no_sick_month') && countSickLeaves(emp.id, monthPrefix) === 0) badges.push('no_sick_month');
+    if (achIds.has('no_sick_month') && workedThisMonth && countSickLeaves(emp.id, monthPrefix) === 0) badges.push('no_sick_month');
 
     if (achIds.has('no_sick_year')) {
       const yearlySick = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
