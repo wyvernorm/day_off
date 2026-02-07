@@ -169,6 +169,11 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname === '/api/leaves' && method === 'POST') {
     const b = await getBody();
+    // ลาป่วย ห้ามเลือกวันในอนาคต
+    if (b.leave_type === 'sick') {
+      const today = new Date().toISOString().split('T')[0];
+      if (b.date > today) return json({ error: 'ลาป่วยไม่สามารถเลือกวันในอนาคตได้' }, 400);
+    }
     // ตรวจสอบลาซ้ำวัน
     const existing = await DB.prepare("SELECT id,leave_type,status FROM leaves WHERE employee_id=? AND date=? AND status!='rejected'").bind(b.employee_id, b.date).first();
     if (existing) {
@@ -199,6 +204,11 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname === '/api/leaves/range' && method === 'POST') {
     const b = await getBody();
+    // ลาป่วย ห้ามเลือกวันในอนาคต
+    if (b.leave_type === 'sick') {
+      const today = new Date().toISOString().split('T')[0];
+      if (b.end_date > today) return json({ error: 'ลาป่วยไม่สามารถเลือกวันในอนาคตได้' }, 400);
+    }
     const emp = await DB.prepare('SELECT * FROM employees WHERE id=?').bind(b.employee_id).first();
     if (!emp) return json({ error: 'ไม่พบพนักงาน' }, 404);
     const empOffs = (emp.default_off_day || '6').split(',').map(Number);

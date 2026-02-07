@@ -825,36 +825,47 @@ function rRos() {
 
 // === ACHIEVEMENT SYSTEM 🏆 ===
 const DEFAULT_ACHIEVEMENTS = [
-  // 🎯 หมวดการมาทำงาน (รายเดือน)
-  { id: 'iron_will', icon: '🔥', name: 'ใจเหล็ก', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 5, cat: 'attendance' },
-  { id: 'diamond', icon: '💎', name: 'เพชรแท้', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 20, cat: 'attendance' },
-  { id: 'good_start', icon: '🌟', name: 'เริ่มต้นดี', desc: 'ไม่ลาเลยเดือน ม.ค.', tier: 1, points: 5, cat: 'attendance' },
-  { id: 'half_year_gold', icon: '🗓️', name: 'ครึ่งปีทอง', desc: 'ไม่ลาเลย 6 เดือนแรก', tier: 3, points: 50, cat: 'attendance' },
-  { id: 'streak_30', icon: '🏃', name: 'ต่อเนื่อง 30', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 5, cat: 'attendance' },
-  { id: 'streak_60', icon: '🏃', name: 'ต่อเนื่อง 60', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 10, cat: 'attendance' },
-  { id: 'streak_90', icon: '🏃', name: 'ต่อเนื่อง 90', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 20, cat: 'attendance' },
-  { id: 'early_bird', icon: '🐦', name: 'ขยันมาเช้า', desc: 'ไม่ลาเลย + ไม่สลับกะ ทั้งเดือน', tier: 2, points: 8, cat: 'attendance' },
-  // ⚡ หมวด KPI (รายเดือน)
-  { id: 'perfect_kpi', icon: '⭐', name: 'ไร้ที่ติ', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 5, cat: 'kpi' },
-  { id: 'zero_damage', icon: '🛡️', name: 'ไร้ค่าเสียหาย', desc: 'มี error แต่ค่าเสียหาย 0 บาท', tier: 1, points: 3, cat: 'kpi' },
-  { id: 'kpi_3months', icon: '💯', name: 'KPI ไร้มลทิน', desc: 'KPI 0 error 3 เดือนติด', tier: 3, points: 20, cat: 'kpi' },
-  { id: 'kpi_improve', icon: '📉', name: 'พัฒนาขึ้น', desc: 'error เดือนนี้ < เดือนก่อน', tier: 2, points: 5, cat: 'kpi' },
-  { id: 'kpi_max2', icon: '🎯', name: 'ใกล้สมบูรณ์', desc: 'error ไม่เกิน 2 ครั้งทั้งเดือน', tier: 1, points: 3, cat: 'kpi' },
-  { id: 'low_damage', icon: '💸', name: 'ประหยัดค่าเสียหาย', desc: 'ค่าเสียหายรวมไม่เกิน 100 บาท', tier: 1, points: 3, cat: 'kpi' },
-  // 🦸 หมวดความมั่นคง (รายเดือน)
-  { id: 'no_swap', icon: '🦸', name: 'มั่นคง', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 3, cat: 'stability' },
-  { id: 'rock_solid', icon: '🧱', name: 'หินแกร่ง', desc: 'ไม่สลับกะ 3 เดือนติด', tier: 3, points: 15, cat: 'stability' },
+  // 🎯 หมวดการมาทำงาน
+  { id: 'iron_will', icon: '🔥', name: 'ติดจรวด', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 10, cat: 'attendance' },
+  { id: 'diamond', icon: '💎', name: 'ร่างทิพย์', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 50, cat: 'attendance' },
+  { id: 'good_start', icon: '🌟', name: 'ปีใหม่ปังปุริเย่', desc: 'ไม่ลาเลยเดือน ม.ค.', tier: 1, points: 10, cat: 'attendance' },
+  { id: 'half_year_gold', icon: '🗓️', name: 'มนุษย์เหล็กครึ่งปี', desc: 'ไม่ลาเลย 6 เดือนแรก', tier: 3, points: 100, cat: 'attendance' },
+  { id: 'streak_30', icon: '🏃', name: 'วิ่งมาราธอน', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 10, cat: 'attendance' },
+  { id: 'streak_60', icon: '🏃‍♂️', name: 'วิ่งข้ามจังหวัด', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 30, cat: 'attendance' },
+  { id: 'streak_90', icon: '🦸', name: 'วิ่งข้ามประเทศ', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 80, cat: 'attendance' },
+  { id: 'early_bird', icon: '🐓', name: 'ไก่โห่ยังไม่ตื่น', desc: 'ไม่ลา + ไม่สลับกะ ทั้งเดือน', tier: 2, points: 15, cat: 'attendance' },
+  // ⚡ หมวด KPI
+  { id: 'perfect_kpi', icon: '⭐', name: 'มือปราบบัค', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 10, cat: 'kpi' },
+  { id: 'zero_damage', icon: '🛡️', name: 'ทำพังแต่ไม่แพง', desc: 'มี error แต่ค่าเสียหาย 0 บาท', tier: 1, points: 5, cat: 'kpi' },
+  { id: 'low_damage', icon: '💸', name: 'หักแต่ไม่หัก(มาก)', desc: 'ค่าเสียหาย 0 บาท ได้ 1 pt / ≤100 บาท ได้ 3 pt', tier: 1, points: 3, cat: 'kpi' },
+  { id: 'kpi_improve', icon: '📈', name: 'ขาขึ้น', desc: 'error เดือนนี้ < เดือนก่อน', tier: 2, points: 10, cat: 'kpi' },
+  { id: 'kpi_max2', icon: '🎯', name: 'เกือบเทพ', desc: 'error แค่ 1-2 ครั้ง ก็ยังนับว่าเก่ง', tier: 1, points: 5, cat: 'kpi' },
+  // ⚡ KPI ต่อเนื่อง (progressive — ยิ่งนาน ยิ่งรวย)
+  { id: 'kpi_streak_3', icon: '💯', name: 'สะอาด 3 เดือน', desc: '0 error ติด 3 เดือน', tier: 2, points: 100, cat: 'kpi' },
+  { id: 'kpi_streak_6', icon: '🏆', name: 'สะอาดครึ่งปี', desc: '0 error ติด 6 เดือน', tier: 3, points: 300, cat: 'kpi' },
+  { id: 'kpi_streak_12', icon: '👼', name: 'นางฟ้าประจำปี', desc: '0 error ตลอดทั้งปี!', tier: 3, points: 500, cat: 'kpi' },
+  // 🦸 หมวดความมั่นคง
+  { id: 'no_swap', icon: '🪨', name: 'ก้อนหินไม่ขยับ', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 10, cat: 'stability' },
+  { id: 'rock_3m', icon: '🧱', name: 'แน่นปึ้ก 3 เดือน', desc: 'ไม่สลับกะ 3 เดือนติด', tier: 2, points: 50, cat: 'stability' },
+  { id: 'rock_6m', icon: '🏔️', name: 'แน่นเท่าภูเขา', desc: 'ไม่สลับกะ 6 เดือนติด', tier: 3, points: 150, cat: 'stability' },
+  { id: 'rock_12m', icon: '🌍', name: 'แน่นเท่าโลก', desc: 'ไม่สลับกะตลอดทั้งปี!', tier: 3, points: 300, cat: 'stability' },
   // 🏥 หมวดสุขภาพ
-  { id: 'no_sick_month', icon: '🍀', name: 'โชคดีมีสุข', desc: 'ไม่ลาป่วยทั้งเดือน', tier: 1, points: 3, cat: 'health' },
-  { id: 'no_sick_year', icon: '💚', name: 'สุขภาพเหล็ก', desc: 'ไม่ลาป่วยเลยทั้งปี (สรุปปลายปี)', tier: 3, points: 30, cat: 'health' },
-  // 📊 หมวดโควต้า (ทั้งปี)
-  { id: 'quota_saver', icon: '💰', name: 'ประหยัดวันลา', desc: 'ใช้โควต้าไม่เกิน 25% (สรุปปลายปี)', tier: 2, points: 10, cat: 'quota' },
-  { id: 'quota_rich', icon: '🏦', name: 'เศรษฐีวันลา', desc: 'ใช้โควต้าไม่เกิน 10% (สรุปปลายปี)', tier: 3, points: 20, cat: 'quota' },
+  { id: 'no_sick_month', icon: '🍀', name: 'ภูมิคุ้มกันเทพ', desc: 'ไม่ลาป่วยทั้งเดือน', tier: 1, points: 5, cat: 'health' },
+  { id: 'no_sick_year', icon: '💚', name: 'ร่างกายทำด้วยเหล็ก', desc: 'ไม่ลาป่วยเลยทั้งปี (ธ.ค.)', tier: 3, points: 100, cat: 'health' },
+  // 📊 หมวดโควต้า (ธ.ค.)
+  { id: 'quota_saver', icon: '💰', name: 'หยุดน้อย ใจใหญ่', desc: 'ใช้โควต้า ≤25% (ธ.ค.)', tier: 2, points: 30, cat: 'quota' },
+  { id: 'quota_rich', icon: '🏦', name: 'วันลาเอาไปทำอะไร', desc: 'ใช้โควต้า ≤10% (ธ.ค.)', tier: 3, points: 80, cat: 'quota' },
   // 🏅 หมวดทีม
-  { id: 'team_player', icon: '🤝', name: 'ทีมเวิร์ค', desc: 'ไม่มีใครในทีมลาทั้งเดือน', tier: 2, points: 10, cat: 'team' },
+  { id: 'team_no_leave', icon: '🤝', name: 'ทีมเดียวกัน(ไม่หยุด)', desc: 'ทุกคนไม่ลาทั้งเดือน', tier: 2, points: 50, cat: 'team' },
+  { id: 'team_perfect', icon: '🏰', name: 'ป้อมปราการ', desc: 'ทุกคนไม่ลา+ไม่สลับ+ไม่ย้ายวันหยุด', tier: 3, points: 50, cat: 'team' },
+  { id: 'team_zero_err', icon: '🌟', name: 'ทีมในฝัน', desc: 'ทุกคนในทีม 0 error ทั้งเดือน', tier: 3, points: 50, cat: 'team' },
+  // 🏅 ทีมต่อเนื่อง (progressive)
+  { id: 'team_streak_2', icon: '🔥', name: 'ทีมร้อนแรง 2 เดือน', desc: 'ป้อมปราการ 2 เดือนติด', tier: 3, points: 200, cat: 'team' },
+  { id: 'team_streak_3', icon: '🔥🔥', name: 'ทีมลุกเป็นไฟ', desc: 'ป้อมปราการ 3 เดือนติด', tier: 3, points: 500, cat: 'team' },
+  { id: 'team_streak_6', icon: '☄️', name: 'ทีมอุกกาบาต', desc: 'ป้อมปราการ 6 เดือนติด', tier: 3, points: 2000, cat: 'team' },
   // 👑 หมวดพิเศษ
-  { id: 'comeback', icon: '🔄', name: 'กลับมาแข็งแกร่ง', desc: 'เดือนก่อนมี error แต่เดือนนี้ 0', tier: 2, points: 8, cat: 'special' },
-  { id: 'mvp', icon: '👑', name: 'ดีเด่น', desc: 'คะแนนรวมสูงสุดของเดือน', tier: 3, points: 10, cat: 'special' },
+  { id: 'comeback', icon: '🔄', name: 'ฟื้นจากเถ้าถ่าน', desc: 'เดือนก่อนมี error → เดือนนี้ 0', tier: 2, points: 15, cat: 'special' },
+  { id: 'mvp', icon: '👑', name: 'เทพประจำเดือน', desc: 'คะแนนรวมสูงสุด', tier: 3, points: 20, cat: 'special' },
 ];
 const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', team: '🏅 ทีม', special: '👑 พิเศษ' };
 function getAchievements() { return D.achievements || DEFAULT_ACHIEVEMENTS; }
@@ -869,24 +880,22 @@ function computeAchievements(empStats) {
   const monthPrefix = D.y + '-' + String(D.m + 1).padStart(2, '0');
   const getMonthPrefix = (y, m) => y + '-' + String(m + 1).padStart(2, '0');
 
-  // Helper: count approved leaves in a month prefix
   const countLeaves = (empId, prefix) => (D.yld || []).filter(l => l.employee_id === empId && l.date.startsWith(prefix) && l.status === 'approved').length;
   const countSickLeaves = (empId, prefix) => (D.yld || []).filter(l => l.employee_id === empId && l.date.startsWith(prefix) && l.leave_type === 'sick' && l.status === 'approved').length;
   const countKpiErrors = (empId, prefix) => (D.kpiYear || []).filter(e => e.employee_id === empId && e.date && e.date.startsWith(prefix)).length;
   const countSwaps = (empId, prefix) => (D.swapReqs || []).filter(sr => sr.from_employee_id === empId && sr.status === 'approved' && sr.date && sr.date.startsWith(prefix)).length;
+  const countSelfMoves = (empId, prefix) => (D.selfMoves || []).filter(sm => sm.employee_id === empId && sm.status === 'approved' && (sm.off_date?.startsWith(prefix) || sm.work_date?.startsWith(prefix))).length;
 
-  // Helper: check if employee has shift data in a month (actually working)
   const hasWorkedInMonth = (empId, prefix) => {
-    // Check if there are shifts or the month is current/past (not future)
     const [y, m] = prefix.split('-').map(Number);
     const now = new Date();
-    const monthEnd = new Date(y, m, 0); // last day of that month
-    if (monthEnd > now) return false; // future month — no badge
-    // For current month, only valid if at least some days have passed
-    const monthStart = new Date(y, m - 1, 1);
-    if (monthStart > now) return false;
+    if (new Date(y, m, 0) > now) return false;
+    if (new Date(y, m - 1, 1) > now) return false;
     return true;
   };
+
+  // Visible employees for team checks
+  const visibleEmps = empStats.filter(({ emp }) => emp.show_in_calendar !== 0 && emp.show_in_calendar !== '0');
 
   empStats.forEach(({ emp, sc, yl }) => {
     const badges = [];
@@ -894,22 +903,24 @@ function computeAchievements(empStats) {
     const maxLv = emp.max_leave_per_year || 20;
     const quotaPct = maxLv > 0 ? quotaUsed / maxLv : 0;
     const workedThisMonth = hasWorkedInMonth(emp.id, monthPrefix);
+    const kpiThisMonth = countKpiErrors(emp.id, monthPrefix);
+    const kpiDmg = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix)).reduce((s, e) => s + (e.damage_cost || 0), 0);
 
     // === 🎯 ATTENDANCE ===
     if (achIds.has('iron_will') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0) badges.push('iron_will');
 
-    if (achIds.has('diamond')) {
-      let ok = D.m >= 2; // ต้องอย่างน้อยเดือน 3 (มี.ค.) ถึงจะเช็คย้อน 3 เดือนในปีเดียวกันได้
-      if (ok) { for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } } }
+    if (achIds.has('diamond') && D.m >= 2) {
+      let ok = true;
+      for (let i = 0; i < 3; i++) { const mp = getMonthPrefix(D.y, D.m - i); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
       if (ok) badges.push('diamond');
     }
 
     if (achIds.has('good_start') && hasWorkedInMonth(emp.id, D.y + '-01') && countLeaves(emp.id, D.y + '-01') === 0) badges.push('good_start');
 
-    if (achIds.has('half_year_gold')) {
+    if (achIds.has('half_year_gold') && D.m >= 5) {
       let ok = true;
       for (let m = 0; m < 6; m++) { const mp = getMonthPrefix(D.y, m); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
-      if (ok && D.m >= 5) badges.push('half_year_gold');
+      if (ok) badges.push('half_year_gold');
     }
 
     // Streak
@@ -927,84 +938,92 @@ function computeAchievements(empStats) {
     else if (achIds.has('streak_60') && maxStreak >= 60) badges.push('streak_60');
     else if (achIds.has('streak_30') && maxStreak >= 30) badges.push('streak_30');
 
+    if (achIds.has('early_bird') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0) badges.push('early_bird');
+
     // === ⚡ KPI ===
-    const kpiThisMonth = countKpiErrors(emp.id, monthPrefix);
     if (achIds.has('perfect_kpi') && workedThisMonth && kpiThisMonth === 0) badges.push('perfect_kpi');
-
-    const kpiDmg = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix)).reduce((s, e) => s + (e.damage_cost || 0), 0);
     if (achIds.has('zero_damage') && workedThisMonth && kpiThisMonth > 0 && kpiDmg === 0) badges.push('zero_damage');
-
-    if (achIds.has('kpi_3months') && D.m >= 2) {
-      let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countKpiErrors(emp.id, mp) > 0) { ok = false; break; } }
-      if (ok) badges.push('kpi_3months');
-    }
+    if (achIds.has('kpi_max2') && workedThisMonth && kpiThisMonth > 0 && kpiThisMonth <= 2) badges.push('kpi_max2');
+    if (achIds.has('low_damage') && workedThisMonth && kpiDmg <= 100) badges.push('low_damage');
 
     if (achIds.has('kpi_improve') && D.m > 0) {
-      let pm = D.m - 1, py = D.y; if (pm < 0) { pm = 11; py--; }
-      const prevErrors = countKpiErrors(emp.id, getMonthPrefix(py, pm));
+      const prevErrors = countKpiErrors(emp.id, getMonthPrefix(D.y, D.m - 1));
       if (prevErrors > 0 && kpiThisMonth < prevErrors) badges.push('kpi_improve');
     }
+    if (achIds.has('comeback') && workedThisMonth && D.m > 0) {
+      const prevErrors = countKpiErrors(emp.id, getMonthPrefix(D.y, D.m - 1));
+      if (prevErrors > 0 && kpiThisMonth === 0) badges.push('comeback');
+    }
+
+    // KPI progressive streaks
+    let kpiConsec = 0;
+    for (let i = 0; i <= D.m; i++) { const mp = getMonthPrefix(D.y, D.m - i); if (!hasWorkedInMonth(emp.id, mp) || countKpiErrors(emp.id, mp) > 0) break; kpiConsec++; }
+    if (achIds.has('kpi_streak_12') && kpiConsec >= 12) badges.push('kpi_streak_12');
+    else if (achIds.has('kpi_streak_6') && kpiConsec >= 6) badges.push('kpi_streak_6');
+    else if (achIds.has('kpi_streak_3') && kpiConsec >= 3) badges.push('kpi_streak_3');
 
     // === 🦸 STABILITY ===
     if (achIds.has('no_swap') && workedThisMonth && countSwaps(emp.id, monthPrefix) === 0) badges.push('no_swap');
 
-    if (achIds.has('rock_solid') && D.m >= 2) {
-      let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countSwaps(emp.id, mp) > 0) { ok = false; break; } }
-      if (ok) badges.push('rock_solid');
-    }
+    let swapConsec = 0;
+    for (let i = 0; i <= D.m; i++) { const mp = getMonthPrefix(D.y, D.m - i); if (!hasWorkedInMonth(emp.id, mp) || countSwaps(emp.id, mp) > 0) break; swapConsec++; }
+    if (achIds.has('rock_12m') && swapConsec >= 12) badges.push('rock_12m');
+    else if (achIds.has('rock_6m') && swapConsec >= 6) badges.push('rock_6m');
+    else if (achIds.has('rock_3m') && swapConsec >= 3) badges.push('rock_3m');
 
     // === 🏥 HEALTH ===
     if (achIds.has('no_sick_month') && workedThisMonth && countSickLeaves(emp.id, monthPrefix) === 0) badges.push('no_sick_month');
-
     if (achIds.has('no_sick_year') && D.m === 11) {
       const yearlySick = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
       if (yearlySick === 0) badges.push('no_sick_year');
     }
 
-    // === 📊 QUOTA (เฉพาะเดือน ธ.ค. เท่านั้น) ===
-    if (D.m === 11) { // December = month index 11
+    // === 📊 QUOTA (ธ.ค.) ===
+    if (D.m === 11) {
       if (achIds.has('quota_rich') && quotaPct <= 0.1) badges.push('quota_rich');
       else if (achIds.has('quota_saver') && quotaPct <= 0.25) badges.push('quota_saver');
-    }
-
-    // === 🐦 EARLY BIRD — ไม่ลา + ไม่สลับ ===
-    if (achIds.has('early_bird') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0) badges.push('early_bird');
-
-    // === 🎯 KPI ใกล้สมบูรณ์ — error ≤ 2 ===
-    if (achIds.has('kpi_max2') && workedThisMonth && kpiThisMonth <= 2 && kpiThisMonth > 0) badges.push('kpi_max2');
-
-    // === 💸 ประหยัดค่าเสียหาย — ≤ 100 บาท แต่ > 0 ===
-    if (achIds.has('low_damage') && workedThisMonth && kpiDmg > 0 && kpiDmg <= 100) badges.push('low_damage');
-
-    // === 🔄 กลับมาแข็งแกร่ง — เดือนก่อนมี error แต่เดือนนี้ 0 ===
-    if (achIds.has('comeback') && workedThisMonth && D.m > 0) {
-      let pm = D.m - 1, py = D.y; if (pm < 0) { pm = 11; py--; }
-      const prevErrors = countKpiErrors(emp.id, getMonthPrefix(py, pm));
-      if (prevErrors > 0 && kpiThisMonth === 0) badges.push('comeback');
     }
 
     const totalPoints = badges.reduce((s, id) => s + (achs.find(a => a.id === id)?.points || 0), 0);
     results[emp.id] = { badges, totalPoints, streak: maxStreak };
   });
 
-  // === 🏅 TEAM PLAYER — ทุกคน (ที่แสดงในปฏิทิน) ไม่ลาทั้งเดือน ===
-  if (achIds.has('team_player')) {
-    const visibleEmps = empStats.filter(({ emp }) => emp.show_in_calendar !== 0 && emp.show_in_calendar !== '0');
-    const allNoLeave = visibleEmps.length > 1 && visibleEmps.every(({ emp }) => countLeaves(emp.id, monthPrefix) === 0);
-    if (allNoLeave) {
-      visibleEmps.forEach(({ emp }) => { if (results[emp.id]) { results[emp.id].badges.push('team_player'); results[emp.id].totalPoints += 10; } });
+  // === 🏅 TEAM BADGES ===
+  if (visibleEmps.length > 1) {
+    const allNoLeave = visibleEmps.every(({ emp }) => countLeaves(emp.id, monthPrefix) === 0);
+    const allPerfect = visibleEmps.every(({ emp }) =>
+      countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0 && countSelfMoves(emp.id, monthPrefix) === 0);
+    const allZeroErr = visibleEmps.every(({ emp }) => countKpiErrors(emp.id, monthPrefix) === 0);
+
+    const giveTeamBadge = (badgeId, pts) => {
+      if (!achIds.has(badgeId)) return;
+      visibleEmps.forEach(({ emp }) => { if (results[emp.id]) { results[emp.id].badges.push(badgeId); results[emp.id].totalPoints += pts; } });
+    };
+
+    if (allNoLeave) giveTeamBadge('team_no_leave', 50);
+    if (allPerfect) giveTeamBadge('team_perfect', 50);
+    if (allZeroErr) giveTeamBadge('team_zero_err', 50);
+
+    // Team progressive streaks
+    if (allPerfect) {
+      let teamConsec = 0;
+      for (let i = 0; i <= D.m; i++) {
+        const mp = getMonthPrefix(D.y, D.m - i);
+        if (!hasWorkedInMonth(null, mp)) break;
+        const ok = visibleEmps.every(({ emp }) => countLeaves(emp.id, mp) === 0 && countSwaps(emp.id, mp) === 0 && countSelfMoves(emp.id, mp) === 0);
+        if (!ok) break;
+        teamConsec++;
+      }
+      if (teamConsec >= 6) giveTeamBadge('team_streak_6', 2000);
+      else if (teamConsec >= 3) giveTeamBadge('team_streak_3', 500);
+      else if (teamConsec >= 2) giveTeamBadge('team_streak_2', 200);
     }
   }
 
-  // 👑 MVP — คะแนนสูงสุด
+  // 👑 MVP
   let maxPts = 0, mvpId = null;
   Object.entries(results).forEach(([id, r]) => { if (r.totalPoints > maxPts) { maxPts = r.totalPoints; mvpId = id; } });
-  if (mvpId && maxPts > 0) {
-    results[mvpId].badges.push('mvp');
-    results[mvpId].totalPoints += 10;
-  }
+  if (mvpId && maxPts > 0) { results[mvpId].badges.push('mvp'); results[mvpId].totalPoints += 20; }
 
   return results;
 }
