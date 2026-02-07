@@ -2989,74 +2989,103 @@ function rWallet() {
   const myDetails = myData.badgeDetails || [];
 
   // หา badge ที่ยังไม่เคลม — ใช้ badgeDetails (badge+month) เทียบกับ claims
+  // + 30 วันหลังจบเดือน ถ้าไม่เคลมจะหายไป
   const unclaimed = [];
+  const now2 = new Date();
   // Badge รายเดือน (มี month ใน badgeDetails)
   myDetails.forEach(d => {
-    const key = d.id + '|' + D.y + '-' + d.month;
-    if (!allClaimed.has(key)) unclaimed.push({ id: d.id, month: D.y + '-' + d.month });
+    const claimMonth = D.y + '-' + d.month;
+    const key = d.id + '|' + claimMonth;
+    if (allClaimed.has(key)) return;
+    // เช็ค 30 วันหลังจบเดือน
+    const [cy, cm] = claimMonth.split('-').map(Number);
+    const monthEnd = new Date(cy, cm, 0); // วันสุดท้ายของเดือน
+    const expiry = new Date(monthEnd); expiry.setDate(expiry.getDate() + 30);
+    if (now2 > expiry) return; // หมดอายุแล้ว
+    const daysLeft = Math.ceil((expiry - now2) / (1000 * 60 * 60 * 24));
+    unclaimed.push({ id: d.id, month: claimMonth, daysLeft });
   });
   // Badge ครั้งเดียว (ไม่มีใน badgeDetails — เช่น diamond, streak, birthday, mvp)
   const detailIds = new Set(myDetails.map(d => d.id));
   myBadges.filter(id => !detailIds.has(id)).forEach(id => {
-    const claimMonth = D.y + '-00'; // special month key for once-badges
-    if (!allClaimed.has(id + '|' + claimMonth)) unclaimed.push({ id, month: claimMonth });
+    const claimMonth = D.y + '-00';
+    if (!allClaimed.has(id + '|' + claimMonth)) unclaimed.push({ id, month: claimMonth, daysLeft: null });
   });
 
   if (unclaimed.length > 0) {
     const claimSection = h('div', { style: { background: 'linear-gradient(135deg, #fefce8, #fffbeb)', borderRadius: '16px', padding: '20px', marginBottom: '20px', border: '1px solid #fde047' } });
-    claimSection.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' } },
+    claimSection.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' } },
       h('span', { style: { fontSize: '20px' } }, '🎉'),
       h('div', {},
         h('div', { style: { fontWeight: 700, fontSize: '15px', color: '#92400e' } }, 'Badge รอเคลม! (' + unclaimed.length + ')'),
         h('div', { style: { fontSize: '11px', color: '#a16207' } }, 'กดเคลมเพื่อรับแต้มเข้ากระเป๋า'))));
+    claimSection.appendChild(h('div', { style: { fontSize: '10px', color: '#dc2626', marginBottom: '14px', fontWeight: 600 } }, '⏰ มีเวลาเคลม 30 วันหลังจบเดือน ไม่เคลมจะหายไป!'));
 
-    const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' } });
-    unclaimed.forEach(({ id: badgeId, month: claimMonth }) => {
-      const ach = getAchievements().find(a => a.id === badgeId);
-      if (!ach) return;
-      const tc = TIER_COLORS[ach.tier];
-      const monthLabel = claimMonth.endsWith('-00') ? 'ทั้งปี' : claimMonth.split('-')[1];
-      const card = h('div', { style: { background: '#fff', borderRadius: '14px', padding: '16px', textAlign: 'center', border: '2px solid ' + tc.border, cursor: 'pointer', transition: 'all .2s', position: 'relative', overflow: 'hidden' } });
-      card.appendChild(h('div', { style: { fontSize: '32px', marginBottom: '6px' } }, ach.icon));
-      card.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#1e293b', marginBottom: '2px' } }, ach.name));
-      card.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '4px' } }, ach.desc));
-      if (!claimMonth.endsWith('-00')) {
-        card.appendChild(h('div', { style: { fontSize: '10px', color: '#3b82f6', fontWeight: 600, marginBottom: '4px' } }, '📅 เดือน ' + monthLabel));
-      }
-      card.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, color: tc.text, marginBottom: '8px' } }, '+' + ach.points + ' แต้ม'));
-      const claimBtn = h('button', { style: { width: '100%', padding: '8px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, ' + tc.border + ', ' + tc.text + ')', color: '#fff', fontWeight: 700, fontSize: '12px', cursor: 'pointer', transition: 'all .15s' }, onClick: async (e) => {
-        e.stopPropagation();
-        claimBtn.disabled = true; claimBtn.textContent = '⏳...';
-        try {
-          await api('/api/achievements/claim', 'POST', { achievement_id: badgeId, month: claimMonth, points: ach.points, badge_name: ach.icon + ' ' + ach.name });
-          showConfetti(card);
-          claimBtn.textContent = '✅ เคลมแล้ว!';
-          claimBtn.style.background = '#10b981';
-          D.walletBal = (D.walletBal || 0) + ach.points;
-          D.achClaims = [...(D.achClaims || []), { achievement_id: badgeId, month: claimMonth }];
-          balNum.textContent = D.walletBal.toLocaleString();
-          setTimeout(() => { card.style.opacity = '0.4'; card.style.transform = 'scale(0.95)'; }, 1500);
-        } catch (er) { toast(er.message, true); claimBtn.textContent = '🎁 เคลม'; claimBtn.disabled = false; }
-      } }, '🎁 เคลม');
-      card.appendChild(claimBtn);
-      card.onmouseenter = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 6px 20px ' + tc.border + '40'; };
-      card.onmouseleave = () => { card.style.transform = 'translateY(0)'; card.style.boxShadow = 'none'; };
-      grid.appendChild(card);
+    // Group by month
+    const monthGroups = {};
+    unclaimed.forEach(u => {
+      const mk = u.month;
+      if (!monthGroups[mk]) monthGroups[mk] = [];
+      monthGroups[mk].push(u);
     });
-    claimSection.appendChild(grid);
+
+    Object.keys(monthGroups).sort().forEach(mk => {
+      const items = monthGroups[mk];
+      const monthName = mk.endsWith('-00') ? '🏆 Badge พิเศษ (ทั้งปี)' : '📅 เดือน ' + mk.split('-')[1] + '/' + mk.split('-')[0];
+      const daysLeft = items[0].daysLeft;
+      const daysColor = daysLeft !== null && daysLeft <= 7 ? '#dc2626' : daysLeft !== null && daysLeft <= 14 ? '#f59e0b' : '#64748b';
+
+      const groupHdr = h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', marginTop: '12px' } });
+      groupHdr.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#78350f' } }, monthName));
+      if (daysLeft !== null) groupHdr.appendChild(h('div', { style: { fontSize: '11px', color: daysColor, fontWeight: 600 } }, '⏰ เหลือ ' + daysLeft + ' วัน'));
+      claimSection.appendChild(groupHdr);
+
+      const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' } });
+      items.forEach(({ id: badgeId, month: claimMonth, daysLeft: dl }) => {
+        const ach = getAchievements().find(a => a.id === badgeId);
+        if (!ach) return;
+        const tc = TIER_COLORS[ach.tier];
+        const isUrgent = dl !== null && dl <= 7;
+        const card = h('div', { style: { background: isUrgent ? '#fef2f2' : '#fff', borderRadius: '14px', padding: '16px', textAlign: 'center', border: '2px solid ' + (isUrgent ? '#fca5a5' : tc.border), cursor: 'pointer', transition: 'all .2s', position: 'relative', overflow: 'hidden' } });
+        card.appendChild(h('div', { style: { fontSize: '32px', marginBottom: '6px' } }, ach.icon));
+        card.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#1e293b', marginBottom: '2px' } }, ach.name));
+        card.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '4px' } }, ach.desc));
+        card.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, color: tc.text, marginBottom: '8px' } }, '+' + ach.points + ' แต้ม'));
+        const claimBtn = h('button', { style: { width: '100%', padding: '8px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, ' + tc.border + ', ' + tc.text + ')', color: '#fff', fontWeight: 700, fontSize: '12px', cursor: 'pointer', transition: 'all .15s' }, onClick: async (e) => {
+          e.stopPropagation();
+          claimBtn.disabled = true; claimBtn.textContent = '⏳...';
+          try {
+            await api('/api/achievements/claim', 'POST', { achievement_id: badgeId, month: claimMonth, points: ach.points, badge_name: ach.icon + ' ' + ach.name });
+            showConfetti(card);
+            claimBtn.textContent = '✅ เคลมแล้ว!';
+            claimBtn.style.background = '#10b981';
+            D.walletBal = (D.walletBal || 0) + ach.points;
+            D.achClaims = [...(D.achClaims || []), { achievement_id: badgeId, month: claimMonth }];
+            balNum.textContent = D.walletBal.toLocaleString();
+            setTimeout(() => { card.style.opacity = '0.4'; card.style.transform = 'scale(0.95)'; }, 1500);
+          } catch (er) { toast(er.message, true); claimBtn.textContent = '🎁 เคลม'; claimBtn.disabled = false; }
+        } }, '🎁 เคลม');
+        card.appendChild(claimBtn);
+        card.onmouseenter = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 6px 20px ' + tc.border + '40'; };
+        card.onmouseleave = () => { card.style.transform = 'translateY(0)'; card.style.boxShadow = 'none'; };
+        grid.appendChild(card);
+      });
+      claimSection.appendChild(grid);
+    });
     w.appendChild(claimSection);
   }
 
   // Already claimed this month
-  const claimed = myBadges.filter(id => claimedIds.has(id));
-  if (claimed.length > 0) {
+  const claimedList = (D.achClaims || []).filter(c => c.employee_id === U.id || !c.employee_id);
+  if (claimedList.length > 0) {
     const claimedSec = h('div', { style: { background: '#f8fafc', borderRadius: '14px', padding: '16px', marginBottom: '20px', border: '1px solid #e2e8f0' } });
-    claimedSec.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#64748b', marginBottom: '10px' } }, '✅ เคลมแล้วเดือนนี้ (' + claimed.length + ')'));
+    claimedSec.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#64748b', marginBottom: '10px' } }, '✅ เคลมแล้ว (' + claimedList.length + ')'));
     const pills = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } });
-    claimed.forEach(id => {
-      const a = getAchievements().find(x => x.id === id);
+    claimedList.forEach(c => {
+      const a = getAchievements().find(x => x.id === c.achievement_id);
       if (!a) return;
-      pills.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', background: '#e2e8f0', color: '#475569', fontWeight: 600 } }, h('span', {}, a.icon), h('span', {}, a.name), h('span', { style: { color: '#94a3b8' } }, '+' + a.points)));
+      const ml = c.month && !c.month.endsWith('-00') ? ' (' + c.month.split('-')[1] + ')' : '';
+      pills.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', background: '#e2e8f0', color: '#475569', fontWeight: 600 } }, h('span', {}, a.icon), h('span', {}, a.name + ml), h('span', { style: { color: '#94a3b8' } }, '+' + (c.points || a.points))));
     });
     claimedSec.appendChild(pills);
     w.appendChild(claimedSec);
