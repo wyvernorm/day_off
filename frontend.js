@@ -1209,13 +1209,13 @@ function computeAchievements(empStats) {
     // Build email → empId map
     const emailToEmp = {};
     empStats.forEach(({ emp }) => { if (emp.email) emailToEmp[emp.email.toLowerCase()] = emp.id; });
-    // Debug: log matching
-    console.log('📡 Monitor email matching:');
-    console.log('  Employee emails:', Object.keys(emailToEmp));
+    // Store debug info for guide display
+    D._monitorDebug = { empEmails: Object.keys(emailToEmp), monitorEmails: [], matches: [] };
     Object.values(D.monitorData).forEach(md => {
       if (md && md.users) md.users.forEach(u => {
+        if (!D._monitorDebug.monitorEmails.includes(u.email)) D._monitorDebug.monitorEmails.push(u.email);
         const matched = emailToEmp[u.email.toLowerCase()];
-        console.log('  Monitor:', u.email, '→', matched ? 'MATCH (id:' + matched + ')' : '❌ NO MATCH');
+        D._monitorDebug.matches.push({ email: u.email, count: u.count, matched: !!matched });
       });
     });
 
@@ -1454,6 +1454,20 @@ function showAchGuide(achData, targetId) {
       } }, '🔄 รีเฟรช');
       updRow.appendChild(refreshBtn);
       sec.appendChild(updRow);
+
+      // Owner debug: email matching
+      if (isO && D._monitorDebug) {
+        const dbg = D._monitorDebug;
+        const dbgBox = h('div', { style: { marginBottom: '14px', padding: '10px 12px', background: 'rgba(239,68,68,0.05)', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.15)', fontSize: '11px' } });
+        dbgBox.appendChild(h('div', { style: { fontWeight: 700, color: '#f87171', marginBottom: '6px' } }, '🔧 Debug: Email Matching (owner only)'));
+        dbgBox.appendChild(h('div', { style: { color: '#94a3b8', marginBottom: '4px' } }, '👥 Employee emails (' + dbg.empEmails.length + '): ' + dbg.empEmails.join(', ')));
+        dbgBox.appendChild(h('div', { style: { color: '#94a3b8', marginBottom: '4px' } }, '📡 Monitor emails (' + dbg.monitorEmails.length + '): ' + dbg.monitorEmails.join(', ')));
+        dbg.matches.filter((v, i, a) => a.findIndex(t => t.email === v.email) === i).forEach(m => {
+          dbgBox.appendChild(h('div', { style: { color: m.matched ? '#34d399' : '#f87171', padding: '2px 0' } },
+            (m.matched ? '✅' : '❌') + ' ' + m.email + ' (count: ' + m.count + ')'));
+        });
+        sec.appendChild(dbgBox);
+      }
     }
 
     // Badge cards grid
