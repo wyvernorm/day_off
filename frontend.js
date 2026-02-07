@@ -1012,6 +1012,7 @@ function computeAchievements(empStats) {
     let streak = 0, maxStreak = 0;
     const dm = gdim(D.y, D.m);
     const yearLeaves = new Set((D.yld || []).filter(l => l.employee_id === emp.id && (l.status === 'approved' || l.status === 'pending')).map(l => l.date));
+    const blackoutDays = new Set(getBlackout());
     const jan1 = new Date(D.y, 0, 1);
     const today = new Date(); today.setHours(0,0,0,0);
     const endDate = today < new Date(D.y, D.m, dm) ? today : new Date(D.y, D.m, dm);
@@ -1019,6 +1020,7 @@ function computeAchievements(empStats) {
       const empOffs = (emp.default_off_day || '6').split(',').map(Number);
       if (empOffs.includes(dt.getDay())) continue;
       const iso = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+      if (blackoutDays.has(iso)) continue;
       if (yearLeaves.has(iso)) { maxStreak = Math.max(maxStreak, streak); streak = 0; } else { streak++; }
     }
     maxStreak = Math.max(maxStreak, streak);
