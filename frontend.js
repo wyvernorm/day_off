@@ -3077,11 +3077,20 @@ function rWallet() {
     w.appendChild(claimSection);
   }
 
-  // Already claimed this month
+  // Already claimed — collapsible summary
   const claimedList = (D.achClaims || []).filter(c => c.employee_id === U.id || !c.employee_id);
   if (claimedList.length > 0) {
-    const claimedSec = h('div', { style: { background: '#f8fafc', borderRadius: '14px', padding: '16px', marginBottom: '20px', border: '1px solid #e2e8f0' } });
-    claimedSec.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#64748b', marginBottom: '10px' } }, '✅ เคลมแล้ว (' + claimedList.length + ')'));
+    const totalClaimedPts = claimedList.reduce((s, c) => s + (c.points || 0), 0);
+    const claimedSec = h('div', { style: { background: '#f8fafc', borderRadius: '14px', padding: '14px 16px', marginBottom: '20px', border: '1px solid #e2e8f0' } });
+    let expanded = false;
+    const hdr = h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' } });
+    hdr.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('span', { style: { fontSize: '14px' } }, '✅'),
+      h('span', { style: { fontWeight: 700, fontSize: '13px', color: '#64748b' } }, 'เคลมแล้ว ' + claimedList.length + ' badge'),
+      h('span', { style: { fontSize: '12px', color: '#16a34a', fontWeight: 700 } }, '+' + totalClaimedPts + ' แต้ม')));
+    const arrow = h('span', { style: { fontSize: '12px', color: '#94a3b8', transition: 'transform .2s' } }, '▼');
+    hdr.appendChild(arrow);
+    const detail = h('div', { style: { display: 'none', marginTop: '12px' } });
     const pills = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } });
     claimedList.forEach(c => {
       const a = getAchievements().find(x => x.id === c.achievement_id);
@@ -3089,7 +3098,10 @@ function rWallet() {
       const ml = c.month && !c.month.endsWith('-00') ? ' (' + c.month.split('-')[1] + ')' : '';
       pills.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', background: '#e2e8f0', color: '#475569', fontWeight: 600 } }, h('span', {}, a.icon), h('span', {}, a.name + ml), h('span', { style: { color: '#94a3b8' } }, '+' + (c.points || a.points))));
     });
-    claimedSec.appendChild(pills);
+    detail.appendChild(pills);
+    hdr.onclick = () => { expanded = !expanded; detail.style.display = expanded ? 'block' : 'none'; arrow.style.transform = expanded ? 'rotate(180deg)' : ''; };
+    claimedSec.appendChild(hdr);
+    claimedSec.appendChild(detail);
     w.appendChild(claimedSec);
   }
 
