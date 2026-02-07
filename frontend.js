@@ -3916,17 +3916,54 @@ function rRewardMgr() {
 
   // Existing rewards
   (D.rewardsList || []).forEach(rw => {
-    const row = h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: '10px', marginBottom: '6px' } });
-    row.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
-      h('span', { style: { fontSize: '24px' } }, rw.icon),
-      h('div', {},
-        h('div', { style: { fontWeight: 600, fontSize: '13px' } }, rw.name),
-        h('div', { style: { fontSize: '11px', color: '#64748b' } }, rw.cost + ' แต้ม • ' + (rw.type === 'cash' ? '💸 เงินสด' : '🎁 ของรางวัล')))));
-    row.appendChild(h('button', { style: { background: '#fee2e2', border: 'none', color: '#dc2626', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: '10px', marginBottom: '6px', gap: '8px' } });
+    // Display mode
+    const infoDiv = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flex: 1 } });
+    infoDiv.appendChild(h('span', { style: { fontSize: '24px' } }, rw.icon));
+    infoDiv.appendChild(h('div', {},
+      h('div', { style: { fontWeight: 600, fontSize: '13px' } }, rw.name),
+      h('div', { style: { fontSize: '11px', color: '#64748b' } }, rw.cost + ' แต้ม • ' + (rw.type === 'cash' ? '💸 เงินสด' : '🎁 ของรางวัล'))));
+    row.appendChild(infoDiv);
+
+    // Edit button
+    const btnGroup = h('div', { style: { display: 'flex', gap: '4px' } });
+    btnGroup.appendChild(h('button', { style: { background: '#eff6ff', border: 'none', color: '#3b82f6', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: () => {
+      // Replace row with edit form
+      row.innerHTML = '';
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '50px 1fr 70px 70px auto';
+      row.style.gap = '6px';
+      row.style.alignItems = 'center';
+      row.style.background = '#eff6ff';
+      const eIcon = h('input', { type: 'text', className: 'fi', value: rw.icon, style: { fontSize: '18px', textAlign: 'center', padding: '6px' } });
+      const eName = h('input', { type: 'text', className: 'fi', value: rw.name, style: { padding: '6px' } });
+      const eCost = h('input', { type: 'number', className: 'fi', value: String(rw.cost), style: { padding: '6px' } });
+      const eType = h('select', { className: 'fi', style: { padding: '6px' } });
+      eType.appendChild(h('option', { value: 'item', ...(rw.type === 'item' ? { selected: true } : {}) }, '🎁 ของ'));
+      eType.appendChild(h('option', { value: 'cash', ...(rw.type === 'cash' ? { selected: true } : {}) }, '💸 เงิน'));
+      const eBtns = h('div', { style: { display: 'flex', gap: '4px' } });
+      eBtns.appendChild(h('button', { style: { background: '#16a34a', border: 'none', color: '#fff', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+        try {
+          await api('/api/rewards/' + rw.id, 'PUT', { name: eName.value.trim(), icon: eIcon.value.trim(), cost: +eCost.value, type: eType.value });
+          toast('✅ แก้ไขสำเร็จ');
+          D.walletLoaded = false; closeModal(); render();
+        } catch (er) { toast(er.message, true); }
+      } }, '💾'));
+      eBtns.appendChild(h('button', { style: { background: '#e2e8f0', border: 'none', color: '#64748b', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: () => {
+        D.walletLoaded = false; closeModal(); render(); setTimeout(() => openModal('rewardMgr'), 100);
+      } }, '✕'));
+      row.appendChild(eIcon);
+      row.appendChild(eName);
+      row.appendChild(eCost);
+      row.appendChild(eType);
+      row.appendChild(eBtns);
+    } }, '✏️'));
+    btnGroup.appendChild(h('button', { style: { background: '#fee2e2', border: 'none', color: '#dc2626', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
       if (!confirm('ลบ ' + rw.name + '?')) return;
       await api('/api/rewards/' + rw.id, 'DELETE');
       toast('ลบแล้ว'); D.walletLoaded = false; closeModal(); render();
     } }, '🗑️'));
+    row.appendChild(btnGroup);
     m.appendChild(row);
   });
 
