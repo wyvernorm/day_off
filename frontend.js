@@ -575,7 +575,7 @@ function render() {
     else a.appendChild(rCal());
   }
   else if (D.v === 'stats') a.appendChild(rSta());
-  else if (D.v === 'pending') a.appendChild(rPnd());
+  else if (D.v === 'pending') { D.v = 'history'; a.appendChild(rHist()); } // redirect old pending to history
   else if (D.v === 'history') a.appendChild(rHist());
   else if (D.v === 'kpi') a.appendChild(rKpi());
   else if (D.v === 'wallet') a.appendChild(rWallet());
@@ -599,7 +599,7 @@ function rHdr() {
   }
   const myPendingCount = canApproveRole ? groupedLeaveCount + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
   const hasPendingForMe = D.ps.some(sw => sw.to_employee_id === U.id);
-  if (canApproveRole || hasPendingForMe) tabs.push('pending');
+  if (canApproveRole || hasPendingForMe) {} // pending merged into history
   tabs.push('history');
   tabs.push('kpi');
   tabs.push('wallet');
@@ -607,9 +607,9 @@ function rHdr() {
     h('div', {}, h('h1', {}, (D.set.company_name || '📅 ระบบจัดการกะ & วันลา')), h('p', {}, 'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
-        const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI', wallet: '💰 กระเป๋า' };
+        const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', history: '📜 ประวัติ', kpi: '⚡ KPI', wallet: '💰 กระเป๋า' };
         const tabEl = h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); }, style: { position: 'relative' } }, lb[v]);
-        if (v === 'pending' && myPendingCount > 0) tabEl.appendChild(h('span', { style: { position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 800, minWidth: '18px', height: '18px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxShadow: '0 2px 4px rgba(239,68,68,0.4)', animation: myPendingCount > 0 ? 'pulse 2s infinite' : 'none' } }, String(myPendingCount)));
+        if (v === 'history' && myPendingCount > 0) tabEl.appendChild(h('span', { style: { position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 800, minWidth: '18px', height: '18px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxShadow: '0 2px 4px rgba(239,68,68,0.4)', animation: myPendingCount > 0 ? 'pulse 2s infinite' : 'none' } }, String(myPendingCount)));
         return tabEl;
       })),
       h('div', { className: 'ub' },
@@ -1417,6 +1417,20 @@ function rPnd() {
 }
 function rHist() {
   const w = h('div', { className: 'ps' });
+
+  // === PENDING SECTION (at top) ===
+  const hasPending = (canApproveRole && (D.pl.length > 0 || D.ps.length > 0 || (D.selfDayoffPending||[]).length > 0)) || D.ps.some(sw => sw.to_employee_id === U.id);
+  if (hasPending) {
+    const pendingBox = rPnd();
+    pendingBox.style.marginBottom = '24px';
+    pendingBox.style.padding = '20px';
+    pendingBox.style.background = 'linear-gradient(135deg, #fffbeb, #fef3c7)';
+    pendingBox.style.borderRadius = '16px';
+    pendingBox.style.border = '2px solid #fbbf24';
+    w.appendChild(pendingBox);
+  }
+
+  // === HISTORY SECTION ===
   if (!D.histLoaded) {
     D.histLoaded = true;
     api('/api/history?year=' + D.y).then(r => { D.hist = r.data; D.histFilter = { type: 'all', status: 'all', page: 0 }; render(); });
