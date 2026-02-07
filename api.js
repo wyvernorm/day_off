@@ -699,6 +699,109 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'ส่งสรุปเดือนแล้ว' });
   }
 
+  // ==================== WALLET ====================
+  if (pathname === '/api/wallet/balance' && method === 'GET') {
+    const empId = url.searchParams.get('employee_id') || currentUser.employee_id;
+    const bal = await DB.prepare('SELECT COALESCE(SUM(amount),0) as balance FROM wallet_transactions WHERE employee_id=?').bind(empId).first();
+    return json({ data: { balance: bal?.balance || 0 } });
+  }
+  if (pathname === '/api/wallet/transactions' && method === 'GET') {
+    const empId = url.searchParams.get('employee_id') || currentUser.employee_id;
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 50, 200);
+    const { results } = await DB.prepare('SELECT * FROM wallet_transactions WHERE employee_id=? ORDER BY created_at DESC LIMIT ?').bind(empId, limit).all();
+    return json({ data: results });
+  }
+
+  // ==================== ACHIEVEMENT CLAIMS ====================
+  if (pathname === '/api/achievements/claims' && method === 'GET') {
+    const empId = url.searchParams.get('employee_id') || currentUser.employee_id;
+    const { results } = await DB.prepare('SELECT * FROM achievement_claims WHERE employee_id=? ORDER BY claimed_at DESC').bind(empId).all();
+    return json({ data: results });
+  }
+  if (pathname === '/api/achievements/claim' && method === 'POST') {
+    const b = await getBody();
+    const { achievement_id, month, points } = b;
+    if (!achievement_id || !month || !points) return json({ error: 'ข้อมูลไม่ครบ' }, 400);
+    // Check not already claimed
+    const existing = await DB.prepare('SELECT id FROM achievement_claims WHERE employee_id=? AND achievement_id=? AND month=?')
+      .bind(currentUser.employee_id, achievement_id, month).first();
+    if (existing) return json({ error: 'เคลมไปแล้ว' }, 409);
+    // Insert claim + wallet transaction
+    await DB.prepare('INSERT INTO achievement_claims (employee_id, achievement_id, month, points) VALUES (?,?,?,?)')
+      .bind(currentUser.employee_id, achievement_id, month, points).run();
+    await DB.prepare("INSERT INTO wallet_transactions (employee_id, amount, type, ref_type, ref_id, description) VALUES (?,?,?,?,?,?)")
+      .bind(currentUser.employee_id, points, 'earn', 'achievement', achievement_id, 'เคลม badge: ' + achievement_id + ' (' + month + ')').run();
+    await logActivity(DB, currentUser.employee_id, 'claim_achievement', achievement_id + ' +' + points + ' pts');
+    return json({ message: 'เคลมสำเร็จ! +' + points + ' แต้ม' });
+  }
+
+  // ==================== REWARDS ====================
+  if (pathname === '/api/rewards' && method === 'GET') {
+    const { results } = await DB.prepare('SELECT * FROM rewards WHERE is_active=1 ORDER BY cost ASC').all();
+    return json({ data: results });
+  }
+  if (pathname === '/api/rewards' && method === 'POST') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const b = await getBody();
+    await DB.prepare('INSERT INTO rewards (name, icon, cost, type) VALUES (?,?,?,?)')
+      .bind(b.name, b.icon || '🎁', b.cost || 100, b.type || 'item').run();
+    return json({ message: 'เพิ่มรางวัลสำเร็จ' });
+  }
+  if (pathname.match(/^\/api\/rewards\/\d+$/) && method === 'PUT') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const id = pathname.split('/')[3]; const b = await getBody();
+    await DB.prepare('UPDATE rewards SET name=?,icon=?,cost=?,type=? WHERE id=?')
+      .bind(b.name, b.icon, b.cost, b.type, id).run();
+    return json({ message: 'แก้ไขรางวัลสำเร็จ' });
+  }
+  if (pathname.match(/^\/api\/rewards\/\d+$/) && method === 'DELETE') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const id = pathname.split('/')[3];
+    await DB.prepare('UPDATE rewards SET is_active=0 WHERE id=?').bind(id).run();
+    return json({ message: 'ลบรางวัลสำเร็จ' });
+  }
+
+  // ==================== REWARD REDEMPTIONS ====================
+  if (pathname === '/api/rewards/redeem' && method === 'POST') {
+    const b = await getBody();
+    const reward = await DB.prepare('SELECT * FROM rewards WHERE id=? AND is_active=1').bind(b.reward_id).first();
+    if (!reward) return json({ error: 'ไม่พบรางวัล' }, 404);
+    const bal = await DB.prepare('SELECT COALESCE(SUM(amount),0) as balance FROM wallet_transactions WHERE employee_id=?').bind(currentUser.employee_id).first();
+    if ((bal?.balance || 0) < reward.cost) return json({ error: 'แต้มไม่พอ (มี ' + (bal?.balance||0) + ' ต้องการ ' + reward.cost + ')' }, 400);
+    // Deduct points
+    await DB.prepare("INSERT INTO wallet_transactions (employee_id, amount, type, ref_type, ref_id, description) VALUES (?,?,?,?,?,?)")
+      .bind(currentUser.employee_id, -reward.cost, 'spend', 'reward', String(reward.id), 'แลก: ' + reward.icon + ' ' + reward.name).run();
+    await DB.prepare('INSERT INTO reward_redemptions (employee_id, reward_id, reward_name, cost) VALUES (?,?,?,?)')
+      .bind(currentUser.employee_id, reward.id, reward.icon + ' ' + reward.name, reward.cost).run();
+    await logActivity(DB, currentUser.employee_id, 'redeem_reward', reward.icon + ' ' + reward.name + ' (-' + reward.cost + ')');
+    return json({ message: 'แลกรางวัลสำเร็จ!' });
+  }
+  if (pathname === '/api/rewards/redemptions' && method === 'GET') {
+    const empId = url.searchParams.get('employee_id');
+    let q = 'SELECT rr.*, e.name, e.nickname, e.avatar FROM reward_redemptions rr JOIN employees e ON rr.employee_id=e.id';
+    const p = [];
+    if (empId) { q += ' WHERE rr.employee_id=?'; p.push(empId); }
+    q += ' ORDER BY rr.created_at DESC LIMIT 100';
+    const { results } = p.length ? await DB.prepare(q).bind(...p).all() : await DB.prepare(q).all();
+    return json({ data: results });
+  }
+  if (pathname.match(/^\/api\/rewards\/redemptions\/\d+\/(approve|reject)$/) && method === 'PUT') {
+    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const parts = pathname.split('/');
+    const id = parts[4], action = parts[5];
+    const rd = await DB.prepare('SELECT * FROM reward_redemptions WHERE id=?').bind(id).first();
+    if (!rd) return json({ error: 'ไม่พบรายการ' }, 404);
+    if (action === 'approve') {
+      await DB.prepare("UPDATE reward_redemptions SET status='approved', approved_by=?, approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id).run();
+    } else {
+      await DB.prepare("UPDATE reward_redemptions SET status='rejected', approved_by=?, approved_at=datetime('now') WHERE id=?").bind(currentUser.employee_id, id).run();
+      // Refund points
+      await DB.prepare("INSERT INTO wallet_transactions (employee_id, amount, type, ref_type, ref_id, description) VALUES (?,?,?,?,?,?)")
+        .bind(rd.employee_id, rd.cost, 'refund', 'reward_reject', String(rd.id), 'คืนแต้ม: ปฏิเสธรางวัล ' + rd.reward_name).run();
+    }
+    return json({ message: action === 'approve' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว (คืนแต้ม)' });
+  }
+
   // ==================== OVERVIEW ====================
   if (pathname === '/api/overview' && method === 'GET') {
     const mo = url.searchParams.get('month');
@@ -776,6 +879,46 @@ export async function ensureTables(DB) {
       reason TEXT,
       status TEXT DEFAULT 'pending',
       reject_reason TEXT,
+      approved_by INTEGER,
+      approved_at DATETIME,
+      created_at DATETIME DEFAULT (datetime('now'))
+    )`).run();
+    // Wallet system
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS wallet_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      amount INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      ref_type TEXT,
+      ref_id TEXT,
+      description TEXT,
+      created_at DATETIME DEFAULT (datetime('now'))
+    )`).run();
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS achievement_claims (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      achievement_id TEXT NOT NULL,
+      month TEXT NOT NULL,
+      points INTEGER NOT NULL,
+      claimed_at DATETIME DEFAULT (datetime('now')),
+      UNIQUE(employee_id, achievement_id, month)
+    )`).run();
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS rewards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      icon TEXT DEFAULT '🎁',
+      cost INTEGER NOT NULL,
+      type TEXT DEFAULT 'item',
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT (datetime('now'))
+    )`).run();
+    await DB.prepare(`CREATE TABLE IF NOT EXISTS reward_redemptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      reward_id INTEGER,
+      reward_name TEXT,
+      cost INTEGER NOT NULL,
+      status TEXT DEFAULT 'pending',
       approved_by INTEGER,
       approved_at DATETIME,
       created_at DATETIME DEFAULT (datetime('now'))

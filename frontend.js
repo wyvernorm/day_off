@@ -343,6 +343,7 @@ async function load() {
     D.hist = null; D.histLoaded = false;
     D.kpi = null; D.kpiLoaded = false;
     D.kpiYear = D.kpiYear || []; D.kpiYearLoaded = false;
+    D.walletLoaded = false;
   } catch (e) { toast('โหลดไม่สำเร็จ: ' + e.message, true); }
   render();
 }
@@ -548,6 +549,7 @@ function render() {
   else if (D.v === 'pending') a.appendChild(rPnd());
   else if (D.v === 'history') a.appendChild(rHist());
   else if (D.v === 'kpi') a.appendChild(rKpi());
+  else if (D.v === 'wallet') a.appendChild(rWallet());
   if (D.modal) { a.appendChild(rModal()); requestAnimationFrame(() => { const m = document.querySelector('.mo'); if (m) m.classList.add('show'); }); }
 }
 
@@ -571,11 +573,12 @@ function rHdr() {
   if (isO || D.isApprover || hasPendingForMe) tabs.push('pending');
   tabs.push('history');
   tabs.push('kpi');
+  tabs.push('wallet');
   return h('div', { className: 'hdr' },
     h('div', {}, h('h1', {}, (D.set.company_name || '📅 ระบบจัดการกะ & วันลา')), h('p', {}, 'จัดตารางกะ สลับกะ ลางาน ดูสถิติ')),
     h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
       h('div', { className: 'tabs' }, ...tabs.map(v => {
-        const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI' };
+        const lb = { calendar: '📅 ปฏิทิน', stats: '📊 สถิติ', pending: '🔔 รออนุมัติ', history: '📜 ประวัติ', kpi: '⚡ KPI', wallet: '💰 กระเป๋า' };
         const tabEl = h('button', { className: 'tab' + (D.v === v ? ' on' : ''), onClick: () => { D.v = v; render(); }, style: { position: 'relative' } }, lb[v]);
         if (v === 'pending' && myPendingCount > 0) tabEl.appendChild(h('span', { style: { position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', fontSize: '10px', fontWeight: 800, minWidth: '18px', height: '18px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', boxShadow: '0 2px 4px rgba(239,68,68,0.4)', animation: myPendingCount > 0 ? 'pulse 2s infinite' : 'none' } }, String(myPendingCount)));
         return tabEl;
@@ -1714,7 +1717,7 @@ function rKpi() {
 
 // === MODALS ROUTER ===
 function rModal() {
-  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, selfDayoff: rSelfDayoff, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet, achievements: rAchMgr };
+  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, selfDayoff: rSelfDayoff, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet, achievements: rAchMgr, rewardMgr: rRewardMgr };
   return (map[D.modal] || (() => h('div')))();
 }
 
@@ -2331,6 +2334,279 @@ function rAchMgr() {
     DEFAULT_ACHIEVEMENTS.forEach(a => achs.push(JSON.parse(JSON.stringify(a))));
     renderList();
   } }, '🔄 รีเซ็ตค่าเริ่มต้น'));
+
+  o.appendChild(m); return o;
+}
+
+// === WALLET PAGE 💰 ===
+function rWallet() {
+  const w = h('div', {});
+
+  // Load wallet data
+  if (!D.walletLoaded) {
+    D.walletLoaded = true;
+    Promise.all([
+      api('/api/wallet/balance'),
+      api('/api/wallet/transactions'),
+      api('/api/achievements/claims'),
+      api('/api/rewards'),
+      isO ? api('/api/rewards/redemptions') : api('/api/rewards/redemptions?employee_id=' + U.id),
+    ]).then(([bal, txn, claims, rewards, redemptions]) => {
+      D.walletBal = bal.data.balance || 0;
+      D.walletTxn = txn.data || [];
+      D.achClaims = claims.data || [];
+      D.rewardsList = rewards.data || [];
+      D.redemptions = redemptions.data || [];
+      render();
+    }).catch(() => {});
+    // Show loading
+    w.appendChild(h('div', { style: { textAlign: 'center', padding: '60px', color: '#94a3b8' } }, '⏳ กำลังโหลด...'));
+    return w;
+  }
+
+  const me = D.emp.find(e => e.id === U.id) || U;
+  const monthKey = D.y + '-' + String(D.m + 1).padStart(2, '0');
+  const claimedIds = new Set((D.achClaims || []).filter(c => c.month === monthKey).map(c => c.achievement_id));
+  const rate = parseInt(D.set.point_rate) || 1;
+
+  // === BALANCE CARD ===
+  const balCard = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #334155 100%)', borderRadius: '20px', padding: '28px', color: '#fff', position: 'relative', overflow: 'hidden', marginBottom: '20px' } });
+  // Decorative circles
+  balCard.appendChild(h('div', { style: { position: 'absolute', top: '-30px', right: '-30px', width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(251,191,36,0.12) 0%, transparent 70%)', borderRadius: '50%' } }));
+  balCard.appendChild(h('div', { style: { position: 'absolute', bottom: '-20px', left: '20%', width: '100px', height: '100px', background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', borderRadius: '50%' } }));
+  // User info
+  balCard.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', position: 'relative', zIndex: 1 } },
+    me.profile_image ? h('img', { src: me.profile_image, style: { width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)' } }) : h('div', { style: { fontSize: '36px' } }, me.avatar),
+    h('div', {},
+      h('div', { style: { fontSize: '14px', fontWeight: 700 } }, '💰 กระเป๋าของ ' + dn(me)),
+      h('div', { style: { fontSize: '11px', opacity: 0.5 } }, '1 แต้ม = ' + rate + ' บาท'))));
+  // Balance
+  const balNum = h('div', { style: { fontSize: '48px', fontWeight: 900, letterSpacing: '-1px', position: 'relative', zIndex: 1, marginBottom: '4px' } }, '0');
+  balCard.appendChild(balNum);
+  balCard.appendChild(h('div', { style: { display: 'flex', gap: '16px', fontSize: '12px', opacity: 0.5, position: 'relative', zIndex: 1 } },
+    h('span', {}, '💎 แต้มคงเหลือ'),
+    h('span', {}, '= ' + ((D.walletBal || 0) * rate).toLocaleString() + ' บาท')));
+  // Animate balance
+  setTimeout(() => {
+    const target = D.walletBal || 0; let cur = 0;
+    const step = () => { cur += Math.ceil(target / 20); if (cur >= target) { balNum.textContent = target.toLocaleString(); return; } balNum.textContent = cur.toLocaleString(); requestAnimationFrame(step); };
+    if (target > 0) requestAnimationFrame(step); else balNum.textContent = '0';
+  }, 200);
+  w.appendChild(balCard);
+
+  // === UNCLAIMED BADGES ===
+  // Compute achievements for current user
+  const allEmps = ce();
+  const empStatMe = [];
+  allEmps.forEach(emp => {
+    const sc = { day: 0, evening: 0, off: 0 };
+    const dm = gdim(D.y, D.m);
+    for (let d = 1; d <= dm; d++) { const k = dk(D.y, D.m, d); if (isBlackout(k)) continue; const inf = disp(emp, k, D.y, D.m, d); if (!inf.isL || inf.isPending) sc[inf.ty || emp.default_shift] = (sc[inf.ty || emp.default_shift] || 0) + 1; }
+    empStatMe.push({ emp, sc, yl: D.yl[emp.id] || {} });
+  });
+  const achData = computeAchievements(empStatMe);
+  const myBadges = (achData[U.id] || { badges: [] }).badges;
+  const unclaimed = myBadges.filter(id => !claimedIds.has(id));
+
+  if (unclaimed.length > 0) {
+    const claimSection = h('div', { style: { background: 'linear-gradient(135deg, #fefce8, #fffbeb)', borderRadius: '16px', padding: '20px', marginBottom: '20px', border: '1px solid #fde047' } });
+    claimSection.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' } },
+      h('span', { style: { fontSize: '20px' } }, '🎉'),
+      h('div', {},
+        h('div', { style: { fontWeight: 700, fontSize: '15px', color: '#92400e' } }, 'Badge รอเคลม! (' + unclaimed.length + ')'),
+        h('div', { style: { fontSize: '11px', color: '#a16207' } }, 'กดเคลมเพื่อรับแต้มเข้ากระเป๋า'))));
+
+    const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' } });
+    unclaimed.forEach(badgeId => {
+      const ach = getAchievements().find(a => a.id === badgeId);
+      if (!ach) return;
+      const tc = TIER_COLORS[ach.tier];
+      const card = h('div', { style: { background: '#fff', borderRadius: '14px', padding: '16px', textAlign: 'center', border: '2px solid ' + tc.border, cursor: 'pointer', transition: 'all .2s', position: 'relative', overflow: 'hidden' } });
+      card.appendChild(h('div', { style: { fontSize: '32px', marginBottom: '6px' } }, ach.icon));
+      card.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#1e293b', marginBottom: '2px' } }, ach.name));
+      card.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '8px' } }, ach.desc));
+      card.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, color: tc.text, marginBottom: '8px' } }, '+' + ach.points + ' แต้ม'));
+      const claimBtn = h('button', { style: { width: '100%', padding: '8px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, ' + tc.border + ', ' + tc.text + ')', color: '#fff', fontWeight: 700, fontSize: '12px', cursor: 'pointer', transition: 'all .15s' }, onClick: async (e) => {
+        e.stopPropagation();
+        claimBtn.disabled = true; claimBtn.textContent = '⏳...';
+        try {
+          await api('/api/achievements/claim', 'POST', { achievement_id: badgeId, month: monthKey, points: ach.points });
+          // Confetti animation
+          showConfetti(card);
+          claimBtn.textContent = '✅ เคลมแล้ว!';
+          claimBtn.style.background = '#10b981';
+          D.walletBal = (D.walletBal || 0) + ach.points;
+          D.achClaims = [...(D.achClaims || []), { achievement_id: badgeId, month: monthKey }];
+          balNum.textContent = D.walletBal.toLocaleString();
+          setTimeout(() => { card.style.opacity = '0.4'; card.style.transform = 'scale(0.95)'; }, 1500);
+        } catch (er) { toast(er.message, true); claimBtn.textContent = '🎁 เคลม'; claimBtn.disabled = false; }
+      } }, '🎁 เคลม');
+      card.appendChild(claimBtn);
+      card.onmouseenter = () => { card.style.transform = 'translateY(-3px)'; card.style.boxShadow = '0 6px 20px ' + tc.border + '40'; };
+      card.onmouseleave = () => { card.style.transform = 'translateY(0)'; card.style.boxShadow = 'none'; };
+      grid.appendChild(card);
+    });
+    claimSection.appendChild(grid);
+    w.appendChild(claimSection);
+  }
+
+  // Already claimed this month
+  const claimed = myBadges.filter(id => claimedIds.has(id));
+  if (claimed.length > 0) {
+    const claimedSec = h('div', { style: { background: '#f8fafc', borderRadius: '14px', padding: '16px', marginBottom: '20px', border: '1px solid #e2e8f0' } });
+    claimedSec.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#64748b', marginBottom: '10px' } }, '✅ เคลมแล้วเดือนนี้ (' + claimed.length + ')'));
+    const pills = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } });
+    claimed.forEach(id => {
+      const a = getAchievements().find(x => x.id === id);
+      if (!a) return;
+      pills.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', background: '#e2e8f0', color: '#475569', fontWeight: 600 } }, h('span', {}, a.icon), h('span', {}, a.name), h('span', { style: { color: '#94a3b8' } }, '+' + a.points)));
+    });
+    claimedSec.appendChild(pills);
+    w.appendChild(claimedSec);
+  }
+
+  // === REWARDS SHOP ===
+  const shopSection = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '20px', marginBottom: '20px', border: '1px solid #e2e8f0' } });
+  shopSection.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('span', { style: { fontSize: '20px' } }, '🎁'),
+      h('div', { style: { fontWeight: 700, fontSize: '15px' } }, 'แลกรางวัล')),
+    isO ? h('button', { style: { background: '#6366f1', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: () => openModal('rewardMgr') }, '⚙️ จัดการรางวัล') : ''));
+
+  if (!(D.rewardsList || []).length) {
+    shopSection.appendChild(h('div', { style: { textAlign: 'center', padding: '30px', color: '#94a3b8' } }, isO ? 'ยังไม่มีรางวัล — กด "จัดการรางวัล" เพื่อเพิ่ม' : 'ยังไม่มีรางวัล'));
+  } else {
+    const rGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px' } });
+    (D.rewardsList || []).forEach(reward => {
+      const canAfford = (D.walletBal || 0) >= reward.cost;
+      const rCard = h('div', { style: { borderRadius: '14px', padding: '16px', textAlign: 'center', border: canAfford ? '2px solid #86efac' : '1px solid #e2e8f0', background: canAfford ? '#f0fdf4' : '#fafafa', transition: 'all .2s', opacity: canAfford ? 1 : 0.6 } });
+      rCard.appendChild(h('div', { style: { fontSize: '36px', marginBottom: '6px' } }, reward.icon));
+      rCard.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', marginBottom: '4px' } }, reward.name));
+      rCard.appendChild(h('div', { style: { fontSize: '14px', fontWeight: 800, color: canAfford ? '#16a34a' : '#dc2626', marginBottom: '8px' } }, reward.cost + ' แต้ม'));
+      if (reward.type === 'cash') rCard.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '6px' } }, '= ' + (reward.cost * rate) + ' บาท'));
+      const redeemBtn = h('button', { style: { width: '100%', padding: '7px', borderRadius: '8px', border: 'none', background: canAfford ? '#16a34a' : '#cbd5e1', color: '#fff', fontWeight: 700, fontSize: '11px', cursor: canAfford ? 'pointer' : 'not-allowed' }, onClick: canAfford ? async () => {
+        if (!confirm('แลก ' + reward.icon + ' ' + reward.name + ' (' + reward.cost + ' แต้ม)?')) return;
+        try {
+          await api('/api/rewards/redeem', 'POST', { reward_id: reward.id });
+          toast('🎁 แลกรางวัลสำเร็จ!');
+          D.walletLoaded = false; render();
+        } catch (er) { toast(er.message, true); }
+      } : null }, canAfford ? '🛒 แลกเลย' : '🔒 แต้มไม่พอ');
+      rCard.appendChild(redeemBtn);
+      rGrid.appendChild(rCard);
+    });
+    shopSection.appendChild(rGrid);
+  }
+  w.appendChild(shopSection);
+
+  // === PENDING REDEMPTIONS (admin) ===
+  if (isO) {
+    const pendingRd = (D.redemptions || []).filter(r => r.status === 'pending');
+    if (pendingRd.length > 0) {
+      const pendSec = h('div', { style: { background: '#fffbeb', borderRadius: '14px', padding: '16px', marginBottom: '20px', border: '1px solid #fde047' } });
+      pendSec.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', color: '#92400e', marginBottom: '10px' } }, '⏳ รอจ่ายรางวัล (' + pendingRd.length + ')'));
+      pendingRd.forEach(rd => {
+        const row = h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#fff', borderRadius: '10px', marginBottom: '6px' } });
+        row.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+          h('span', { style: { fontSize: '18px' } }, rd.avatar || '👤'),
+          h('div', {},
+            h('div', { style: { fontWeight: 600, fontSize: '12px' } }, rd.nickname || rd.name),
+            h('div', { style: { fontSize: '11px', color: '#64748b' } }, rd.reward_name + ' (' + rd.cost + ' แต้ม)'))));
+        row.appendChild(h('div', { style: { display: 'flex', gap: '4px' } },
+          h('button', { style: { padding: '4px 12px', borderRadius: '6px', border: 'none', background: '#16a34a', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+            await api('/api/rewards/redemptions/' + rd.id + '/approve', 'PUT');
+            toast('✅ อนุมัติแล้ว'); D.walletLoaded = false; render();
+          } }, '✅ จ่าย'),
+          h('button', { style: { padding: '4px 12px', borderRadius: '6px', border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+            await api('/api/rewards/redemptions/' + rd.id + '/reject', 'PUT');
+            toast('❌ ปฏิเสธ (คืนแต้ม)'); D.walletLoaded = false; render();
+          } }, '❌ ปฏิเสธ')));
+        pendSec.appendChild(row);
+      });
+      w.appendChild(pendSec);
+    }
+  }
+
+  // === TRANSACTION HISTORY ===
+  const histSec = h('div', { style: { background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0' } });
+  histSec.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' } }, h('span', {}, '📜'), h('span', {}, 'ประวัติแต้ม')));
+  const txns = D.walletTxn || [];
+  if (!txns.length) histSec.appendChild(h('div', { style: { textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '13px' } }, 'ยังไม่มีรายการ'));
+  txns.slice(0, 20).forEach(tx => {
+    const isEarn = tx.amount > 0;
+    const dt = new Date(tx.created_at + 'Z');
+    const ts = dt.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ' + dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    histSec.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' } },
+      h('div', {},
+        h('div', { style: { fontSize: '12px', fontWeight: 600 } }, (isEarn ? '🟢' : '🔴') + ' ' + (tx.description || tx.type)),
+        h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, ts)),
+      h('div', { style: { fontWeight: 800, fontSize: '14px', color: isEarn ? '#16a34a' : '#dc2626' } }, (isEarn ? '+' : '') + tx.amount)));
+  });
+  w.appendChild(histSec);
+
+  return w;
+}
+
+// Confetti animation helper
+function showConfetti(el) {
+  const rect = el.getBoundingClientRect();
+  const colors = ['#fbbf24','#ef4444','#3b82f6','#10b981','#8b5cf6','#f97316'];
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    Object.assign(p.style, {
+      position: 'fixed', width: '8px', height: '8px', borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+      background: colors[Math.floor(Math.random() * colors.length)],
+      left: (rect.left + rect.width/2) + 'px', top: (rect.top + rect.height/2) + 'px',
+      pointerEvents: 'none', zIndex: '9999', transition: 'all 1s cubic-bezier(.2,.8,.2,1)', opacity: '1',
+    });
+    document.body.appendChild(p);
+    requestAnimationFrame(() => {
+      p.style.left = (rect.left + rect.width/2 + (Math.random()-0.5) * 200) + 'px';
+      p.style.top = (rect.top - Math.random() * 150 - 50) + 'px';
+      p.style.opacity = '0'; p.style.transform = 'rotate(' + (Math.random()*360) + 'deg) scale(0)';
+    });
+    setTimeout(() => p.remove(), 1200);
+  }
+}
+
+// === REWARD MANAGER MODAL ===
+function rRewardMgr() {
+  const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', style: { maxWidth: '540px' }, onClick: e => e.stopPropagation() });
+  m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '🎁 จัดการรางวัล'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
+
+  // Add new reward
+  const addForm = h('div', { style: { display: 'grid', gridTemplateColumns: '50px 1fr 80px 80px auto', gap: '6px', marginBottom: '16px', alignItems: 'end' } });
+  addForm.appendChild(h('div', {}, h('label', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ไอคอน'), h('input', { type: 'text', id: 'rw-icon', className: 'fi', value: '🎁', style: { fontSize: '20px', textAlign: 'center' } })));
+  addForm.appendChild(h('div', {}, h('label', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ชื่อรางวัล'), h('input', { type: 'text', id: 'rw-name', className: 'fi', placeholder: 'เช่น กาแฟ 1 แก้ว' })));
+  addForm.appendChild(h('div', {}, h('label', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้ม'), h('input', { type: 'number', id: 'rw-cost', className: 'fi', value: '50' })));
+  addForm.appendChild(h('div', {}, h('label', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ประเภท'),
+    (() => { const sel = h('select', { id: 'rw-type', className: 'fi' }); sel.appendChild(h('option', { value: 'item' }, '🎁 ของ')); sel.appendChild(h('option', { value: 'cash' }, '💸 เงิน')); return sel; })()));
+  addForm.appendChild(h('button', { style: { padding: '8px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap' }, onClick: async () => {
+    const name = document.getElementById('rw-name').value.trim();
+    if (!name) { toast('กรุณาใส่ชื่อ', true); return; }
+    try {
+      await api('/api/rewards', 'POST', { name, icon: document.getElementById('rw-icon').value.trim() || '🎁', cost: +document.getElementById('rw-cost').value || 50, type: document.getElementById('rw-type').value });
+      toast('✅ เพิ่มรางวัลสำเร็จ');
+      D.walletLoaded = false; closeModal(); render();
+    } catch (er) { toast(er.message, true); }
+  } }, '+ เพิ่ม'));
+  m.appendChild(addForm);
+
+  // Existing rewards
+  (D.rewardsList || []).forEach(rw => {
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#f8fafc', borderRadius: '10px', marginBottom: '6px' } });
+    row.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('span', { style: { fontSize: '24px' } }, rw.icon),
+      h('div', {},
+        h('div', { style: { fontWeight: 600, fontSize: '13px' } }, rw.name),
+        h('div', { style: { fontSize: '11px', color: '#64748b' } }, rw.cost + ' แต้ม • ' + (rw.type === 'cash' ? '💸 เงินสด' : '🎁 ของรางวัล')))));
+    row.appendChild(h('button', { style: { background: '#fee2e2', border: 'none', color: '#dc2626', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+      if (!confirm('ลบ ' + rw.name + '?')) return;
+      await api('/api/rewards/' + rw.id, 'DELETE');
+      toast('ลบแล้ว'); D.walletLoaded = false; closeModal(); render();
+    } }, '🗑️'));
+    m.appendChild(row);
+  });
 
   o.appendChild(m); return o;
 }
