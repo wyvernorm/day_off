@@ -1456,16 +1456,28 @@ function showAchGuide(achData, targetId) {
       sec.appendChild(updRow);
 
       // Owner debug: email matching
-      if (isO && D._monitorDebug) {
-        const dbg = D._monitorDebug;
+      if (isO) {
+        const dbg = D._monitorDebug || { empEmails: [], monitorEmails: [], matches: [] };
         const dbgBox = h('div', { style: { marginBottom: '14px', padding: '10px 12px', background: 'rgba(239,68,68,0.05)', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.15)', fontSize: '11px' } });
         dbgBox.appendChild(h('div', { style: { fontWeight: 700, color: '#f87171', marginBottom: '6px' } }, '🔧 Debug: Email Matching (owner only)'));
-        dbgBox.appendChild(h('div', { style: { color: '#94a3b8', marginBottom: '4px' } }, '👥 Employee emails (' + dbg.empEmails.length + '): ' + dbg.empEmails.join(', ')));
+        // Raw data check
+        const monKeys = D.monitorData ? Object.keys(D.monitorData) : [];
+        dbgBox.appendChild(h('div', { style: { color: '#fbbf24', marginBottom: '4px' } }, '📦 monitorData keys: [' + monKeys.join(', ') + '] (' + monKeys.length + ' เดือน)'));
+        monKeys.forEach(k => {
+          const md = D.monitorData[k];
+          const userCount = md?.users?.length || 0;
+          const total = md?.total_monitor_adds || 0;
+          dbgBox.appendChild(h('div', { style: { color: '#94a3b8', padding: '1px 0' } }, '  เดือน ' + k + ': ' + userCount + ' คน, total=' + total + (md?.period ? ' (period:' + md.period + ')' : '')));
+        });
+        dbgBox.appendChild(h('div', { style: { color: '#94a3b8', marginTop: '4px', marginBottom: '4px' } }, '👥 Employee emails (' + dbg.empEmails.length + '): ' + dbg.empEmails.join(', ')));
         dbgBox.appendChild(h('div', { style: { color: '#94a3b8', marginBottom: '4px' } }, '📡 Monitor emails (' + dbg.monitorEmails.length + '): ' + dbg.monitorEmails.join(', ')));
         dbg.matches.filter((v, i, a) => a.findIndex(t => t.email === v.email) === i).forEach(m => {
           dbgBox.appendChild(h('div', { style: { color: m.matched ? '#34d399' : '#f87171', padding: '2px 0' } },
             (m.matched ? '✅' : '❌') + ' ' + m.email + ' (count: ' + m.count + ')'));
         });
+        if (dbg.monitorEmails.length === 0 && monKeys.length === 0) {
+          dbgBox.appendChild(h('div', { style: { color: '#f87171', fontWeight: 700, marginTop: '6px' } }, '⚠️ ไม่มีข้อมูล Monitor เลย — ตรวจสอบว่า api.js deploy ล่าสุดหรือยัง'));
+        }
         sec.appendChild(dbgBox);
       }
     }
