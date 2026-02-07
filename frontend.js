@@ -1054,68 +1054,102 @@ function renderBadges(badges) {
 // === ACHIEVEMENT GUIDE PAGE ===
 function showAchGuide(achData) {
   const allAchs = getAchievements().filter(a => a.enabled !== false);
+  const myId = U.id;
+  const myData = achData[myId] || { badges: [], totalPoints: 0 };
+  const myBadges = new Set(myData.badges || []);
+  const earnedCount = myBadges.size;
+  const totalCount = allAchs.length;
+  const pct = totalCount > 0 ? Math.round(earnedCount / totalCount * 100) : 0;
+
   const overlay = h('div', { style: { position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(10px)' }, onClick: () => document.body.removeChild(overlay) });
   const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)', borderRadius: '24px', padding: '0', maxWidth: '860px', width: '95vw', maxHeight: '90vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }, onClick: e => e.stopPropagation() });
 
   // Header
   const hdr = h('div', { style: { background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)', borderRadius: '24px 24px 0 0', padding: '28px 32px', position: 'relative', overflow: 'hidden' } });
   hdr.appendChild(h('div', { style: { position: 'absolute', top: '-30px', right: '-30px', width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)', borderRadius: '50%' } }));
-  hdr.appendChild(h('div', { style: { position: 'relative', zIndex: 1 } },
-    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
-      h('div', {},
-        h('div', { style: { fontSize: '32px', fontWeight: 800, color: '#1e293b', marginBottom: '4px' } }, '🏆 Achievement Guide'),
-        h('div', { style: { fontSize: '14px', color: '#78350f', fontWeight: 600 } }, '1 แต้ม = 1 บาท — ท้าทายตัวเองทุกเดือน!')),
-      h('button', { style: { background: 'rgba(0,0,0,0.15)', border: 'none', color: '#1e293b', width: '36px', height: '36px', borderRadius: '12px', fontSize: '18px', cursor: 'pointer', fontWeight: 700 }, onClick: () => document.body.removeChild(overlay) }, '✕'))));
+  const hdrContent = h('div', { style: { position: 'relative', zIndex: 1 } });
+  hdrContent.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+    h('div', {},
+      h('div', { style: { fontSize: '28px', fontWeight: 800, color: '#1e293b', marginBottom: '4px' } }, '🏆 Achievement Guide'),
+      h('div', { style: { fontSize: '13px', color: '#78350f', fontWeight: 600 } }, '1 แต้ม = 1 บาท — ท้าทายตัวเองทุกเดือน!')),
+    h('button', { style: { background: 'rgba(0,0,0,0.15)', border: 'none', color: '#1e293b', width: '36px', height: '36px', borderRadius: '12px', fontSize: '18px', cursor: 'pointer', fontWeight: 700 }, onClick: () => document.body.removeChild(overlay) }, '✕')));
+
+  // My progress bar
+  const progWrap = h('div', { style: { marginTop: '16px', background: 'rgba(0,0,0,0.1)', borderRadius: '14px', padding: '14px 18px' } });
+  const me = D.emp.find(e => e.id === myId) || U;
+  progWrap.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' } },
+    h('span', { style: { fontSize: '22px' } }, me.avatar || '👤'),
+    h('span', { style: { fontWeight: 700, fontSize: '15px', color: '#1e293b' } }, me.nickname || me.name),
+    h('span', { style: { fontSize: '12px', color: '#78350f', marginLeft: 'auto', fontWeight: 700 } }, earnedCount + '/' + totalCount + ' badge (' + pct + '%)')));
+  // Progress bar
+  const barOuter = h('div', { style: { height: '10px', borderRadius: '5px', background: 'rgba(0,0,0,0.15)', overflow: 'hidden' } });
+  const barInner = h('div', { style: { height: '100%', borderRadius: '5px', background: pct >= 80 ? '#16a34a' : pct >= 50 ? '#fbbf24' : '#f97316', width: pct + '%', transition: 'width .6s ease' } });
+  barOuter.appendChild(barInner);
+  progWrap.appendChild(barOuter);
+  // Earned points
+  const earnedPts = myData.totalPoints || 0;
+  progWrap.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '11px', color: '#92400e' } },
+    h('span', {}, '💰 แต้มเดือนนี้: ' + earnedPts),
+    h('span', {}, pct >= 80 ? '🔥 เก่งมาก!' : pct >= 50 ? '💪 ไปได้สวย!' : pct >= 20 ? '🌱 กำลังเติบโต' : '🚀 เริ่มสะสมกันเลย!')));
+  hdrContent.appendChild(progWrap);
+  hdr.appendChild(hdrContent);
   card.appendChild(hdr);
 
   const content = h('div', { style: { padding: '24px 32px 32px' } });
-
-  // Tier legend
-  const tierRow = h('div', { style: { display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' } });
-  [{ l: '🥉 ทองแดง', c: '#16a34a', b: 'rgba(22,163,74,0.1)', d: 'ง่าย — ทำได้ทุกเดือน' },
-   { l: '🥈 เงิน', c: '#2563eb', b: 'rgba(37,99,235,0.1)', d: 'ท้าทาย — ต้องพยายาม' },
-   { l: '🥇 ทอง', c: '#ca8a04', b: 'rgba(202,138,4,0.1)', d: 'ยากมาก — แต้มสูง!' }].forEach(t => {
-    tierRow.appendChild(h('div', { style: { flex: '1', minWidth: '150px', padding: '10px 14px', borderRadius: '12px', background: t.b, border: '1px solid ' + t.c + '30' } },
-      h('div', { style: { fontWeight: 700, fontSize: '13px', color: t.c } }, t.l),
-      h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '2px' } }, t.d)));
-  });
-  content.appendChild(tierRow);
 
   // Render each category
   const cats = [...new Set(allAchs.map(a => a.cat || 'special'))];
   cats.forEach(cat => {
     const catAchs = allAchs.filter(a => (a.cat || 'special') === cat);
+    const catEarned = catAchs.filter(a => myBadges.has(a.id)).length;
     const sec = h('div', { style: { marginBottom: '24px' } });
 
-    // Category header
-    sec.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, marginBottom: '12px', paddingBottom: '8px', borderBottom: '2px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '8px' } },
-      h('span', {}, ACH_CATS[cat] || cat),
-      h('span', { style: { fontSize: '11px', color: '#64748b', fontWeight: 500 } }, catAchs.length + ' badges')));
+    // Category header with personal progress
+    const catHdr = h('div', { style: { fontSize: '15px', fontWeight: 800, marginBottom: '12px', paddingBottom: '8px', borderBottom: '2px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' } });
+    catHdr.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('span', {}, ACH_CATS[cat] || cat)));
+    const catProg = catEarned === catAchs.length
+      ? h('span', { style: { fontSize: '11px', background: 'rgba(22,163,74,0.2)', color: '#34d399', padding: '3px 10px', borderRadius: '8px', fontWeight: 700 } }, '✅ ครบแล้ว!')
+      : h('span', { style: { fontSize: '11px', color: '#64748b', fontWeight: 600 } }, catEarned + '/' + catAchs.length);
+    catHdr.appendChild(catProg);
+    sec.appendChild(catHdr);
 
     // Badge cards grid
     const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' } });
     catAchs.forEach(a => {
       const tc = TIER_COLORS[a.tier];
+      const earned = myBadges.has(a.id);
       const count = Object.values(achData).filter(d => d.badges.includes(a.id)).length;
-      const bCard = h('div', { style: { background: 'rgba(255,255,255,0.04)', borderRadius: '14px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '12px', alignItems: 'flex-start', transition: 'all .15s' } });
-      bCard.onmouseenter = () => { bCard.style.background = 'rgba(255,255,255,0.08)'; bCard.style.transform = 'translateY(-1px)'; };
-      bCard.onmouseleave = () => { bCard.style.background = 'rgba(255,255,255,0.04)'; bCard.style.transform = 'translateY(0)'; };
 
-      // Icon
-      bCard.appendChild(h('div', { style: { fontSize: '28px', width: '40px', textAlign: 'center', flexShrink: 0 } }, a.icon));
+      const bCard = h('div', { style: {
+        background: earned ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.03)',
+        borderRadius: '14px', padding: '14px',
+        border: earned ? '1.5px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', gap: '12px', alignItems: 'flex-start', transition: 'all .15s',
+        position: 'relative', overflow: 'hidden'
+      } });
+      bCard.onmouseenter = () => { bCard.style.transform = 'translateY(-2px)'; bCard.style.boxShadow = earned ? '0 4px 20px rgba(34,197,94,0.15)' : '0 4px 20px rgba(255,255,255,0.05)'; };
+      bCard.onmouseleave = () => { bCard.style.transform = 'translateY(0)'; bCard.style.boxShadow = 'none'; };
+
+      // Earned checkmark overlay
+      if (earned) {
+        bCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', background: '#16a34a', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(22,163,74,0.3)' } }, '✓'));
+      }
+
+      // Icon — grayscale if not earned
+      bCard.appendChild(h('div', { style: { fontSize: '28px', width: '40px', textAlign: 'center', flexShrink: 0, filter: earned ? 'none' : 'grayscale(0.7) opacity(0.5)' } }, a.icon));
 
       // Info
       const info = h('div', { style: { flex: 1, minWidth: 0 } });
       info.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' } },
-        h('span', { style: { fontWeight: 700, fontSize: '13px' } }, a.name),
+        h('span', { style: { fontWeight: 700, fontSize: '13px', color: earned ? '#fff' : '#94a3b8' } }, a.name),
         h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label)));
-      info.appendChild(h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '6px', lineHeight: '1.4' } }, a.desc));
+      info.appendChild(h('div', { style: { fontSize: '11px', color: earned ? '#cbd5e1' : '#64748b', marginBottom: '6px', lineHeight: '1.4' } }, a.desc));
 
-      // Points + count
-      const bottom = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } });
-      bottom.appendChild(h('span', { style: { fontSize: '13px', fontWeight: 800, color: tc.text, background: tc.bg, padding: '2px 8px', borderRadius: '8px' } }, '+' + a.points + ' แต้ม'));
-      if (count > 0) bottom.appendChild(h('span', { style: { fontSize: '10px', color: '#34d399', fontWeight: 600 } }, '✅ ' + count + ' คนได้'));
-      else bottom.appendChild(h('span', { style: { fontSize: '10px', color: '#475569' } }, '🔒 ยังไม่มีใคร'));
+      // Bottom row
+      const bottom = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' } });
+      bottom.appendChild(h('span', { style: { fontSize: '12px', fontWeight: 800, color: earned ? '#34d399' : tc.text, background: earned ? 'rgba(34,197,94,0.15)' : tc.bg, padding: '2px 8px', borderRadius: '8px' } }, earned ? '✅ +' + a.points + ' แต้ม' : '+' + a.points + ' แต้ม'));
+      if (count > 0) bottom.appendChild(h('span', { style: { fontSize: '10px', color: '#64748b' } }, count + ' คนได้'));
       info.appendChild(bottom);
       bCard.appendChild(info);
       grid.appendChild(bCard);
