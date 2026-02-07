@@ -828,7 +828,6 @@ const DEFAULT_ACHIEVEMENTS = [
   // 🎯 หมวดการมาทำงาน
   { id: 'iron_will', icon: '🔥', name: 'ติดจรวด', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 10, cat: 'attendance' },
   { id: 'diamond', icon: '💎', name: 'ร่างทิพย์', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 50, cat: 'attendance' },
-  { id: 'good_start', icon: '🌟', name: 'ปีใหม่ปังปุริเย่', desc: 'ไม่ลาเลยเดือน ม.ค.', tier: 1, points: 10, cat: 'attendance' },
   { id: 'half_year_gold', icon: '🗓️', name: 'มนุษย์เหล็กครึ่งปี', desc: 'ไม่ลาเลย 6 เดือนแรก', tier: 3, points: 100, cat: 'attendance' },
   { id: 'streak_30', icon: '🏃', name: 'วิ่งมาราธอน', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 10, cat: 'attendance' },
   { id: 'streak_60', icon: '🏃‍♂️', name: 'วิ่งข้ามจังหวัด', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 30, cat: 'attendance' },
@@ -915,8 +914,6 @@ function computeAchievements(empStats) {
       for (let i = 0; i < 3; i++) { const mp = getMonthPrefix(D.y, D.m - i); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
       if (ok) badges.push('diamond');
     }
-
-    if (achIds.has('good_start') && hasWorkedInMonth(emp.id, D.y + '-01') && countLeaves(emp.id, D.y + '-01') === 0) badges.push('good_start');
 
     if (achIds.has('half_year_gold') && D.m >= 5) {
       let ok = true;
