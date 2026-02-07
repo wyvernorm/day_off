@@ -1,6 +1,17 @@
 // =============================================
-// API v8 - Role-Based Access Control (RBAC)
-// Roles: owner > admin > approver > employee > tester
+// 🎮 API Controllers
+// Role-Based Access Control (RBAC)
+// Roles: owner(100) > admin(80) > approver(60) > employee(40) > tester(20)
+//
+// Sections:
+//   - RBAC Helpers
+//   - ME / SETTINGS / ROLE MANAGEMENT
+//   - EMPLOYEES / SHIFTS / LEAVES / SWAPS
+//   - HOLIDAYS / KPI / APPROVAL / HISTORY
+//   - SELF DAY-OFF / ACTIVITY LOG / TELEGRAM
+//   - WALLET / ACHIEVEMENTS / REWARDS
+//   - TEST DATA / OVERVIEW
+//   - [Helpers] Telegram, logActivity, ensureTables
 // =============================================
 
 export async function handleAPI(request, env, url, currentUser) {
@@ -104,7 +115,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const isSelf = String(currentUser.employee_id) === String(id);
     // ตัวเองแก้ได้เฉพาะ phone, line_id
     const selfFields = ['phone','line_id'];
-    if (!isO && !isSelf) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin && !isSelf) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const al = isAdmin ? ['name','nickname','email','role','department','default_shift','shift_start','shift_end',
                 'default_off_day','avatar','phone','line_id','show_in_calendar','max_leave_per_year','is_active'] : selfFields;
     const f = [], v = [];
@@ -265,7 +276,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const leave = await DB.prepare('SELECT * FROM leaves WHERE id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
     // เฉพาะเจ้าของวันลาหรือ admin/owner เท่านั้นที่ลบได้
-    if (!isO && leave.employee_id !== currentUser.employee_id) {
+    if (!isAdmin && leave.employee_id !== currentUser.employee_id) {
       return json({ error: 'ไม่มีสิทธิ์ลบวันลาของคนอื่น' }, 403);
     }
     await DB.prepare('DELETE FROM leaves WHERE id=?').bind(leaveId).run();
