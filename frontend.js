@@ -792,17 +792,32 @@ function rRos() {
 
 // === ACHIEVEMENT SYSTEM 🏆 ===
 const DEFAULT_ACHIEVEMENTS = [
-  { id: 'iron_will', icon: '🔥', name: 'ใจเหล็ก', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 10, type: 'no_leave_month' },
-  { id: 'diamond', icon: '💎', name: 'เพชรแท้', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 50, type: 'no_leave_3months' },
-  { id: 'perfect_kpi', icon: '⭐', name: 'ไร้ที่ติ', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 15, type: 'zero_kpi_month' },
-  { id: 'zero_damage', icon: '🛡️', name: 'ไร้ค่าเสียหาย', desc: 'ค่าเสียหาย 0 บาททั้งเดือน', tier: 1, points: 10, type: 'zero_damage_month' },
-  { id: 'no_swap', icon: '🦸', name: 'มั่นคง', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 10, type: 'no_swap_month' },
-  { id: 'team_player', icon: '🤝', name: 'จิตอาสา', desc: 'รับสลับกะช่วยเพื่อน 3+ ครั้ง', tier: 2, points: 20, type: 'team_player' },
-  { id: 'streak_30', icon: '🎯', name: 'ต่อเนื่อง 30', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 15, type: 'streak', value: 30 },
-  { id: 'streak_60', icon: '🎯', name: 'ต่อเนื่อง 60', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 30, type: 'streak', value: 60 },
-  { id: 'streak_90', icon: '🎯', name: 'ต่อเนื่อง 90', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 50, type: 'streak', value: 90 },
-  { id: 'mvp', icon: '👑', name: 'ดีเด่น', desc: 'คะแนนรวมสูงสุดของเดือน', tier: 3, points: 30, type: 'mvp' },
+  // 🎯 หมวดการมาทำงาน
+  { id: 'iron_will', icon: '🔥', name: 'ใจเหล็ก', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 10, cat: 'attendance' },
+  { id: 'diamond', icon: '💎', name: 'เพชรแท้', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 50, cat: 'attendance' },
+  { id: 'good_start', icon: '🌟', name: 'เริ่มต้นดี', desc: 'ไม่ลาเลยเดือน ม.ค.', tier: 1, points: 15, cat: 'attendance' },
+  { id: 'half_year_gold', icon: '🗓️', name: 'ครึ่งปีทอง', desc: 'ไม่ลาเลย 6 เดือนแรก', tier: 3, points: 80, cat: 'attendance' },
+  { id: 'streak_30', icon: '🏃', name: 'ต่อเนื่อง 30', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 15, cat: 'attendance' },
+  { id: 'streak_60', icon: '🏃', name: 'ต่อเนื่อง 60', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 30, cat: 'attendance' },
+  { id: 'streak_90', icon: '🏃', name: 'ต่อเนื่อง 90', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 50, cat: 'attendance' },
+  // ⚡ หมวด KPI
+  { id: 'perfect_kpi', icon: '⭐', name: 'ไร้ที่ติ', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 15, cat: 'kpi' },
+  { id: 'zero_damage', icon: '🛡️', name: 'ไร้ค่าเสียหาย', desc: 'ค่าเสียหาย 0 บาททั้งเดือน', tier: 1, points: 10, cat: 'kpi' },
+  { id: 'kpi_3months', icon: '💯', name: 'KPI ไร้มลทิน', desc: 'KPI 0 error 3 เดือนติด', tier: 3, points: 60, cat: 'kpi' },
+  { id: 'kpi_improve', icon: '📉', name: 'พัฒนาขึ้น', desc: 'error เดือนนี้ < เดือนก่อน', tier: 2, points: 20, cat: 'kpi' },
+  // 🦸 หมวดความมั่นคง
+  { id: 'no_swap', icon: '🦸', name: 'มั่นคง', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 10, cat: 'stability' },
+  { id: 'rock_solid', icon: '🧱', name: 'หินแกร่ง', desc: 'ไม่สลับกะ 3 เดือนติด', tier: 3, points: 40, cat: 'stability' },
+  // 🏥 หมวดสุขภาพ
+  { id: 'no_sick_month', icon: '🍀', name: 'โชคดีมีสุข', desc: 'ไม่ลาป่วยทั้งเดือน', tier: 1, points: 10, cat: 'health' },
+  { id: 'no_sick_year', icon: '💚', name: 'สุขภาพเหล็ก', desc: 'ไม่ลาป่วยเลยทั้งปี', tier: 3, points: 70, cat: 'health' },
+  // 📊 หมวดโควต้า
+  { id: 'quota_saver', icon: '💰', name: 'ประหยัดวันลา', desc: 'ใช้โควต้าไม่เกิน 25%', tier: 2, points: 20, cat: 'quota' },
+  { id: 'quota_rich', icon: '🏦', name: 'เศรษฐีวันลา', desc: 'ใช้โควต้าไม่เกิน 10%', tier: 3, points: 40, cat: 'quota' },
+  // 👑 หมวดพิเศษ
+  { id: 'mvp', icon: '👑', name: 'ดีเด่น', desc: 'คะแนนรวมสูงสุดของเดือน', tier: 3, points: 30, cat: 'special' },
 ];
+const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', special: '👑 พิเศษ' };
 function getAchievements() { return D.achievements || DEFAULT_ACHIEVEMENTS; }
 const TIER_COLORS = { 1: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: '🥉' }, 2: { bg: '#eff6ff', border: '#93c5fd', text: '#2563eb', label: '🥈' }, 3: { bg: '#fefce8', border: '#fde047', text: '#ca8a04', label: '🥇' } };
 const TIER_NAMES = { 1: 'ทองแดง', 2: 'เงิน', 3: 'ทอง' };
@@ -813,49 +828,91 @@ function computeAchievements(empStats) {
   const achIds = new Set(achs.map(a => a.id));
   const dm = gdim(D.y, D.m);
   const monthPrefix = D.y + '-' + String(D.m + 1).padStart(2, '0');
+  const getMonthPrefix = (y, m) => y + '-' + String(m + 1).padStart(2, '0');
+
+  // Helper: count approved leaves in a month prefix
+  const countLeaves = (empId, prefix) => (D.yld || []).filter(l => l.employee_id === empId && l.date.startsWith(prefix) && l.status === 'approved').length;
+  const countSickLeaves = (empId, prefix) => (D.yld || []).filter(l => l.employee_id === empId && l.date.startsWith(prefix) && l.leave_type === 'sick' && l.status === 'approved').length;
+  const countKpiErrors = (empId, prefix) => (D.kpiYear || []).filter(e => e.employee_id === empId && e.date && e.date.startsWith(prefix)).length;
+  const countSwaps = (empId, prefix) => (D.swapReqs || []).filter(sr => sr.from_employee_id === empId && sr.status === 'approved' && sr.date && sr.date.startsWith(prefix)).length;
 
   empStats.forEach(({ emp, sc, yl }) => {
     const badges = [];
-    const empSwapsReceived = (D.swapReqs || []).filter(sr => sr.to_employee_id === emp.id && sr.status === 'approved').length;
-    const monthLeaves = (D.yld || []).filter(l => l.employee_id === emp.id && l.date.startsWith(monthPrefix) && l.status === 'approved');
+    const quotaUsed = (yl.personal || 0) + (yl.vacation || 0);
+    const maxLv = emp.max_leave_per_year || 20;
+    const quotaPct = maxLv > 0 ? quotaUsed / maxLv : 0;
 
-    if (achIds.has('iron_will') && monthLeaves.length === 0) badges.push('iron_will');
+    // === 🎯 ATTENDANCE ===
+    if (achIds.has('iron_will') && countLeaves(emp.id, monthPrefix) === 0) badges.push('iron_will');
 
     if (achIds.has('diamond')) {
-      let diamond = true;
-      for (let i = 0; i < 3; i++) {
-        let checkM = D.m - i, checkY = D.y;
-        if (checkM < 0) { checkM += 12; checkY--; }
-        const prefix = checkY + '-' + String(checkM + 1).padStart(2, '0');
-        if ((D.yld || []).some(l => l.employee_id === emp.id && l.date.startsWith(prefix) && l.status === 'approved')) { diamond = false; break; }
-      }
-      if (diamond) badges.push('diamond');
+      let ok = true;
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } if (countLeaves(emp.id, getMonthPrefix(cy, cm)) > 0) { ok = false; break; } }
+      if (ok) badges.push('diamond');
     }
 
-    const kpiErrors = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix));
-    if (achIds.has('perfect_kpi') && kpiErrors.length === 0) badges.push('perfect_kpi');
-    if (achIds.has('zero_damage') && kpiErrors.reduce((s, e) => s + (e.damage_cost || 0), 0) === 0) badges.push('zero_damage');
+    if (achIds.has('good_start') && countLeaves(emp.id, D.y + '-01') === 0) badges.push('good_start');
 
-    const monthSwaps = (D.swapReqs || []).filter(sr => sr.from_employee_id === emp.id && sr.status === 'approved' && sr.date && sr.date.startsWith(monthPrefix));
-    if (achIds.has('no_swap') && monthSwaps.length === 0) badges.push('no_swap');
-    if (achIds.has('team_player') && empSwapsReceived >= 3) badges.push('team_player');
+    if (achIds.has('half_year_gold')) {
+      let ok = true;
+      for (let m = 0; m < 6; m++) { if (countLeaves(emp.id, getMonthPrefix(D.y, m)) > 0) { ok = false; break; } }
+      if (ok && D.m >= 5) badges.push('half_year_gold');
+    }
 
     // Streak
     let streak = 0, maxStreak = 0;
     const yearLeaves = new Set((D.yld || []).filter(l => l.employee_id === emp.id && l.status === 'approved').map(l => l.date));
-    const jan1 = new Date(D.y, 0, 1);
-    const endDate = new Date(D.y, D.m, dm);
+    const jan1 = new Date(D.y, 0, 1), endDate = new Date(D.y, D.m, dm);
     for (let dt = new Date(jan1); dt <= endDate; dt.setDate(dt.getDate() + 1)) {
       const empOffs = (emp.default_off_day || '6').split(',').map(Number);
       if (empOffs.includes(dt.getDay())) continue;
       const iso = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-      if (yearLeaves.has(iso)) { maxStreak = Math.max(maxStreak, streak); streak = 0; }
-      else { streak++; }
+      if (yearLeaves.has(iso)) { maxStreak = Math.max(maxStreak, streak); streak = 0; } else { streak++; }
     }
     maxStreak = Math.max(maxStreak, streak);
     if (achIds.has('streak_90') && maxStreak >= 90) badges.push('streak_90');
     else if (achIds.has('streak_60') && maxStreak >= 60) badges.push('streak_60');
     else if (achIds.has('streak_30') && maxStreak >= 30) badges.push('streak_30');
+
+    // === ⚡ KPI ===
+    const kpiThisMonth = countKpiErrors(emp.id, monthPrefix);
+    if (achIds.has('perfect_kpi') && kpiThisMonth === 0) badges.push('perfect_kpi');
+
+    const kpiDmg = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix)).reduce((s, e) => s + (e.damage_cost || 0), 0);
+    if (achIds.has('zero_damage') && kpiDmg === 0) badges.push('zero_damage');
+
+    if (achIds.has('kpi_3months')) {
+      let ok = true;
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } if (countKpiErrors(emp.id, getMonthPrefix(cy, cm)) > 0) { ok = false; break; } }
+      if (ok) badges.push('kpi_3months');
+    }
+
+    if (achIds.has('kpi_improve') && D.m > 0) {
+      let pm = D.m - 1, py = D.y; if (pm < 0) { pm = 11; py--; }
+      const prevErrors = countKpiErrors(emp.id, getMonthPrefix(py, pm));
+      if (prevErrors > 0 && kpiThisMonth < prevErrors) badges.push('kpi_improve');
+    }
+
+    // === 🦸 STABILITY ===
+    if (achIds.has('no_swap') && countSwaps(emp.id, monthPrefix) === 0) badges.push('no_swap');
+
+    if (achIds.has('rock_solid')) {
+      let ok = true;
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } if (countSwaps(emp.id, getMonthPrefix(cy, cm)) > 0) { ok = false; break; } }
+      if (ok) badges.push('rock_solid');
+    }
+
+    // === 🏥 HEALTH ===
+    if (achIds.has('no_sick_month') && countSickLeaves(emp.id, monthPrefix) === 0) badges.push('no_sick_month');
+
+    if (achIds.has('no_sick_year')) {
+      const yearlySick = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
+      if (yearlySick === 0) badges.push('no_sick_year');
+    }
+
+    // === 📊 QUOTA ===
+    if (achIds.has('quota_rich') && quotaPct <= 0.1) badges.push('quota_rich');
+    else if (achIds.has('quota_saver') && quotaPct <= 0.25) badges.push('quota_saver');
 
     const totalPoints = badges.reduce((s, id) => s + (achs.find(a => a.id === id)?.points || 0), 0);
     results[emp.id] = { badges, totalPoints, streak: maxStreak };
@@ -889,70 +946,129 @@ function renderBadges(badges) {
 }
 
 function rAchievementBoard(empStats, achData) {
-  const board = h('div', { style: { background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)', borderRadius: '16px', padding: '24px', marginBottom: '20px', color: '#fff' } });
-  board.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' } },
-    h('div', { style: { fontSize: '28px' } }, '🏆'),
-    h('div', {},
-      h('div', { style: { fontSize: '16px', fontWeight: 800, letterSpacing: '0.5px' } }, 'Achievement Leaderboard'),
-      h('div', { style: { fontSize: '11px', opacity: 0.5 } }, D.y + ' — ใครจะเป็น MVP?'))));
+  const section = h('div', { style: { marginTop: '20px' } });
 
-  // Sort by points
+  // Header card
+  const headerCard = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #4c1d95 100%)', borderRadius: '20px 20px 0 0', padding: '28px 24px 20px', color: '#fff', position: 'relative', overflow: 'hidden' } });
+  // Decorative elements
+  headerCard.appendChild(h('div', { style: { position: 'absolute', top: '-20px', right: '-20px', width: '120px', height: '120px', background: 'radial-gradient(circle, rgba(251,191,36,0.15) 0%, transparent 70%)', borderRadius: '50%' } }));
+  headerCard.appendChild(h('div', { style: { position: 'absolute', bottom: '-10px', left: '30%', width: '80px', height: '80px', background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)', borderRadius: '50%' } }));
+  headerCard.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '14px' } },
+      h('div', { style: { fontSize: '40px', filter: 'drop-shadow(0 2px 8px rgba(251,191,36,0.4))' } }, '🏆'),
+      h('div', {},
+        h('div', { style: { fontSize: '20px', fontWeight: 800, letterSpacing: '0.5px' } }, 'Achievement Board'),
+        h('div', { style: { fontSize: '12px', opacity: 0.5, marginTop: '2px' } }, 'ปี ' + (D.y + 543) + ' — ท้าทายตัวเองทุกเดือน'))),
+    h('div', { style: { textAlign: 'right' } },
+      h('div', { style: { fontSize: '28px', fontWeight: 800, color: '#fbbf24' } }, String(getAchievements().filter(a => a.enabled !== false).length)),
+      h('div', { style: { fontSize: '10px', opacity: 0.5 } }, 'badges ทั้งหมด'))));
+  section.appendChild(headerCard);
+
+  // Main body
+  const body = h('div', { style: { background: 'linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)', borderRadius: '0 0 20px 20px', padding: '20px 24px 28px', color: '#fff' } });
+
+  // === PODIUM TOP 3 ===
   const ranked = empStats.map(({ emp }) => {
     const ad = achData[emp.id] || { badges: [], totalPoints: 0, streak: 0 };
     return { emp, ...ad };
   }).sort((a, b) => b.totalPoints - a.totalPoints);
 
-  const podiumColors = ['#fbbf24', '#94a3b8', '#cd7f32'];
+  if (ranked.length >= 2) {
+    const podium = h('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '12px', marginBottom: '24px', paddingTop: '8px' } });
+    const podiumOrder = ranked.length >= 3 ? [1, 0, 2] : [1, 0]; // 2nd, 1st, 3rd
+    const podiumH = ['140px', '100px', '80px'];
+    const podiumBg = ['linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%)', 'linear-gradient(180deg, #94a3b8 0%, #64748b 100%)', 'linear-gradient(180deg, #cd7f32 0%, #a0522d 100%)'];
+    const podiumEmoji = ['👑', '🥈', '🥉'];
+    const podiumGlow = ['rgba(251,191,36,0.3)', 'rgba(148,163,184,0.2)', 'rgba(205,127,50,0.2)'];
+
+    podiumOrder.forEach(oi => {
+      if (oi >= ranked.length) return;
+      const r = ranked[oi];
+      const col = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: oi === 0 ? '130px' : '110px' } });
+      // Avatar
+      col.appendChild(h('div', { style: { position: 'relative', marginBottom: '8px' } },
+        r.emp.profile_image
+          ? h('img', { src: r.emp.profile_image, style: { width: oi === 0 ? '64px' : '48px', height: oi === 0 ? '64px' : '48px', borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + (oi === 0 ? '#fbbf24' : oi === 1 ? '#94a3b8' : '#cd7f32'), boxShadow: '0 4px 16px ' + podiumGlow[oi] } })
+          : h('div', { style: { fontSize: oi === 0 ? '40px' : '32px' } }, r.emp.avatar),
+        h('div', { style: { position: 'absolute', top: '-8px', right: '-8px', fontSize: oi === 0 ? '20px' : '16px' } }, podiumEmoji[oi])));
+      col.appendChild(h('div', { style: { fontWeight: 700, fontSize: '12px', marginBottom: '2px', textAlign: 'center' } }, dn(r.emp)));
+      col.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, color: '#fbbf24', marginBottom: '6px' } }, r.totalPoints + ' pt'));
+      // Podium bar
+      col.appendChild(h('div', { style: { width: '100%', height: podiumH[oi], background: podiumBg[oi], borderRadius: '8px 8px 0 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 800, color: 'rgba(0,0,0,0.3)', boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.2)' } }, String(oi + 1)));
+      podium.appendChild(col);
+    });
+    body.appendChild(podium);
+  }
+
+  // === FULL RANKING TABLE ===
+  const table = h('div', { style: { background: 'rgba(255,255,255,0.04)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' } });
   ranked.forEach((r, idx) => {
-    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '12px', marginBottom: '8px', background: idx < 3 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', border: idx < 3 ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.05)', transition: 'all .2s' } });
-    row.onmouseenter = () => { row.style.background = 'rgba(255,255,255,0.15)'; row.style.transform = 'translateX(4px)'; };
-    row.onmouseleave = () => { row.style.background = idx < 3 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'; row.style.transform = 'translateX(0)'; };
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: idx < ranked.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', transition: 'all .15s', cursor: 'default' } });
+    row.onmouseenter = () => { row.style.background = 'rgba(255,255,255,0.06)'; };
+    row.onmouseleave = () => { row.style.background = 'transparent'; };
 
     // Rank
-    const rankBg = idx < 3 ? podiumColors[idx] : 'rgba(255,255,255,0.1)';
-    row.appendChild(h('div', { style: { width: '32px', height: '32px', borderRadius: '50%', background: rankBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800, color: idx < 3 ? '#1e1b4b' : '#94a3b8', flexShrink: 0 } }, String(idx + 1)));
+    const rankColors = ['#fbbf24', '#94a3b8', '#cd7f32'];
+    row.appendChild(h('div', { style: { width: '24px', fontWeight: 800, fontSize: '13px', color: idx < 3 ? rankColors[idx] : '#475569', textAlign: 'center', flexShrink: 0 } }, idx < 3 ? ['🥇','🥈','🥉'][idx] : String(idx + 1)));
 
     // Avatar + name
     row.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 } },
-      r.emp.profile_image ? h('img', { src: r.emp.profile_image, style: { width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + (idx < 3 ? podiumColors[idx] : 'rgba(255,255,255,0.2)') } }) : h('span', { style: { fontSize: '22px' } }, r.emp.avatar),
-      h('div', { style: { minWidth: 0 } },
-        h('div', { style: { fontWeight: 700, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)),
-        h('div', { style: { display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '2px' } },
-          ...r.badges.slice(0, 6).map(bid => {
+      r.emp.profile_image ? h('img', { src: r.emp.profile_image, style: { width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', { style: { fontSize: '18px' } }, r.emp.avatar),
+      h('div', { style: { minWidth: 0, flex: 1 } },
+        h('div', { style: { fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)),
+        h('div', { style: { display: 'flex', gap: '2px', flexWrap: 'wrap', marginTop: '2px' } },
+          ...r.badges.map(bid => {
             const a = getAchievements().find(x => x.id === bid);
-            return a ? h('span', { title: a.name + ': ' + a.desc, style: { fontSize: '14px', cursor: 'pointer' } }, a.icon) : '';
-          }),
-          r.badges.length > 6 ? h('span', { style: { fontSize: '11px', opacity: 0.5 } }, '+' + (r.badges.length - 6)) : ''))));
+            return a ? h('span', { title: a.name + ': ' + a.desc, style: { fontSize: '12px', cursor: 'pointer', transition: 'transform .1s' }, onmouseenter: (e) => { e.target.style.transform = 'scale(1.3)'; }, onmouseleave: (e) => { e.target.style.transform = 'scale(1)'; } }, a.icon) : '';
+          })))));
 
-    // Points + streak
-    const pointsEl = h('div', { style: { textAlign: 'right', flexShrink: 0 } });
-    const ptsNum = h('div', { style: { fontSize: '18px', fontWeight: 800, color: r.totalPoints > 0 ? '#fbbf24' : '#64748b' } }, '0');
-    pointsEl.appendChild(ptsNum);
-    pointsEl.appendChild(h('div', { style: { fontSize: '9px', opacity: 0.5 } }, '🎯 streak ' + r.streak + 'd'));
-    row.appendChild(pointsEl);
+    // Streak
+    row.appendChild(h('div', { style: { fontSize: '10px', color: '#94a3b8', textAlign: 'center', flexShrink: 0, width: '50px' } },
+      h('div', { style: { fontWeight: 700, color: r.streak >= 60 ? '#fbbf24' : r.streak >= 30 ? '#34d399' : '#64748b' } }, r.streak + 'd'),
+      h('div', { style: { fontSize: '8px', opacity: 0.5 } }, 'streak')));
 
-    // Animate points count-up
-    if (r.totalPoints > 0) {
-      setTimeout(() => {
-        let cur = 0; const target = r.totalPoints;
-        const step = () => { cur += Math.ceil(target / 15); if (cur >= target) { ptsNum.textContent = String(target); return; } ptsNum.textContent = String(cur); requestAnimationFrame(step); };
-        requestAnimationFrame(step);
-      }, idx * 100 + 300);
-    }
+    // Points
+    const ptColor = r.totalPoints > 100 ? '#fbbf24' : r.totalPoints > 50 ? '#a78bfa' : r.totalPoints > 0 ? '#34d399' : '#475569';
+    row.appendChild(h('div', { style: { width: '55px', textAlign: 'right', flexShrink: 0 } },
+      h('div', { style: { fontSize: '15px', fontWeight: 800, color: ptColor } }, String(r.totalPoints)),
+      h('div', { style: { fontSize: '8px', opacity: 0.4 } }, 'points')));
 
-    board.appendChild(row);
+    table.appendChild(row);
   });
+  body.appendChild(table);
 
-  // Legend
-  const legend = h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' } });
-  getAchievements().forEach(a => {
-    const tc = TIER_COLORS[a.tier];
-    legend.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', cursor: 'default' }, title: a.desc },
-      h('span', {}, a.icon), h('span', { style: { opacity: 0.7 } }, a.name), h('span', { style: { opacity: 0.4 } }, '+' + a.points)));
+  // === BADGE CATALOG (collapsible by category) ===
+  const catalog = h('div', { style: { marginTop: '20px' } });
+  catalog.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' } },
+    h('span', {}, '📖'), h('span', {}, 'รายการ Badge ทั้งหมด')));
+
+  const allAchs = getAchievements().filter(a => a.enabled !== false);
+  const cats = [...new Set(allAchs.map(a => a.cat || 'special'))];
+  cats.forEach(cat => {
+    const catAchs = allAchs.filter(a => (a.cat || 'special') === cat);
+    const catRow = h('div', { style: { marginBottom: '8px' } });
+    catRow.appendChild(h('div', { style: { fontSize: '11px', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' } }, ACH_CATS[cat] || cat));
+    const grid = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } });
+    catAchs.forEach(a => {
+      const tc = TIER_COLORS[a.tier];
+      // Count how many employees have this badge
+      const count = Object.values(achData).filter(d => d.badges.includes(a.id)).length;
+      const pill = h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default', transition: 'all .15s' }, title: a.desc + ' (+' + a.points + 'pt)' },
+        h('span', { style: { fontSize: '14px' } }, a.icon),
+        h('span', { style: { fontWeight: 600 } }, a.name),
+        h('span', { style: { fontSize: '9px', padding: '1px 5px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label),
+        count > 0 ? h('span', { style: { fontSize: '9px', color: '#34d399', fontWeight: 700 } }, '×' + count) : h('span', { style: { fontSize: '9px', color: '#475569' } }, '—'));
+      pill.onmouseenter = () => { pill.style.background = 'rgba(255,255,255,0.12)'; pill.style.transform = 'translateY(-1px)'; };
+      pill.onmouseleave = () => { pill.style.background = 'rgba(255,255,255,0.06)'; pill.style.transform = 'translateY(0)'; };
+      grid.appendChild(pill);
+    });
+    catRow.appendChild(grid);
+    catalog.appendChild(catRow);
   });
-  board.appendChild(legend);
+  body.appendChild(catalog);
 
-  return board;
+  section.appendChild(body);
+  return section;
 }
 
 // === STATS ===
@@ -979,9 +1095,6 @@ function rSta() {
 
   // Compute achievements
   const achData = computeAchievements(empStats);
-  // 🏆 Achievement Leaderboard (before racing chart)
-  w.appendChild(rAchievementBoard(empStats, achData));
-  // Store achData for employee cards
   D._achData = achData;
 
   // === Leave Racing Chart 🏎️ (Animated) ===
@@ -1130,6 +1243,10 @@ function rSta() {
     empGrid.appendChild(card);
   });
   w.appendChild(empGrid);
+
+  // 🏆 Achievement Leaderboard (bottom of stats)
+  w.appendChild(rAchievementBoard(empStats, achData));
+
   return w;
 }
 
