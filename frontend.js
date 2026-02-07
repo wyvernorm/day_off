@@ -1290,9 +1290,10 @@ function renderBadges(badges) {
 
 // === EMPLOYEE ACHIEVEMENT DETAIL POPUP ===
 // === ACHIEVEMENT GUIDE PAGE ===
-function showAchGuide(achData) {
+function showAchGuide(achData, targetId) {
   const allAchs = getAchievements().filter(a => a.enabled !== false);
-  const myId = U.id;
+  const myId = targetId || U.id;
+  const isViewing = myId !== U.id;
   const myData = achData[myId] || { badges: [], badgeDetails: [], totalPoints: 0, progress: {} };
   const myProgress = myData.progress || {};
   // นับจำนวนครั้งต่อ badge
@@ -1310,22 +1311,24 @@ function showAchGuide(achData) {
   const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)', borderRadius: '24px', padding: '0', maxWidth: '860px', width: '95vw', maxHeight: '90vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }, onClick: e => e.stopPropagation() });
 
   // Header
-  const hdr = h('div', { style: { background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)', borderRadius: '24px 24px 0 0', padding: '28px 32px', position: 'relative', overflow: 'hidden' } });
+  const hdr = h('div', { style: { background: isViewing ? 'linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #4f46e5 100%)' : 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)', borderRadius: '24px 24px 0 0', padding: '28px 32px', position: 'relative', overflow: 'hidden' } });
   hdr.appendChild(h('div', { style: { position: 'absolute', top: '-30px', right: '-30px', width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)', borderRadius: '50%' } }));
   const hdrContent = h('div', { style: { position: 'relative', zIndex: 1 } });
+  const titleColor = isViewing ? '#e0e7ff' : '#1e293b';
+  const subColor = isViewing ? '#c7d2fe' : '#78350f';
   hdrContent.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
     h('div', {},
-      h('div', { style: { fontSize: '28px', fontWeight: 800, color: '#1e293b', marginBottom: '4px' } }, '🏆 Achievement Guide'),
-      h('div', { style: { fontSize: '13px', color: '#78350f', fontWeight: 600 } }, '1 แต้ม = 1 บาท — ท้าทายตัวเองทุกเดือน!')),
-    h('button', { style: { background: 'rgba(0,0,0,0.15)', border: 'none', color: '#1e293b', width: '36px', height: '36px', borderRadius: '12px', fontSize: '18px', cursor: 'pointer', fontWeight: 700 }, onClick: () => document.body.removeChild(overlay) }, '✕')));
+      h('div', { style: { fontSize: '28px', fontWeight: 800, color: titleColor, marginBottom: '4px' } }, isViewing ? '👁️ ดู Achievement' : '🏆 Achievement Guide'),
+      h('div', { style: { fontSize: '13px', color: subColor, fontWeight: 600 } }, isViewing ? 'ดูข้อมูลของพนักงาน' : '1 แต้ม = 1 บาท — ท้าทายตัวเองทุกเดือน!')),
+    h('button', { style: { background: 'rgba(0,0,0,0.15)', border: 'none', color: titleColor, width: '36px', height: '36px', borderRadius: '12px', fontSize: '18px', cursor: 'pointer', fontWeight: 700 }, onClick: () => document.body.removeChild(overlay) }, '✕')));
 
-  // My progress bar
+  // Target progress bar
   const progWrap = h('div', { style: { marginTop: '16px', background: 'rgba(0,0,0,0.1)', borderRadius: '14px', padding: '14px 18px' } });
   const me = D.emp.find(e => e.id === myId) || U;
   progWrap.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' } },
-    h('span', { style: { fontSize: '22px' } }, me.avatar || '👤'),
-    h('span', { style: { fontWeight: 700, fontSize: '15px', color: '#1e293b' } }, me.nickname || me.name),
-    h('span', { style: { fontSize: '12px', color: '#78350f', marginLeft: 'auto', fontWeight: 700 } }, earnedCount + '/' + totalCount + ' badge (' + pct + '%)')));
+    me.profile_image ? h('img', { src: me.profile_image, style: { width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', { style: { fontSize: '22px' } }, me.avatar || '👤'),
+    h('span', { style: { fontWeight: 700, fontSize: '15px', color: titleColor } }, me.nickname || me.name),
+    h('span', { style: { fontSize: '12px', color: subColor, marginLeft: 'auto', fontWeight: 700 } }, earnedCount + '/' + totalCount + ' badge (' + pct + '%)')));
   // Progress bar
   const barOuter = h('div', { style: { height: '10px', borderRadius: '5px', background: 'rgba(0,0,0,0.15)', overflow: 'hidden' } });
   const barInner = h('div', { style: { height: '100%', borderRadius: '5px', background: pct >= 80 ? '#16a34a' : pct >= 50 ? '#fbbf24' : '#f97316', width: pct + '%', transition: 'width .6s ease' } });
@@ -1708,6 +1711,11 @@ function rAchievementBoard(empStats, achData) {
     const nameRow = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' } });
     nameRow.appendChild(h('span', { style: { fontWeight: 700, fontSize: '15px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)));
     if (idx >= 3 && theme.label) nameRow.appendChild(h('span', { style: { fontSize: '10px', padding: '2px 8px', borderRadius: '8px', background: theme.color + '20', color: theme.color, fontWeight: 700 } }, theme.label));
+    // Owner: view employee's guide
+    if (isO && r.emp.id !== U.id) {
+      const viewBtn = h('button', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', border: '1px solid rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.1)', color: '#a78bfa', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }, onClick: (e) => { e.stopPropagation(); showAchGuide(achData, r.emp.id); } }, '👁️ Guide');
+      nameRow.appendChild(viewBtn);
+    }
     nameCol.appendChild(nameRow);
 
     // Badge icons
