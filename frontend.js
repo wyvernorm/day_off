@@ -330,6 +330,8 @@ async function load() {
     D.emp = o.data.employees;
     D.selfDayoffPending = sdp.data || [];
     D.set = o.data.settings || {};
+    // Load achievements from settings
+    if (D.set.achievements) { try { D.achievements = JSON.parse(D.set.achievements); } catch(e) { D.achievements = null; } } else { D.achievements = null; }
     // อัพเดท KPI admins จาก settings
     if (D.set.kpi_admins) KPI_ADMINS = D.set.kpi_admins.split(',').map(s => s.trim());
     else KPI_ADMINS = KPI_ADMINS_DEFAULT;
@@ -789,81 +791,73 @@ function rRos() {
 }
 
 // === ACHIEVEMENT SYSTEM 🏆 ===
-const ACHIEVEMENTS = [
-  { id: 'iron_will', icon: '🔥', name: 'Iron Will', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 10 },
-  { id: 'diamond', icon: '💎', name: 'Diamond Hands', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 50 },
-  { id: 'perfect_kpi', icon: '⭐', name: 'Perfect Score', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 15 },
-  { id: 'zero_damage', icon: '🛡️', name: 'Zero Damage', desc: 'ค่าเสียหาย 0 บาททั้งเดือน', tier: 1, points: 10 },
-  { id: 'no_swap', icon: '🦸', name: 'Steady Rock', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 10 },
-  { id: 'team_player', icon: '🤝', name: 'Team Player', desc: 'รับสลับกะช่วยเพื่อน 3+ ครั้ง', tier: 2, points: 20 },
-  { id: 'streak_30', icon: '🎯', name: 'Streak 30', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 15 },
-  { id: 'streak_60', icon: '🎯', name: 'Streak 60', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 30 },
-  { id: 'streak_90', icon: '🎯', name: 'Streak 90', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 50 },
-  { id: 'mvp', icon: '👑', name: 'MVP', desc: 'คะแนน achievement สูงสุดในเดือน', tier: 3, points: 30 },
+const DEFAULT_ACHIEVEMENTS = [
+  { id: 'iron_will', icon: '🔥', name: 'ใจเหล็ก', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 10, type: 'no_leave_month' },
+  { id: 'diamond', icon: '💎', name: 'เพชรแท้', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 50, type: 'no_leave_3months' },
+  { id: 'perfect_kpi', icon: '⭐', name: 'ไร้ที่ติ', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 15, type: 'zero_kpi_month' },
+  { id: 'zero_damage', icon: '🛡️', name: 'ไร้ค่าเสียหาย', desc: 'ค่าเสียหาย 0 บาททั้งเดือน', tier: 1, points: 10, type: 'zero_damage_month' },
+  { id: 'no_swap', icon: '🦸', name: 'มั่นคง', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 10, type: 'no_swap_month' },
+  { id: 'team_player', icon: '🤝', name: 'จิตอาสา', desc: 'รับสลับกะช่วยเพื่อน 3+ ครั้ง', tier: 2, points: 20, type: 'team_player' },
+  { id: 'streak_30', icon: '🎯', name: 'ต่อเนื่อง 30', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 15, type: 'streak', value: 30 },
+  { id: 'streak_60', icon: '🎯', name: 'ต่อเนื่อง 60', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 30, type: 'streak', value: 60 },
+  { id: 'streak_90', icon: '🎯', name: 'ต่อเนื่อง 90', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 50, type: 'streak', value: 90 },
+  { id: 'mvp', icon: '👑', name: 'ดีเด่น', desc: 'คะแนนรวมสูงสุดของเดือน', tier: 3, points: 30, type: 'mvp' },
 ];
+function getAchievements() { return D.achievements || DEFAULT_ACHIEVEMENTS; }
 const TIER_COLORS = { 1: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: '🥉' }, 2: { bg: '#eff6ff', border: '#93c5fd', text: '#2563eb', label: '🥈' }, 3: { bg: '#fefce8', border: '#fde047', text: '#ca8a04', label: '🥇' } };
+const TIER_NAMES = { 1: 'ทองแดง', 2: 'เงิน', 3: 'ทอง' };
 
 function computeAchievements(empStats) {
   const results = {};
-  const now = new Date();
-  const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const achs = getAchievements().filter(a => a.enabled !== false);
+  const achIds = new Set(achs.map(a => a.id));
   const dm = gdim(D.y, D.m);
+  const monthPrefix = D.y + '-' + String(D.m + 1).padStart(2, '0');
 
   empStats.forEach(({ emp, sc, yl }) => {
     const badges = [];
-    const totalLeave = (yl.sick || 0) + (yl.personal || 0) + (yl.vacation || 0);
-    const swapCount = emp.swap_count || 0;
     const empSwapsReceived = (D.swapReqs || []).filter(sr => sr.to_employee_id === emp.id && sr.status === 'approved').length;
+    const monthLeaves = (D.yld || []).filter(l => l.employee_id === emp.id && l.date.startsWith(monthPrefix) && l.status === 'approved');
 
-    // 🔥 Iron Will — ไม่ลาเลยเดือนนี้ (ดูจาก approved leaves ในเดือนปัจจุบัน)
-    const monthLeaves = (D.yld || []).filter(l => l.employee_id === emp.id && l.date.startsWith(D.y + '-' + String(D.m + 1).padStart(2, '0')) && l.status === 'approved');
-    if (monthLeaves.length === 0) badges.push('iron_will');
+    if (achIds.has('iron_will') && monthLeaves.length === 0) badges.push('iron_will');
 
-    // 💎 Diamond Hands — ไม่ลา 3 เดือนล่าสุด
-    let diamond = true;
-    for (let i = 0; i < 3; i++) {
-      let checkM = D.m - i, checkY = D.y;
-      if (checkM < 0) { checkM += 12; checkY--; }
-      const prefix = checkY + '-' + String(checkM + 1).padStart(2, '0');
-      const mLeaves = (D.yld || []).filter(l => l.employee_id === emp.id && l.date.startsWith(prefix) && l.status === 'approved');
-      if (mLeaves.length > 0) { diamond = false; break; }
+    if (achIds.has('diamond')) {
+      let diamond = true;
+      for (let i = 0; i < 3; i++) {
+        let checkM = D.m - i, checkY = D.y;
+        if (checkM < 0) { checkM += 12; checkY--; }
+        const prefix = checkY + '-' + String(checkM + 1).padStart(2, '0');
+        if ((D.yld || []).some(l => l.employee_id === emp.id && l.date.startsWith(prefix) && l.status === 'approved')) { diamond = false; break; }
+      }
+      if (diamond) badges.push('diamond');
     }
-    if (diamond) badges.push('diamond');
 
-    // ⭐ Perfect KPI — 0 error เดือนนี้
-    const kpiErrors = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(D.y + '-' + String(D.m + 1).padStart(2, '0')));
-    if (kpiErrors.length === 0) badges.push('perfect_kpi');
+    const kpiErrors = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix));
+    if (achIds.has('perfect_kpi') && kpiErrors.length === 0) badges.push('perfect_kpi');
+    if (achIds.has('zero_damage') && kpiErrors.reduce((s, e) => s + (e.damage_cost || 0), 0) === 0) badges.push('zero_damage');
 
-    // 🛡️ Zero Damage — ค่าเสียหาย 0 บาทเดือนนี้
-    const monthDmg = kpiErrors.reduce((s, e) => s + (e.damage_cost || 0), 0);
-    if (monthDmg === 0) badges.push('zero_damage');
+    const monthSwaps = (D.swapReqs || []).filter(sr => sr.from_employee_id === emp.id && sr.status === 'approved' && sr.date && sr.date.startsWith(monthPrefix));
+    if (achIds.has('no_swap') && monthSwaps.length === 0) badges.push('no_swap');
+    if (achIds.has('team_player') && empSwapsReceived >= 3) badges.push('team_player');
 
-    // 🦸 Steady Rock — ไม่สลับกะเลยเดือนนี้
-    const monthSwaps = (D.swapReqs || []).filter(sr => sr.from_employee_id === emp.id && sr.status === 'approved' && sr.date && sr.date.startsWith(D.y + '-' + String(D.m + 1).padStart(2, '0')));
-    if (monthSwaps.length === 0) badges.push('no_swap');
-
-    // 🤝 Team Player — รับสลับช่วยเพื่อน 3+ ครั้ง (ทั้งปี)
-    if (empSwapsReceived >= 3) badges.push('team_player');
-
-    // 🎯 Streak — นับวันติดต่อกันไม่ลา
+    // Streak
     let streak = 0, maxStreak = 0;
     const yearLeaves = new Set((D.yld || []).filter(l => l.employee_id === emp.id && l.status === 'approved').map(l => l.date));
     const jan1 = new Date(D.y, 0, 1);
     const endDate = new Date(D.y, D.m, dm);
     for (let dt = new Date(jan1); dt <= endDate; dt.setDate(dt.getDate() + 1)) {
-      const dow = dt.getDay();
       const empOffs = (emp.default_off_day || '6').split(',').map(Number);
-      if (empOffs.includes(dow)) continue; // skip off days
-      const iso = dt.toISOString().slice(0, 10);
+      if (empOffs.includes(dt.getDay())) continue;
+      const iso = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
       if (yearLeaves.has(iso)) { maxStreak = Math.max(maxStreak, streak); streak = 0; }
       else { streak++; }
     }
     maxStreak = Math.max(maxStreak, streak);
-    if (maxStreak >= 90) badges.push('streak_90');
-    else if (maxStreak >= 60) badges.push('streak_60');
-    else if (maxStreak >= 30) badges.push('streak_30');
+    if (achIds.has('streak_90') && maxStreak >= 90) badges.push('streak_90');
+    else if (achIds.has('streak_60') && maxStreak >= 60) badges.push('streak_60');
+    else if (achIds.has('streak_30') && maxStreak >= 30) badges.push('streak_30');
 
-    const totalPoints = badges.reduce((s, id) => s + (ACHIEVEMENTS.find(a => a.id === id)?.points || 0), 0);
+    const totalPoints = badges.reduce((s, id) => s + (achs.find(a => a.id === id)?.points || 0), 0);
     results[emp.id] = { badges, totalPoints, streak: maxStreak };
   });
 
@@ -882,7 +876,7 @@ function renderBadges(badges) {
   if (!badges.length) return h('div', { style: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' } }, '— ยังไม่ได้ badge —');
   const wrap = h('div', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' } });
   badges.forEach(id => {
-    const a = ACHIEVEMENTS.find(x => x.id === id);
+    const a = getAchievements().find(x => x.id === id);
     if (!a) return;
     const tc = TIER_COLORS[a.tier];
     const badge = h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, background: tc.bg, border: '1.5px solid ' + tc.border, color: tc.text, cursor: 'pointer', transition: 'all .2s' }, title: a.desc },
@@ -925,7 +919,7 @@ function rAchievementBoard(empStats, achData) {
         h('div', { style: { fontWeight: 700, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)),
         h('div', { style: { display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '2px' } },
           ...r.badges.slice(0, 6).map(bid => {
-            const a = ACHIEVEMENTS.find(x => x.id === bid);
+            const a = getAchievements().find(x => x.id === bid);
             return a ? h('span', { title: a.name + ': ' + a.desc, style: { fontSize: '14px', cursor: 'pointer' } }, a.icon) : '';
           }),
           r.badges.length > 6 ? h('span', { style: { fontSize: '11px', opacity: 0.5 } }, '+' + (r.badges.length - 6)) : ''))));
@@ -951,7 +945,7 @@ function rAchievementBoard(empStats, achData) {
 
   // Legend
   const legend = h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' } });
-  ACHIEVEMENTS.forEach(a => {
+  getAchievements().forEach(a => {
     const tc = TIER_COLORS[a.tier];
     legend.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', cursor: 'default' }, title: a.desc },
       h('span', {}, a.icon), h('span', { style: { opacity: 0.7 } }, a.name), h('span', { style: { opacity: 0.4 } }, '+' + a.points)));
@@ -1603,7 +1597,7 @@ function rKpi() {
 
 // === MODALS ROUTER ===
 function rModal() {
-  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, selfDayoff: rSelfDayoff, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet };
+  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, selfDayoff: rSelfDayoff, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet, achievements: rAchMgr };
   return (map[D.modal] || (() => h('div')))();
 }
 
@@ -2158,8 +2152,69 @@ function rSet() {
           popup.appendChild(box);
           document.body.appendChild(popup);
         } catch (e) { toast(e.message, true); }
-      } }, '📋 Activity Log'))));
+      } }, '📋 Activity Log'),
+      h('button', { style: { background: '#f59e0b', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: () => { closeModal(); setTimeout(() => openModal('achievements'), 250); } }, '🏆 จัดการ Achievement'))));
   m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim(), super_admins: document.getElementById('ssa2').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
+  o.appendChild(m); return o;
+}
+
+// === ACHIEVEMENT MANAGER MODAL ===
+function rAchMgr() {
+  const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', style: { maxWidth: '640px' }, onClick: e => e.stopPropagation() });
+  m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '🏆 จัดการ Achievement'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
+  m.appendChild(h('div', { style: { fontSize: '12px', color: '#94a3b8', marginBottom: '16px' } }, 'แก้ไขชื่อ ไอคอน คะแนน ระดับ หรือเปิด/ปิดแต่ละ badge'));
+
+  const list = h('div', { id: 'ach-list' });
+  const achs = JSON.parse(JSON.stringify(getAchievements())); // deep clone
+
+  function renderList() {
+    list.innerHTML = '';
+    achs.forEach((a, idx) => {
+      const tc = TIER_COLORS[a.tier];
+      const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', marginBottom: '6px', background: a.enabled === false ? '#f8fafc' : tc.bg, borderRadius: '10px', border: '1px solid ' + (a.enabled === false ? '#e2e8f0' : tc.border), opacity: a.enabled === false ? 0.5 : 1, transition: 'all .2s' } });
+      // Icon
+      row.appendChild(h('input', { type: 'text', value: a.icon, style: { width: '36px', fontSize: '20px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px' }, onChange: (e) => { achs[idx].icon = e.target.value; } }));
+      // Name + desc
+      const info = h('div', { style: { flex: 1, minWidth: 0 } });
+      info.appendChild(h('input', { type: 'text', value: a.name, style: { width: '100%', fontWeight: 700, fontSize: '13px', border: 'none', background: 'transparent', padding: '2px 0' }, onChange: (e) => { achs[idx].name = e.target.value; } }));
+      info.appendChild(h('input', { type: 'text', value: a.desc, style: { width: '100%', fontSize: '11px', color: '#64748b', border: 'none', background: 'transparent', padding: '2px 0' }, onChange: (e) => { achs[idx].desc = e.target.value; } }));
+      row.appendChild(info);
+      // Tier
+      const tierSel = h('select', { style: { fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontWeight: 700 }, onChange: (e) => { achs[idx].tier = +e.target.value; renderList(); } });
+      [1,2,3].forEach(t => { const opt = h('option', { value: String(t) }, TIER_NAMES[t] + ' ' + TIER_COLORS[t].label); if (a.tier === t) opt.selected = true; tierSel.appendChild(opt); });
+      row.appendChild(tierSel);
+      // Points
+      row.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '2px' } },
+        h('input', { type: 'number', value: String(a.points), style: { width: '44px', fontSize: '12px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '4px', fontWeight: 700 }, onChange: (e) => { achs[idx].points = +e.target.value; } }),
+        h('span', { style: { fontSize: '10px', color: '#94a3b8' } }, 'pt')));
+      // Toggle
+      const toggleBtn = h('button', { style: { width: '32px', height: '32px', borderRadius: '8px', border: 'none', fontSize: '14px', cursor: 'pointer', background: a.enabled === false ? '#fee2e2' : '#dcfce7' }, onClick: () => { achs[idx].enabled = achs[idx].enabled === false ? true : false; renderList(); } }, a.enabled === false ? '❌' : '✅');
+      row.appendChild(toggleBtn);
+      list.appendChild(row);
+    });
+  }
+  renderList();
+  m.appendChild(list);
+
+  // Save button
+  m.appendChild(h('button', { className: 'btn', style: { background: '#f59e0b', marginTop: '16px' }, onClick: async () => {
+    try {
+      await api('/api/settings', 'PUT', { achievements: JSON.stringify(achs) });
+      D.achievements = achs;
+      toast('🏆 บันทึก Achievement สำเร็จ');
+      closeModal();
+      render();
+    } catch (er) { toast(er.message, true); }
+  } }, '💾 บันทึก Achievement'));
+
+  // Reset button
+  m.appendChild(h('button', { className: 'btn', style: { background: '#64748b', marginTop: '8px' }, onClick: () => {
+    if (!confirm('รีเซ็ตเป็นค่าเริ่มต้น?')) return;
+    achs.length = 0;
+    DEFAULT_ACHIEVEMENTS.forEach(a => achs.push(JSON.parse(JSON.stringify(a))));
+    renderList();
+  } }, '🔄 รีเซ็ตค่าเริ่มต้น'));
+
   o.appendChild(m); return o;
 }
 
