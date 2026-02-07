@@ -569,8 +569,10 @@ function render() {
     );
     a.appendChild(banner);
   }
-  a.appendChild(rNav());
-  a.appendChild(rLgd());
+  if (D.v !== 'wallet') {
+    a.appendChild(rNav());
+    a.appendChild(rLgd());
+  }
   if (D.v === 'calendar') {
     if (D.calMode === 'icon') a.appendChild(rRos());
     else a.appendChild(rCal());
