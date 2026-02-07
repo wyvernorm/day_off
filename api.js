@@ -761,7 +761,7 @@ export async function handleAPI(request, env, url, currentUser) {
   }
   if (pathname === '/api/achievements/claim' && method === 'POST') {
     const b = await getBody();
-    const { achievement_id, month, points } = b;
+    const { achievement_id, month, points, badge_name } = b;
     if (!achievement_id || !month || !points) return json({ error: 'ข้อมูลไม่ครบ' }, 400);
     // Check not already claimed
     const existing = await DB.prepare('SELECT id FROM achievement_claims WHERE employee_id=? AND achievement_id=? AND month=?')
@@ -770,8 +770,9 @@ export async function handleAPI(request, env, url, currentUser) {
     // Insert claim + wallet transaction
     await DB.prepare('INSERT INTO achievement_claims (employee_id, achievement_id, month, points) VALUES (?,?,?,?)')
       .bind(currentUser.employee_id, achievement_id, month, points).run();
+    const desc = badge_name ? 'เคลม ' + badge_name + ' (' + month + ')' : 'เคลม badge: ' + achievement_id + ' (' + month + ')';
     await DB.prepare("INSERT INTO wallet_transactions (employee_id, amount, type, ref_type, ref_id, description) VALUES (?,?,?,?,?,?)")
-      .bind(currentUser.employee_id, points, 'earn', 'achievement', achievement_id, 'เคลม badge: ' + achievement_id + ' (' + month + ')').run();
+      .bind(currentUser.employee_id, points, 'earn', 'achievement', achievement_id, desc).run();
     await logActivity(DB, currentUser.employee_id, 'claim_achievement', achievement_id + ' +' + points + ' pts');
     return json({ message: 'เคลมสำเร็จ! +' + points + ' แต้ม' });
   }

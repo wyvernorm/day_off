@@ -1047,26 +1047,41 @@ function rAchievementBoard(empStats, achData) {
   }
 
   // === FULL RANKING TABLE ===
+  const RANK_THEMES = [
+    { emoji: '🥇', color: '#fbbf24' },
+    { emoji: '🥈', color: '#94a3b8' },
+    { emoji: '🥉', color: '#cd7f32' },
+    { emoji: '⛏️', color: '#8b5cf6', label: 'ขุดทอง' },
+    { emoji: '🏃', color: '#06b6d4', label: 'กำลังวิ่ง' },
+    { emoji: '🧗', color: '#f97316', label: 'ปีนเขา' },
+    { emoji: '🚀', color: '#ec4899', label: 'พร้อมปล่อย' },
+    { emoji: '🌱', color: '#22c55e', label: 'กำลังเติบโต' },
+    { emoji: '🐣', color: '#eab308', label: 'เพิ่งเริ่ม' },
+    { emoji: '💤', color: '#64748b', label: 'รอแรงบันดาลใจ' },
+  ];
   const table = h('div', { style: { background: 'rgba(255,255,255,0.04)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' } });
   ranked.forEach((r, idx) => {
+    const theme = RANK_THEMES[Math.min(idx, RANK_THEMES.length - 1)];
     const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: idx < ranked.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', transition: 'all .15s', cursor: 'default' } });
     row.onmouseenter = () => { row.style.background = 'rgba(255,255,255,0.06)'; };
     row.onmouseleave = () => { row.style.background = 'transparent'; };
 
-    // Rank
-    const rankColors = ['#fbbf24', '#94a3b8', '#cd7f32'];
-    row.appendChild(h('div', { style: { width: '24px', fontWeight: 800, fontSize: '13px', color: idx < 3 ? rankColors[idx] : '#475569', textAlign: 'center', flexShrink: 0 } }, idx < 3 ? ['🥇','🥈','🥉'][idx] : String(idx + 1)));
+    // Rank with themed emoji
+    row.appendChild(h('div', { style: { width: '28px', fontWeight: 800, fontSize: '16px', color: theme.color, textAlign: 'center', flexShrink: 0 } }, theme.emoji));
 
-    // Avatar + name
-    row.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 } },
+    // Avatar + name + rank label for 4+
+    const nameArea = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 } },
       r.emp.profile_image ? h('img', { src: r.emp.profile_image, style: { width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' } }) : h('span', { style: { fontSize: '18px' } }, r.emp.avatar),
       h('div', { style: { minWidth: 0, flex: 1 } },
-        h('div', { style: { fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+          h('span', { style: { fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)),
+          idx >= 3 && theme.label ? h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: theme.color + '20', color: theme.color, fontWeight: 700 } }, theme.label) : ''),
         h('div', { style: { display: 'flex', gap: '2px', flexWrap: 'wrap', marginTop: '2px' } },
           ...r.badges.map(bid => {
             const a = getAchievements().find(x => x.id === bid);
             return a ? h('span', { title: a.name + ': ' + a.desc, style: { fontSize: '12px', cursor: 'pointer', transition: 'transform .1s' }, onmouseenter: (e) => { e.target.style.transform = 'scale(1.3)'; }, onmouseleave: (e) => { e.target.style.transform = 'scale(1)'; } }, a.icon) : '';
-          })))));
+          }))));
+    row.appendChild(nameArea);
 
     // Streak
     row.appendChild(h('div', { style: { fontSize: '10px', color: '#94a3b8', textAlign: 'center', flexShrink: 0, width: '50px' } },
@@ -2596,7 +2611,7 @@ function rWallet() {
         e.stopPropagation();
         claimBtn.disabled = true; claimBtn.textContent = '⏳...';
         try {
-          await api('/api/achievements/claim', 'POST', { achievement_id: badgeId, month: monthKey, points: ach.points });
+          await api('/api/achievements/claim', 'POST', { achievement_id: badgeId, month: monthKey, points: ach.points, badge_name: ach.icon + ' ' + ach.name });
           // Confetti animation
           showConfetti(card);
           claimBtn.textContent = '✅ เคลมแล้ว!';
