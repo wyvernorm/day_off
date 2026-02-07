@@ -197,6 +197,13 @@ export default {
 
       await ensureTables(env.DB);
 
+      // Legacy frontend route — /legacy serves old frontend.js directly
+      if (url.pathname === '/legacy') {
+        return new Response(getHTML(currentUser), {
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+      }
+
       // Serve React SPA — use env.ASSETS if available (Cloudflare assets binding)
       if (env.ASSETS) {
         try {
