@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MONTHS_TH, DAYS_SHORT, SHIFTS, LEAVE_TYPES } from '@/lib/constants';
 import { cn, getDaysInMonth, dateKey, displayName } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Users, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, Calendar, LayoutGrid } from 'lucide-react';
 import DayModal from '@/components/calendar/DayModal';
 
 export default function CalendarPage() {
@@ -58,139 +58,217 @@ export default function CalendarPage() {
 
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
 
+  // Pill styles
+  const PILL_STYLES = {
+    day: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-400' },
+    evening: { bg: 'bg-indigo-50 dark:bg-indigo-900/20', text: 'text-indigo-700 dark:text-indigo-300', dot: 'bg-indigo-400' },
+    off: { bg: 'bg-slate-100 dark:bg-slate-700/50', text: 'text-slate-400', dot: 'bg-slate-300' },
+    sick: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-300', dot: 'bg-red-400' },
+    personal: { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-600 dark:text-orange-300', dot: 'bg-orange-400' },
+    vacation: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-300', dot: 'bg-blue-400' },
+    pending: { bg: 'bg-yellow-50 dark:bg-yellow-900/20 border border-dashed border-yellow-300 dark:border-yellow-600', text: 'text-yellow-700 dark:text-yellow-300', dot: 'bg-yellow-400' },
+  };
+
   return (
     <div>
-      {/* Month Nav */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+      {/* ─── Header ─── */}
+      <div className="flex items-center justify-between mb-6 animate-in">
+        <div className="flex items-center gap-1">
+          <button onClick={prevMonth} className="btn-ghost p-2.5 rounded-xl">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <button onClick={nextMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+          <button onClick={nextMonth} className="btn-ghost p-2.5 rounded-xl">
             <ChevronRight className="w-5 h-5" />
           </button>
-          <div className="ml-2">
-            <h2 className="text-lg font-bold leading-tight">{MONTHS_TH[month]}</h2>
-            <p className="text-xs text-slate-400">พ.ศ. {year + 543}</p>
+          <div className="ml-3">
+            <h1 className="text-xl font-extrabold tracking-tight leading-tight">{MONTHS_TH[month]}</h1>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>พ.ศ. {year + 543}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={goToday} className="px-3 py-1.5 text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">วันนี้</button>
-          <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-            <button onClick={() => setView('calendar')} className={cn('px-3 py-1.5 rounded-md transition-all', view === 'calendar' ? 'bg-white dark:bg-slate-600 shadow-sm' : '')}>
-              <Calendar className="w-3.5 h-3.5" />
+          <button onClick={goToday} className="px-4 py-2 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5" style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}>
+            วันนี้
+          </button>
+          <div className="flex rounded-xl p-1" style={{ background: 'var(--surface-alt)' }}>
+            <button onClick={() => setView('calendar')} className={cn('p-2 rounded-lg transition-all', view === 'calendar' && 'bg-white dark:bg-slate-700 shadow-sm')}>
+              <Calendar className="w-4 h-4" />
             </button>
-            <button onClick={() => setView('roster')} className={cn('px-3 py-1.5 rounded-md transition-all', view === 'roster' ? 'bg-white dark:bg-slate-600 shadow-sm' : '')}>
-              <Users className="w-3.5 h-3.5" />
+            <button onClick={() => setView('roster')} className={cn('p-2 rounded-lg transition-all', view === 'roster' && 'bg-white dark:bg-slate-700 shadow-sm')}>
+              <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="card p-20 flex flex-col items-center justify-center text-slate-400">
-          <div className="animate-spin w-8 h-8 border-[3px] border-blue-500 border-t-transparent rounded-full mb-3" />
-          <span className="text-sm">กำลังโหลด...</span>
+        <div className="card p-24 flex flex-col items-center justify-center animate-in" style={{ color: 'var(--text-muted)' }}>
+          <div className="animate-spin w-8 h-8 border-[3px] rounded-full mb-3" style={{ borderColor: 'var(--brand)', borderTopColor: 'transparent' }} />
+          <span className="text-sm font-medium">กำลังโหลด...</span>
         </div>
       ) : view === 'calendar' ? (
         <>
-          <div className="card overflow-hidden">
-            <div className="grid grid-cols-7 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+          {/* ─── Calendar Grid ─── */}
+          <div className="card overflow-hidden animate-in stagger-1">
+            {/* Day headers */}
+            <div className="grid grid-cols-7" style={{ background: 'var(--surface-alt)' }}>
               {DAYS_SHORT.map((d, i) => (
-                <div key={i} className={cn('text-center py-3 text-xs font-bold tracking-wider', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400')}>{d}</div>
+                <div key={i} className={cn('text-center py-3 text-xs font-bold tracking-widest uppercase',
+                  i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : ''
+                )} style={{ color: i !== 0 && i !== 6 ? 'var(--text-muted)' : undefined }}>
+                  {d}
+                </div>
               ))}
             </div>
+
             <div className="grid grid-cols-7">
+              {/* Empty cells */}
               {Array.from({ length: firstDayOfWeek }, (_, i) => (
-                <div key={`e-${i}`} className="min-h-[110px] bg-slate-50/50 dark:bg-slate-800/20 border-b border-r border-slate-100 dark:border-slate-700/50" />
+                <div key={`e-${i}`} className="min-h-[120px] border-b border-r" style={{ background: 'var(--surface-alt)', opacity: 0.5, borderColor: 'var(--border)' }} />
               ))}
+
+              {/* Date cells */}
               {Array.from({ length: daysInMonth }, (_, i) => {
                 const day = i + 1, dk = dateKey(year, month, day);
                 const dow = new Date(year, month, day).getDay();
                 const isHoliday = !!holidayMap[dk], isToday = dk === todayKey;
                 const headcount = getHeadcount(dk), total = employees.length;
+                const hcColor = headcount === total ? 'text-emerald-600 bg-emerald-50' : headcount < total * 0.6 ? 'text-red-500 bg-red-50' : 'text-slate-500 bg-slate-100';
+
                 return (
-                  <div key={day} onClick={() => setSelectedDate(dk)} className={cn(
-                    'min-h-[110px] p-2 border-b border-r border-slate-100 dark:border-slate-700/50 relative group cursor-pointer transition-all duration-150',
-                    'hover:bg-blue-50/70 dark:hover:bg-blue-900/10 hover:z-10',
-                    isToday && 'bg-blue-50/40 dark:bg-blue-900/10',
-                    isHoliday && 'bg-red-50/40 dark:bg-red-900/10',
-                    (dow === 0 || dow === 6) && !isToday && !isHoliday && 'bg-slate-50/50 dark:bg-slate-800/30',
-                  )}>
+                  <div
+                    key={day}
+                    onClick={() => setSelectedDate(dk)}
+                    className={cn(
+                      'min-h-[120px] p-2 border-b border-r cursor-pointer transition-all duration-200',
+                      'hover:bg-blue-50/60 dark:hover:bg-blue-900/10 hover:z-10',
+                      isToday && 'ring-2 ring-inset',
+                      isHoliday && 'bg-red-50/30 dark:bg-red-900/10',
+                    )}
+                    style={{
+                      borderColor: 'var(--border)',
+                      ...(isToday ? { ringColor: 'var(--brand)' } : {}),
+                      ...(dow === 0 || dow === 6 ? { background: !isToday && !isHoliday ? 'var(--surface-alt)' : undefined } : {}),
+                    }}
+                  >
+                    {/* Date + Headcount */}
                     <div className="flex items-center justify-between mb-1.5">
-                      <div className={cn('text-sm font-bold', isToday ? 'bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs' : '', dow === 0 && !isToday ? 'text-red-400' : '', dow === 6 && !isToday ? 'text-blue-400' : '')}>{day}</div>
+                      <div className={cn(
+                        'text-sm font-bold',
+                        isToday ? 'text-white w-7 h-7 rounded-full flex items-center justify-center text-xs' : '',
+                        dow === 0 && !isToday ? 'text-red-400' : '',
+                        dow === 6 && !isToday ? 'text-blue-400' : '',
+                      )} style={isToday ? { background: 'var(--brand)' } : {}}>
+                        {day}
+                      </div>
                       {total > 0 && (
-                        <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-md', headcount === total ? 'bg-emerald-100 text-emerald-600' : headcount < total * 0.6 ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-500')}>
-                          👥{headcount}/{total}
+                        <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-lg', hcColor)}>
+                          {headcount}/{total}
                         </span>
                       )}
                     </div>
-                    {isHoliday && <div className="text-[10px] text-red-500 font-semibold truncate mb-1">🔴 {holidayMap[dk].name}</div>}
+
+                    {/* Holiday */}
+                    {isHoliday && (
+                      <div className="text-[10px] text-red-500 font-bold truncate mb-1">
+                        🔴 {holidayMap[dk].name}
+                      </div>
+                    )}
+
+                    {/* Employee pills */}
                     <div className="space-y-[3px]">
                       {employees.slice(0, 5).map(emp => {
                         const status = getEmpStatus(emp, dk);
-                        let pillClass, pillIcon;
+                        let styleKey;
                         if (status.type === 'leave') {
-                          const isPending = status.status === 'pending';
-                          pillClass = isPending ? 'bg-yellow-100 text-yellow-700 border border-dashed border-yellow-300' : status.leave_type === 'sick' ? 'bg-red-100 text-red-600' : status.leave_type === 'personal' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600';
-                          pillIcon = LEAVE_TYPES[status.leave_type]?.icon || '📋';
+                          styleKey = status.status === 'pending' ? 'pending' : status.leave_type;
                         } else {
-                          const st = status.shift_type || 'day';
-                          pillClass = st === 'day' ? 'bg-amber-50 text-amber-700' : st === 'evening' ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-400';
-                          pillIcon = SHIFTS[st]?.icon || '☀️';
+                          styleKey = status.shift_type || 'day';
                         }
+                        const ps = PILL_STYLES[styleKey] || PILL_STYLES.day;
+
                         return (
-                          <div key={emp.id} className={cn('flex items-center gap-1 px-1.5 py-[2px] rounded text-[11px] font-medium truncate', pillClass)}>
-                            <span className="text-[10px]">{pillIcon}</span>
+                          <div key={emp.id} className={cn('flex items-center gap-1 px-1.5 py-[3px] rounded-lg text-[11px] font-semibold truncate', ps.bg, ps.text)}>
+                            <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', ps.dot)} />
                             <span className="truncate">{emp.nickname || emp.name?.split(' ')[0]}</span>
                           </div>
                         );
                       })}
-                      {employees.length > 5 && <div className="text-[10px] text-slate-400 pl-1">+{employees.length - 5}</div>}
+                      {employees.length > 5 && (
+                        <div className="text-[10px] font-medium pl-1" style={{ color: 'var(--text-muted)' }}>+{employees.length - 5}</div>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-4 justify-center">
+
+          {/* ─── Legend ─── */}
+          <div className="mt-5 flex flex-wrap gap-4 justify-center animate-in stagger-2">
             {Object.entries(SHIFTS).map(([k, v]) => (
-              <div key={k} className="flex items-center gap-1.5 text-sm text-slate-500"><span>{v.icon}</span><span>{v.label}</span></div>
+              <div key={k} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                <div className={cn('w-2.5 h-2.5 rounded-full', PILL_STYLES[k]?.dot)} />
+                <span className="font-medium">{v.label}</span>
+              </div>
             ))}
             {Object.entries(LEAVE_TYPES).map(([k, v]) => (
-              <div key={k} className="flex items-center gap-1.5 text-sm text-slate-500"><span>{v.icon}</span><span>{v.label}</span></div>
+              <div key={k} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                <div className={cn('w-2.5 h-2.5 rounded-full', PILL_STYLES[k]?.dot)} />
+                <span className="font-medium">{v.label}</span>
+              </div>
             ))}
           </div>
         </>
       ) : (
-        /* ROSTER VIEW */
-        <div className="space-y-3">
-          {employees.map(emp => {
+        /* ─── Roster View ─── */
+        <div className="space-y-4">
+          {employees.map((emp, idx) => {
             const days = Array.from({ length: daysInMonth }, (_, i) => {
               const dk = dateKey(year, month, i + 1);
               return { day: i + 1, dk, ...getEmpStatus(emp, dk), isToday: dk === todayKey };
             });
             return (
-              <div key={emp.id} className="card p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  {emp.profile_image ? <img src={emp.profile_image} className="w-8 h-8 rounded-full object-cover" alt="" /> : <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm">{emp.avatar || '👤'}</div>}
+              <div key={emp.id} className={cn('card p-5 animate-in', `stagger-${Math.min(idx + 1, 4)}`)}>
+                <div className="flex items-center gap-3 mb-4">
+                  {emp.profile_image ? (
+                    <img src={emp.profile_image} className="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-md" alt="" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-md" style={{ background: 'var(--brand-light)' }}>
+                      {emp.avatar || '👤'}
+                    </div>
+                  )}
                   <div>
                     <div className="text-sm font-bold">{displayName(emp)}</div>
-                    <div className="text-[11px] text-slate-400">{emp.shift_start || '09:00'} - {emp.shift_end || '17:00'}</div>
+                    <div className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                      {emp.shift_start || '09:00'} - {emp.shift_end || '17:00'}
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {days.map(d => (
-                    <button key={d.day} onClick={() => setSelectedDate(d.dk)} className={cn(
-                      'aspect-square rounded-lg flex flex-col items-center justify-center text-[10px] font-semibold transition-all hover:ring-2 hover:ring-blue-300 cursor-pointer',
-                      d.isToday && 'ring-2 ring-blue-500',
-                      d.type === 'leave' ? (d.status === 'pending' ? 'bg-yellow-100 border border-dashed border-yellow-300' : d.leave_type === 'sick' ? 'bg-red-100 text-red-600' : d.leave_type === 'personal' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600')
-                        : (d.shift_type === 'day' ? 'bg-amber-50 text-amber-700' : d.shift_type === 'evening' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-400'),
-                    )}>
-                      <span className="text-[9px] opacity-60">{d.day}</span>
-                      <span className="text-xs">{d.type === 'leave' ? LEAVE_TYPES[d.leave_type]?.icon : SHIFTS[d.shift_type]?.icon}</span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-7 gap-1.5">
+                  {days.map(d => {
+                    let styleKey;
+                    if (d.type === 'leave') styleKey = d.status === 'pending' ? 'pending' : d.leave_type;
+                    else styleKey = d.shift_type || 'day';
+                    const ps = PILL_STYLES[styleKey] || PILL_STYLES.day;
+                    return (
+                      <button
+                        key={d.day}
+                        onClick={() => setSelectedDate(d.dk)}
+                        className={cn(
+                          'aspect-square rounded-xl flex flex-col items-center justify-center text-[10px] font-bold transition-all',
+                          'hover:ring-2 hover:ring-blue-300 cursor-pointer',
+                          d.isToday && 'ring-2',
+                          ps.bg, ps.text,
+                        )}
+                        style={d.isToday ? { ringColor: 'var(--brand)' } : {}}
+                      >
+                        <span className="text-[9px] opacity-50">{d.day}</span>
+                        <span className="text-xs">
+                          {d.type === 'leave' ? LEAVE_TYPES[d.leave_type]?.icon : SHIFTS[d.shift_type]?.icon}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -198,6 +276,7 @@ export default function CalendarPage() {
         </div>
       )}
 
+      {/* ─── Day Modal ─── */}
       {selectedDate && (
         <DayModal date={selectedDate} employees={employees} shiftMap={shiftMap} leaveMap={leaveMap} holidayMap={holidayMap} onClose={() => setSelectedDate(null)} onRefresh={loadData} />
       )}
