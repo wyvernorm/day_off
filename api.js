@@ -979,6 +979,19 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: { employees: e.results, shifts: s.results, leaves: l.results, holidays: ho.results, settings, yearlyLeaves, yearlyLeaveDetails: yld, selfMoves, swapRequests: swapReqs, isApprover } });
   }
 
+  // ==================== MONITOR STATS (proxy) ====================
+  if (pathname === '/api/monitor-stats' && method === 'GET') {
+    const month = url.searchParams.get('month');
+    const apiUrl = 'https://admin-monitor.iplusview.workers.dev/api/public/monitor-stats?key=wyvernorm' + (month ? '&month=' + month : '&days=all');
+    try {
+      const resp = await fetch(apiUrl);
+      const data = await resp.json();
+      return json({ data });
+    } catch (e) {
+      return json({ data: { users: [], total_monitor_adds: 0 } });
+    }
+  }
+
   return json({ error: 'Not found' }, 404);
 }
 

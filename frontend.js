@@ -884,8 +884,13 @@ const DEFAULT_ACHIEVEMENTS = [
   { id: 'comeback', icon: '🔄', name: 'ฟื้นจากเถ้าถ่าน', desc: 'เดือนก่อนมี error → เดือนนี้ 0', tier: 2, points: 15, cat: 'special' },
   { id: 'birthday', icon: '🎂', name: 'สุขสันต์วันเกิด!', desc: 'เคลมได้ในเดือนเกิดของคุณ', tier: 3, points: 100, cat: 'special' },
   { id: 'mvp', icon: '👑', name: 'เทพประจำเดือน', desc: 'คะแนนรวมสูงสุด', tier: 3, points: 20, cat: 'special' },
+  // 📡 หมวด Monitor
+  { id: 'monitor_active', icon: '📡', name: 'ผู้เฝ้าระวัง', desc: 'เพิ่ม monitor ≥20 ครั้งในเดือน', tier: 1, points: 10, cat: 'monitor' },
+  { id: 'monitor_mvp', icon: '🏅', name: 'Monitor MVP', desc: 'เพิ่ม monitor มากสุดในเดือน', tier: 2, points: 15, cat: 'monitor' },
+  { id: 'monitor_10', icon: '🛰️', name: 'สถานีอวกาศ', desc: 'สะสม monitor ≥100 ครั้ง', tier: 2, points: 20, cat: 'monitor' },
+  { id: 'monitor_30', icon: '🌍', name: 'ศูนย์บัญชาการโลก', desc: 'สะสม monitor ≥250 ครั้ง', tier: 3, points: 50, cat: 'monitor' },
 ];
-const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', team: '🏅 ทีม', special: '👑 พิเศษ' };
+const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', team: '🏅 ทีม', monitor: '📡 Monitor', special: '👑 พิเศษ' };
 function getAchievements() { return D.achievements || DEFAULT_ACHIEVEMENTS; }
 const TIER_COLORS = { 1: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: '🥉' }, 2: { bg: '#eff6ff', border: '#93c5fd', text: '#2563eb', label: '🥈' }, 3: { bg: '#fefce8', border: '#fde047', text: '#ca8a04', label: '🥇' } };
 const TIER_NAMES = { 1: 'ทองแดง', 2: 'เงิน', 3: 'ทอง' };
@@ -1159,6 +1164,74 @@ function computeAchievements(empStats) {
     }
   });
 
+  // 📡 MONITOR BADGES — เทียบ email กับ monitor data
+  if (D.monitorData) {
+    // Build email → empId map
+    const emailToEmp = {};
+    empStats.forEach(({ emp }) => { if (emp.email) emailToEmp[emp.email.toLowerCase()] = emp.id; });
+
+    // Per-month monitor badges
+    pastMonths.forEach(m => {
+      const monData = D.monitorData[m];
+      if (!monData || !monData.users || monData.users.length === 0) return;
+
+      let maxCount = 0, maxEmpId = null;
+      monData.users.forEach(u => {
+        const empId = emailToEmp[u.email.toLowerCase()];
+        if (!empId || !results[empId]) return;
+        const count = u.count || 0;
+        // monitor_active: ≥3 ครั้งในเดือน
+        if (achIds.has('monitor_active') && count >= 20) {
+          const pts = achs.find(a => a.id === 'monitor_active')?.points || 10;
+          const detail = { id: 'monitor_active', month: getMonthPrefix(D.y, m) };
+          if (!results[empId].badgeDetails.find(b => b.id === 'monitor_active' && b.month === detail.month)) {
+            results[empId].badges.push('monitor_active');
+            results[empId].badgeDetails.push(detail);
+            results[empId].totalPoints += pts;
+          }
+        }
+        if (count > maxCount) { maxCount = count; maxEmpId = empId; }
+      });
+      // monitor_mvp: มากสุดในเดือน
+      if (achIds.has('monitor_mvp') && maxEmpId && maxCount > 0) {
+        const pts = achs.find(a => a.id === 'monitor_mvp')?.points || 15;
+        const detail = { id: 'monitor_mvp', month: getMonthPrefix(D.y, m) };
+        if (!results[maxEmpId].badgeDetails.find(b => b.id === 'monitor_mvp' && b.month === detail.month)) {
+          results[maxEmpId].badges.push('monitor_mvp');
+          results[maxEmpId].badgeDetails.push(detail);
+          results[maxEmpId].totalPoints += pts;
+        }
+      }
+    });
+
+    // Cumulative monitor badges (all time)
+    let totalByEmp = {};
+    Object.values(D.monitorData).forEach(md => {
+      if (!md || !md.users) return;
+      md.users.forEach(u => {
+        const empId = emailToEmp[u.email.toLowerCase()];
+        if (empId) totalByEmp[empId] = (totalByEmp[empId] || 0) + (u.count || 0);
+      });
+    });
+    Object.entries(totalByEmp).forEach(([empId, total]) => {
+      if (!results[empId]) return;
+      if (achIds.has('monitor_30') && total >= 250 && !results[empId].badges.includes('monitor_30')) {
+        const pts = achs.find(a => a.id === 'monitor_30')?.points || 50;
+        results[empId].badges.push('monitor_30');
+        results[empId].totalPoints += pts;
+      } else if (achIds.has('monitor_10') && total >= 100 && !results[empId].badges.includes('monitor_10')) {
+        const pts = achs.find(a => a.id === 'monitor_10')?.points || 20;
+        results[empId].badges.push('monitor_10');
+        results[empId].totalPoints += pts;
+      }
+      // Progress
+      if (results[empId].progress) {
+        results[empId].progress['monitor_10'] = { current: total, target: 100, unit: 'ครั้ง' };
+        results[empId].progress['monitor_30'] = { current: total, target: 250, unit: 'ครั้ง' };
+      }
+    });
+  }
+
   // 👑 MVP — คะแนนรวมสูงสุด
   let maxPts = 0, mvpId = null;
   Object.entries(results).forEach(([id, r]) => { if (r.totalPoints > maxPts) { maxPts = r.totalPoints; mvpId = id; } });
@@ -1203,7 +1276,7 @@ function showAchGuide(achData) {
   const pct = totalCount > 0 ? Math.round(earnedCount / totalCount * 100) : 0;
 
   // Badge ที่เป็นรายเดือน (ซ้ำได้)
-  const MONTHLY_BADGES = new Set(['iron_will','early_bird','perfect_kpi','zero_damage','kpi_max2','low_damage','kpi_improve','comeback','no_swap','no_sick_month','team_no_leave','team_perfect','team_zero_err']);
+  const MONTHLY_BADGES = new Set(['iron_will','early_bird','perfect_kpi','zero_damage','kpi_max2','low_damage','kpi_improve','comeback','no_swap','no_sick_month','team_no_leave','team_perfect','team_zero_err','monitor_active','monitor_mvp']);
 
   const overlay = h('div', { style: { position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(10px)' }, onClick: () => document.body.removeChild(overlay) });
   const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)', borderRadius: '24px', padding: '0', maxWidth: '860px', width: '95vw', maxHeight: '90vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }, onClick: e => e.stopPropagation() });
@@ -1639,10 +1712,26 @@ function rAchievementBoard(empStats, achData) {
 function rSta() {
   const w = h('div', {}), dm = gdim(D.y, D.m);
 
-  // Load KPI data for achievements if not loaded
+  // Load KPI + Monitor data for achievements if not loaded
   if (!D.kpiYearLoaded) {
     D.kpiYearLoaded = true;
-    api('/api/kpi/errors?year=' + D.y).then(r => { D.kpiYear = r.data || []; render(); }).catch(() => { D.kpiYear = []; });
+    const now = new Date();
+    const monitorPromises = [];
+    for (let m = 0; m < 12; m++) {
+      if (D.y < now.getFullYear() || (D.y === now.getFullYear() && m <= now.getMonth())) {
+        const mp = D.y + '-' + String(m + 1).padStart(2, '0');
+        monitorPromises.push(api('/api/monitor-stats?month=' + mp).then(r => ({ month: m, data: r.data })).catch(() => ({ month: m, data: { users: [] } })));
+      }
+    }
+    Promise.all([
+      api('/api/kpi/errors?year=' + D.y),
+      Promise.all(monitorPromises),
+    ]).then(([kpiR, monResults]) => {
+      D.kpiYear = kpiR.data || [];
+      D.monitorData = {};
+      monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; });
+      render();
+    }).catch(() => { D.kpiYear = []; D.monitorData = {}; });
   }
 
   const allEmps = ce();
@@ -3302,10 +3391,21 @@ function rAchMgr() {
 function rWallet() {
   const w = h('div', {});
 
-  // Load wallet data + kpiYear (จำเป็นสำหรับ compute achievements)
+  // Load wallet data + kpiYear + monitor (จำเป็นสำหรับ compute achievements)
   if (!D.walletLoaded) {
     D.walletLoaded = true;
     const kpiPromise = D.kpiYearLoaded ? Promise.resolve({ data: D.kpiYear }) : api('/api/kpi/errors?year=' + D.y);
+    const now = new Date();
+    const monitorPromises = !D.monitorData ? (() => {
+      const ps = [];
+      for (let m = 0; m < 12; m++) {
+        if (D.y < now.getFullYear() || (D.y === now.getFullYear() && m <= now.getMonth())) {
+          const mp = D.y + '-' + String(m + 1).padStart(2, '0');
+          ps.push(api('/api/monitor-stats?month=' + mp).then(r => ({ month: m, data: r.data })).catch(() => ({ month: m, data: { users: [] } })));
+        }
+      }
+      return Promise.all(ps);
+    })() : Promise.resolve(null);
     Promise.all([
       api('/api/wallet/balance'),
       api('/api/wallet/transactions'),
@@ -3313,13 +3413,18 @@ function rWallet() {
       api('/api/rewards'),
       isO ? api('/api/rewards/redemptions') : api('/api/rewards/redemptions?employee_id=' + U.id),
       kpiPromise,
-    ]).then(([bal, txn, claims, rewards, redemptions, kpi]) => {
+      monitorPromises,
+    ]).then(([bal, txn, claims, rewards, redemptions, kpi, monResults]) => {
       D.walletBal = bal.data.balance || 0;
       D.walletTxn = txn.data || [];
       D.achClaims = claims.data || [];
       D.rewardsList = rewards.data || [];
       D.redemptions = redemptions.data || [];
       if (!D.kpiYearLoaded) { D.kpiYear = kpi.data || []; D.kpiYearLoaded = true; }
+      if (monResults && !D.monitorData) {
+        D.monitorData = {};
+        monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; });
+      }
       render();
     }).catch(() => {});
     // Show loading
