@@ -1772,8 +1772,10 @@ function rAchievementBoard(empStats, achData) {
     nameRow.appendChild(h('span', { style: { fontWeight: 700, fontSize: '15px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)));
     if (idx >= 3 && theme.label) nameRow.appendChild(h('span', { style: { fontSize: '10px', padding: '2px 8px', borderRadius: '8px', background: theme.color + '20', color: theme.color, fontWeight: 700 } }, theme.label));
     // Owner: view employee's guide
-    if (isO && r.emp.id !== U.id) {
-      const viewBtn = h('button', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', border: '1px solid rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.1)', color: '#a78bfa', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap' }, onClick: (e) => { e.stopPropagation(); showAchGuide(achData, r.emp.id); } }, '👁️ Guide');
+    if (isO) {
+      const viewBtn = h('button', { style: { fontSize: '11px', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(139,92,246,0.4)', background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(99,102,241,0.15))', color: '#a78bfa', cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap', transition: 'all .15s' }, onClick: (e) => { e.stopPropagation(); showAchGuide(achData, r.emp.id); } }, '👁️ ดู Guide');
+      viewBtn.onmouseenter = () => { viewBtn.style.background = 'rgba(139,92,246,0.3)'; viewBtn.style.color = '#c4b5fd'; };
+      viewBtn.onmouseleave = () => { viewBtn.style.background = 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(99,102,241,0.15))'; viewBtn.style.color = '#a78bfa'; };
       nameRow.appendChild(viewBtn);
     }
     nameCol.appendChild(nameRow);
