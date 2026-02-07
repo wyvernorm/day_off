@@ -802,6 +802,90 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: action === 'approve' ? 'อนุมัติแล้ว' : 'ปฏิเสธแล้ว (คืนแต้ม)' });
   }
 
+  // ==================== TEST DATA ====================
+  if (pathname === '/api/test-data/generate' && method === 'POST') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const testEmps = [
+      { name: 'สมชาย ทดสอบ', nickname: 'ชาย', avatar: '🧑‍💼', email: 'test_somchai@test.local' },
+      { name: 'สมหญิง ทดสอบ', nickname: 'หญิง', avatar: '👩‍💼', email: 'test_somying@test.local' },
+      { name: 'สมศรี ทดสอบ', nickname: 'ศรี', avatar: '👩‍🔧', email: 'test_somsri@test.local' },
+      { name: 'สมศักดิ์ ทดสอบ', nickname: 'ศักดิ์', avatar: '👨‍🔧', email: 'test_somsak@test.local' },
+    ];
+    const yr = new Date().getFullYear();
+    const leaveTypes = ['sick', 'personal', 'vacation'];
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const empIds = [];
+
+    for (const te of testEmps) {
+      // Check if already exists
+      const existing = await DB.prepare('SELECT id FROM employees WHERE email=?').bind(te.email).first();
+      if (existing) { empIds.push(existing.id); continue; }
+      const shifts = ['day', 'evening'];
+      const shift = shifts[rand(0, 1)];
+      const ss = shift === 'day' ? '09:00' : '17:00';
+      const se = shift === 'day' ? '17:00' : '01:00';
+      const offDay = String(rand(0, 6));
+      await DB.prepare(`INSERT INTO employees (name, nickname, email, avatar, role, default_shift, shift_start, shift_end, default_off_day, show_in_calendar, max_leave_per_year) VALUES (?,?,?,?,?,?,?,?,?,0,20)`)
+        .bind(te.name, te.nickname, te.email, te.avatar, 'employee', shift, ss, se, offDay).run();
+      const emp = await DB.prepare('SELECT id FROM employees WHERE email=?').bind(te.email).first();
+      empIds.push(emp.id);
+    }
+
+    // Generate random data for each test employee
+    for (const empId of empIds) {
+      // Random leaves (3-8 days across the year)
+      const numLeaves = rand(3, 8);
+      for (let i = 0; i < numLeaves; i++) {
+        const mo = rand(1, 12);
+        const maxDay = new Date(yr, mo, 0).getDate();
+        const day = rand(1, maxDay);
+        const dt = yr + '-' + String(mo).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const lt = leaveTypes[rand(0, 2)];
+        try {
+          await DB.prepare("INSERT INTO leaves (employee_id, date, leave_type, status, reason) VALUES (?,?,?,'approved','ข้อมูลทดสอบ')")
+            .bind(empId, dt, lt).run();
+        } catch (e) { /* dup date, skip */ }
+      }
+
+      // Random KPI errors (0-4)
+      const numKpi = rand(0, 4);
+      // Get categories
+      const { results: cats } = await DB.prepare('SELECT id FROM kpi_categories LIMIT 5').all();
+      for (let i = 0; i < numKpi && cats.length > 0; i++) {
+        const mo = rand(1, 12);
+        const maxDay = new Date(yr, mo, 0).getDate();
+        const day = rand(1, maxDay);
+        const dt = yr + '-' + String(mo).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const cat = cats[rand(0, cats.length - 1)];
+        const dmg = rand(0, 1) === 1 ? rand(50, 500) : 0;
+        try {
+          await DB.prepare("INSERT INTO kpi_errors (employee_id, category_id, date, points, damage_cost, note, created_by) VALUES (?,?,?,?,?,?,?)")
+            .bind(empId, cat.id, dt, rand(1, 3), dmg, 'ข้อมูลทดสอบ', currentUser.employee_id).run();
+        } catch (e) { /* skip */ }
+      }
+    }
+
+    return json({ message: 'สร้างข้อมูลทดสอบ ' + empIds.length + ' คน สำเร็จ' });
+  }
+  if (pathname === '/api/test-data/cleanup' && method === 'DELETE') {
+    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    // Find test employees
+    const { results: testEmps } = await DB.prepare("SELECT id FROM employees WHERE email LIKE '%@test.local'").all();
+    const ids = testEmps.map(e => e.id);
+    if (ids.length === 0) return json({ message: 'ไม่มีข้อมูลทดสอบ' });
+    const ph = ids.map(() => '?').join(',');
+    await DB.prepare(`DELETE FROM leaves WHERE employee_id IN (${ph})`).bind(...ids).run();
+    await DB.prepare(`DELETE FROM kpi_errors WHERE employee_id IN (${ph})`).bind(...ids).run();
+    await DB.prepare(`DELETE FROM shifts WHERE employee_id IN (${ph})`).bind(...ids).run();
+    await DB.prepare(`DELETE FROM swap_requests WHERE from_employee_id IN (${ph}) OR to_employee_id IN (${ph})`).bind(...ids, ...ids).run();
+    await DB.prepare(`DELETE FROM wallet_transactions WHERE employee_id IN (${ph})`).bind(...ids).run();
+    await DB.prepare(`DELETE FROM achievement_claims WHERE employee_id IN (${ph})`).bind(...ids).run();
+    await DB.prepare(`DELETE FROM reward_redemptions WHERE employee_id IN (${ph})`).bind(...ids).run();
+    await DB.prepare(`DELETE FROM activity_log WHERE employee_id IN (${ph})`).bind(...ids).run();
+    await DB.prepare(`DELETE FROM employees WHERE id IN (${ph})`).bind(...ids).run();
+    return json({ message: 'ลบข้อมูลทดสอบ ' + ids.length + ' คน สำเร็จ' });
+  }
+
   // ==================== OVERVIEW ====================
   if (pathname === '/api/overview' && method === 'GET') {
     const mo = url.searchParams.get('month');

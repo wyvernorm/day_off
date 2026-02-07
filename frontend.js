@@ -2291,6 +2291,29 @@ function rSet() {
         } catch (e) { toast(e.message, true); }
       } }, '📋 Activity Log'),
       h('button', { style: { background: '#f59e0b', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: () => { closeModal(); setTimeout(() => openModal('achievements'), 250); } }, '🏆 จัดการ Achievement'))));
+  // Test data section
+  const testSec = h('div', { style: { background: '#fef2f2', borderRadius: '10px', padding: '14px', marginBottom: '16px', border: '1px dashed #fca5a5' } });
+  testSec.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#dc2626', marginBottom: '8px' } }, '🧪 ข้อมูลทดสอบ'));
+  testSec.appendChild(h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '10px' } }, 'สร้างพนักงานจำลอง + ข้อมูลลา/KPI สุ่ม (ซ่อนจากปฏิทิน)'));
+  testSec.appendChild(h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+    h('button', { style: { background: '#8b5cf6', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+      if (!confirm('สร้างพนักงานจำลอง 4 คน + ข้อมูลสุ่ม?')) return;
+      try {
+        toast('⏳ กำลังสร้าง...');
+        await api('/api/test-data/generate', 'POST');
+        toast('🧪 สร้างข้อมูลทดสอบสำเร็จ!');
+        closeModal(); load();
+      } catch (er) { toast(er.message, true); }
+    } }, '🧪 สร้างข้อมูลทดสอบ'),
+    h('button', { style: { background: '#dc2626', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+      if (!confirm('⚠️ ลบข้อมูลทดสอบทั้งหมด? (เฉพาะพนักงานจำลอง)')) return;
+      try {
+        await api('/api/test-data/cleanup', 'DELETE');
+        toast('🗑️ ลบข้อมูลทดสอบแล้ว');
+        closeModal(); load();
+      } catch (er) { toast(er.message, true); }
+    } }, '🗑️ ลบข้อมูลทดสอบ')));
+  m.appendChild(testSec);
   m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim(), super_admins: document.getElementById('ssa2').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
   o.appendChild(m); return o;
 }
