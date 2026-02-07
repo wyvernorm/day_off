@@ -923,10 +923,12 @@ function computeAchievements(empStats) {
       if (ok) badges.push('half_year_gold');
     }
 
-    // Streak
+    // Streak — count pending+approved leaves (ขอลาแล้ว = ตัด streak แม้ยังไม่อนุมัติ)
     let streak = 0, maxStreak = 0;
-    const yearLeaves = new Set((D.yld || []).filter(l => l.employee_id === emp.id && l.status === 'approved').map(l => l.date));
-    const jan1 = new Date(D.y, 0, 1), endDate = new Date(D.y, D.m, dm);
+    const yearLeaves = new Set((D.yld || []).filter(l => l.employee_id === emp.id && (l.status === 'approved' || l.status === 'pending')).map(l => l.date));
+    const jan1 = new Date(D.y, 0, 1);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const endDate = today < new Date(D.y, D.m, dm) ? today : new Date(D.y, D.m, dm);
     for (let dt = new Date(jan1); dt <= endDate; dt.setDate(dt.getDate() + 1)) {
       const empOffs = (emp.default_off_day || '6').split(',').map(Number);
       if (empOffs.includes(dt.getDay())) continue;
