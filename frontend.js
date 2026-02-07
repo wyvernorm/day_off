@@ -1550,15 +1550,15 @@ function rAchievementBoard(empStats, achData) {
     const allAchs = getAchievements();
     const earnedSet = new Set(r.badges);
     const hints = [];
-    // Streak hint
-    if (!earnedSet.has('streak_30') && r.bestStreak >= 20) hints.push({ icon: '🏃', text: 'วิ่งมาราธอน อีก ' + (30 - r.bestStreak) + ' วัน' });
-    else if (!earnedSet.has('streak_60') && r.bestStreak >= 40) hints.push({ icon: '🏃', text: 'วิ่งข้ามจังหวัด อีก ' + (60 - r.bestStreak) + ' วัน' });
-    // KPI streak
-    const kpiStreak3 = allAchs.find(a => a.id === 'kpi_streak_3');
-    if (kpiStreak3 && !earnedSet.has('kpi_streak_3')) hints.push({ icon: '⭐', text: 'สะอาด 3 เดือน — ทำ 0 error ต่อไป!' });
+    // Streak hint — ใช้ streak ปัจจุบัน ไม่ใช่ bestStreak
+    if (!earnedSet.has('streak_30') && r.streak >= 15) hints.push({ icon: '🏃', text: 'วิ่งมาราธอน อีก ' + (30 - r.streak) + ' วัน' });
+    else if (earnedSet.has('streak_30') && !earnedSet.has('streak_60') && r.streak >= 30) hints.push({ icon: '🏃', text: 'วิ่งข้ามจังหวัด อีก ' + (60 - r.streak) + ' วัน' });
+    // KPI streak — ใช้ progress data
+    const kpiProg = r.progress?.kpi_streak_3;
+    if (kpiProg && !earnedSet.has('kpi_streak_3') && kpiProg.current > 0) hints.push({ icon: '⭐', text: 'สะอาด 3 เดือน — ทำ 0 error ต่อไป! (' + kpiProg.current + '/3)' });
     // Points milestone
     if (r.totalPoints >= 80 && r.totalPoints < 100) hints.push({ icon: '💰', text: 'อีก ' + (100 - r.totalPoints) + ' แต้มแลกรางวัลได้!' });
-    return hints.slice(0, 1); // แสดง 1 hint
+    return hints.slice(0, 1);
   }
 
   const table = h('div', { style: { background: 'rgba(255,255,255,0.04)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' } });
