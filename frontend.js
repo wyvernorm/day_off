@@ -994,8 +994,12 @@ function computeAchievements(empStats) {
     results[emp.id] = { badges, totalPoints, streak: maxStreak };
   });
 
-  // === 🏅 TEAM BADGES ===
-  if (visibleEmps.length > 1) {
+  // === 🏅 TEAM BADGES (คำนวณเฉพาะเดือนที่ผ่านไปแล้ว) ===
+  const now = new Date();
+  const currentMonthPrefix = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const isViewingPastMonth = monthPrefix < currentMonthPrefix;
+
+  if (visibleEmps.length > 1 && isViewingPastMonth) {
     const allNoLeave = visibleEmps.every(({ emp }) => countLeaves(emp.id, monthPrefix) === 0);
     const allPerfect = visibleEmps.every(({ emp }) =>
       countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0 && countSelfMoves(emp.id, monthPrefix) === 0);
