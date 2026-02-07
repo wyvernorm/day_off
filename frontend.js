@@ -3209,7 +3209,7 @@ function rWallet() {
   // Admin: Reset all achievements
   if (isO) {
     const resetBtn = h('button', { style: { marginTop: '20px', width: '100%', padding: '12px', borderRadius: '12px', border: '2px dashed #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
-      if (!confirm('⚠️ ล้างข้อมูล Achievement + Wallet ทั้งหมดของทุกคน?\n\n- ลบ achievement claims ทั้งหมด\n- ลบ wallet transactions ทั้งหมด\n- Reset balance เป็น 0\n\nย้อนกลับไม่ได้!')) return;
+      if (!confirm('⚠️ ล้างข้อมูล Achievement + Wallet ทั้งหมดของทุกคน? — ลบ claims, transactions, balance ทั้งหมด — ย้อนกลับไม่ได้!')) return;
       if (!confirm('🚨 ยืนยันอีกครั้ง — ข้อมูลจะหายทั้งหมด!')) return;
       resetBtn.disabled = true; resetBtn.textContent = '⏳ กำลังล้าง...';
       try {
