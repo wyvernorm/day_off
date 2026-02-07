@@ -1606,13 +1606,12 @@ function rAchievementBoard(empStats, achData) {
     }
     row.appendChild(nameCol);
 
-    // Streak — current + best
-    const streakCol = h('div', { style: { fontSize: '11px', color: '#94a3b8', textAlign: 'center', flexShrink: 0, width: '70px' } });
-    streakCol.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: r.streak >= 60 ? '#fbbf24' : r.streak >= 30 ? '#34d399' : r.streak > 0 ? '#cbd5e1' : '#64748b' } }, '🔥 ' + r.streak));
+    // Streak — current + best with clear labels
+    const streakCol = h('div', { style: { fontSize: '11px', color: '#94a3b8', textAlign: 'right', flexShrink: 0, width: '85px', lineHeight: '1.5' } });
+    const sColor = r.streak >= 60 ? '#fbbf24' : r.streak >= 30 ? '#34d399' : r.streak > 0 ? '#cbd5e1' : '#64748b';
+    streakCol.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: sColor } }, '🔥 ' + r.streak + ' วัน'));
     if (r.bestStreak && r.bestStreak > r.streak) {
-      streakCol.appendChild(h('div', { style: { fontSize: '9px', color: '#fbbf24', opacity: 0.7 } }, '🏆 ' + r.bestStreak));
-    } else {
-      streakCol.appendChild(h('div', { style: { fontSize: '9px', opacity: 0.5 } }, 'วัน'));
+      streakCol.appendChild(h('div', { style: { fontSize: '9px', color: '#fbbf24', opacity: 0.7 } }, 'สูงสุด ' + r.bestStreak + ' วัน'));
     }
     row.appendChild(streakCol);
 
