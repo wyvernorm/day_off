@@ -2128,13 +2128,14 @@ function rOnboard() {
 function rEmp() {
   const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', style: { maxWidth: '600px' }, onClick: e => e.stopPropagation() });
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '👤 จัดการพนักงาน'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
-  ce().forEach(emp => {
-    m.appendChild(h('div', { className: 'row', style: { display: 'flex', alignItems: 'center', gap: '10px' },
+  D.emp.forEach(emp => {
+    const hidden = emp.show_in_calendar === 0;
+    m.appendChild(h('div', { className: 'row', style: { display: 'flex', alignItems: 'center', gap: '10px', opacity: hidden ? 0.5 : 1 },
       onClick: () => { D.se = emp.id; D.modal = 'editEmp'; render(); requestAnimationFrame(() => { const m = document.querySelector('.mo'); if (m) m.classList.add('show'); }); } },
       av(emp),
       h('div', { style: { flex: 1 } },
-        h('div', { style: { fontWeight: 700, fontSize: '14px' } }, emp.name + (emp.email ? ' (' + emp.email + ')' : '')),
-        h('div', { style: { fontSize: '12px', color: '#94a3b8' } }, SHIFT[emp.default_shift]?.i + ' ' + stime(emp) + ' | หยุด: ' + offD(emp).map(d => DAYF[d]).join(', '))),
+        h('div', { style: { fontWeight: 700, fontSize: '14px' } }, emp.name + (emp.email ? ' (' + emp.email + ')' : '') + (hidden ? ' 👻' : '')),
+        h('div', { style: { fontSize: '12px', color: '#94a3b8' } }, SHIFT[emp.default_shift]?.i + ' ' + stime(emp) + ' | หยุด: ' + offD(emp).map(d => DAYF[d]).join(', ') + (hidden ? ' | ซ่อน' : ''))),
       h('span', { style: { fontSize: '13px', color: '#3b82f6', fontWeight: 600 } }, '✏️'),
     ));
   });
