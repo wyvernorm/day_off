@@ -5,8 +5,9 @@ import AppLayout from '@/components/layout/AppLayout';
 import LoginPage from '@/pages/LoginPage';
 import CalendarPage from '@/pages/CalendarPage';
 import PendingPage from '@/pages/PendingPage';
+import StatsPage from '@/pages/StatsPage';
 import {
-  StatsPage, HistoryPage, KpiPage, WalletPage, SettingsPage,
+  HistoryPage, KpiPage, WalletPage, SettingsPage,
 } from '@/pages/PlaceholderPages';
 
 function AppContent() {
