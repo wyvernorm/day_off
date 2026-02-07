@@ -3206,6 +3206,22 @@ function rWallet() {
   });
   w.appendChild(histSec);
 
+  // Admin: Reset all achievements
+  if (isO) {
+    const resetBtn = h('button', { style: { marginTop: '20px', width: '100%', padding: '12px', borderRadius: '12px', border: '2px dashed #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }, onClick: async () => {
+      if (!confirm('⚠️ ล้างข้อมูล Achievement + Wallet ทั้งหมดของทุกคน?\n\n- ลบ achievement claims ทั้งหมด\n- ลบ wallet transactions ทั้งหมด\n- Reset balance เป็น 0\n\nย้อนกลับไม่ได้!')) return;
+      if (!confirm('🚨 ยืนยันอีกครั้ง — ข้อมูลจะหายทั้งหมด!')) return;
+      resetBtn.disabled = true; resetBtn.textContent = '⏳ กำลังล้าง...';
+      try {
+        const r = await api('/api/achievements/reset', 'POST');
+        toast(r.message);
+        D.walletLoaded = false; D.walletBal = 0; D.walletTxn = []; D.achClaims = [];
+        render();
+      } catch (er) { toast(er.message, true); resetBtn.disabled = false; resetBtn.textContent = '🗑️ ล้างข้อมูล Achievement + Wallet ทั้งหมด'; }
+    } }, '🗑️ ล้างข้อมูล Achievement + Wallet ทั้งหมด');
+    w.appendChild(resetBtn);
+  }
+
   return w;
 }
 
