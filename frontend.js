@@ -132,6 +132,7 @@ button { font-family: inherit; cursor: pointer; }
 .et:hover { transform: scale(1.02); }
 .et.lv { border: 2px solid; font-size: 13px; padding: 5px 10px; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .7; } }
+@keyframes digBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
 
 /* === ROSTER === */
 .rw { overflow-x: auto; border-radius: var(--rd); border: 1px solid var(--bd); background: var(--sf); }
@@ -1020,7 +1021,9 @@ function rAchievementBoard(empStats, achData) {
   }).sort((a, b) => b.totalPoints - a.totalPoints);
 
   if (ranked.length >= 2) {
-    const podium = h('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '12px', marginBottom: '24px', paddingTop: '8px' } });
+    // Wrapper with ground line
+    const podiumWrap = h('div', { style: { position: 'relative', marginBottom: '24px', paddingTop: '8px' } });
+    const podium = h('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '10px' } });
     const podiumOrder = ranked.length >= 3 ? [1, 0, 2] : [1, 0]; // 2nd, 1st, 3rd
     const podiumH = ['140px', '100px', '80px'];
     const podiumBg = ['linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%)', 'linear-gradient(180deg, #94a3b8 0%, #64748b 100%)', 'linear-gradient(180deg, #cd7f32 0%, #a0522d 100%)'];
@@ -1043,7 +1046,58 @@ function rAchievementBoard(empStats, achData) {
       col.appendChild(h('div', { style: { width: '100%', height: podiumH[oi], background: podiumBg[oi], borderRadius: '8px 8px 0 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 800, color: 'rgba(0,0,0,0.3)', boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.2)' } }, String(oi + 1)));
       podium.appendChild(col);
     });
-    body.appendChild(podium);
+    podiumWrap.appendChild(podium);
+
+    // === FUNNY UNDERGROUND RANK 4-5+ ===
+    if (ranked.length >= 4) {
+      // Ground line
+      podiumWrap.appendChild(h('div', { style: { height: '4px', background: 'linear-gradient(90deg, transparent 5%, #854d0e 15%, #a16207 50%, #854d0e 85%, transparent 95%)', borderRadius: '2px', margin: '0 20px', position: 'relative' } },
+        h('div', { style: { position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)', fontSize: '10px', color: '#a16207', fontWeight: 700, background: '#1e1b4b', padding: '0 8px' } }, '🌍 พื้นดิน')));
+
+      // Underground section
+      const underground = h('div', { style: { display: 'flex', justifyContent: 'center', gap: '16px', padding: '16px 0 8px', position: 'relative' } });
+      // Dirt background
+      underground.style.background = 'repeating-linear-gradient(0deg, rgba(120,80,30,0.08) 0px, rgba(120,80,30,0.04) 4px, transparent 4px, transparent 8px)';
+
+      const funnyData = [
+        { emoji: '⛏️', msg: 'กำลังขุดหาแต้ม...', bg: '#78350f', border: '#92400e', color: '#fbbf24' },
+        { emoji: '🦴', msg: 'ขุดเจอแต่กระดูก', bg: '#451a03', border: '#78350f', color: '#d97706' },
+        { emoji: '🪱', msg: 'อยู่กับไส้เดือน', bg: '#1c1917', border: '#44403c', color: '#a8a29e' },
+        { emoji: '🌋', msg: 'ใกล้แกนโลกแล้ว', bg: '#7f1d1d', border: '#991b1b', color: '#fca5a5' },
+      ];
+
+      for (let i = 3; i < Math.min(ranked.length, 7); i++) {
+        const r = ranked[i];
+        const fd = funnyData[Math.min(i - 3, funnyData.length - 1)];
+        const depth = (i - 3) * 12 + 20; // deeper each rank
+        const col = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px', animation: 'digBounce 2s infinite', animationDelay: (i * 0.3) + 's' } });
+
+        // Speech bubble
+        col.appendChild(h('div', { style: { background: 'rgba(255,255,255,0.08)', borderRadius: '10px', padding: '4px 8px', fontSize: '9px', fontWeight: 600, color: fd.color, marginBottom: '6px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', maxWidth: '100px' } },
+          fd.msg,
+          h('div', { style: { position: 'absolute', bottom: '-5px', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(255,255,255,0.08)' } })));
+
+        // Avatar peeking from hole
+        const hole = h('div', { style: { position: 'relative', width: '70px', height: '50px', background: 'radial-gradient(ellipse at center, ' + fd.bg + ' 0%, transparent 70%)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' } });
+        const avatar = r.emp.profile_image
+          ? h('img', { src: r.emp.profile_image, style: { width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + fd.border } })
+          : h('div', { style: { fontSize: '28px' } }, r.emp.avatar);
+        hole.appendChild(avatar);
+        hole.appendChild(h('div', { style: { position: 'absolute', top: '-6px', right: '-2px', fontSize: '16px' } }, fd.emoji));
+        col.appendChild(hole);
+
+        // Name + points
+        col.appendChild(h('div', { style: { fontWeight: 700, fontSize: '11px', marginTop: '4px', textAlign: 'center', color: fd.color } }, dn(r.emp)));
+        col.appendChild(h('div', { style: { fontSize: '12px', fontWeight: 800, color: '#94a3b8' } }, r.totalPoints + ' pt'));
+        col.appendChild(h('div', { style: { fontSize: '9px', color: '#57534e', fontWeight: 600 } }, '#' + (i + 1)));
+
+        underground.appendChild(col);
+      }
+
+      podiumWrap.appendChild(underground);
+    }
+
+    body.appendChild(podiumWrap);
   }
 
   // === FULL RANKING TABLE ===
