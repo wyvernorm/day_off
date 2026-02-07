@@ -340,6 +340,7 @@ async function load() {
     D.pl = pl.data; D.ps = ps.data;
     D.hist = null; D.histLoaded = false;
     D.kpi = null; D.kpiLoaded = false;
+    D.kpiYear = D.kpiYear || []; D.kpiYearLoaded = false;
   } catch (e) { toast('โหลดไม่สำเร็จ: ' + e.message, true); }
   render();
 }
@@ -787,9 +788,189 @@ function rRos() {
   return wrap;
 }
 
+// === ACHIEVEMENT SYSTEM 🏆 ===
+const ACHIEVEMENTS = [
+  { id: 'iron_will', icon: '🔥', name: 'Iron Will', desc: 'ไม่ลาเลยทั้งเดือน', tier: 1, points: 10 },
+  { id: 'diamond', icon: '💎', name: 'Diamond Hands', desc: 'ไม่ลาเลย 3 เดือนติด', tier: 3, points: 50 },
+  { id: 'perfect_kpi', icon: '⭐', name: 'Perfect Score', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 15 },
+  { id: 'zero_damage', icon: '🛡️', name: 'Zero Damage', desc: 'ค่าเสียหาย 0 บาททั้งเดือน', tier: 1, points: 10 },
+  { id: 'no_swap', icon: '🦸', name: 'Steady Rock', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 10 },
+  { id: 'team_player', icon: '🤝', name: 'Team Player', desc: 'รับสลับกะช่วยเพื่อน 3+ ครั้ง', tier: 2, points: 20 },
+  { id: 'streak_30', icon: '🎯', name: 'Streak 30', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 15 },
+  { id: 'streak_60', icon: '🎯', name: 'Streak 60', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 30 },
+  { id: 'streak_90', icon: '🎯', name: 'Streak 90', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 50 },
+  { id: 'mvp', icon: '👑', name: 'MVP', desc: 'คะแนน achievement สูงสุดในเดือน', tier: 3, points: 30 },
+];
+const TIER_COLORS = { 1: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: '🥉' }, 2: { bg: '#eff6ff', border: '#93c5fd', text: '#2563eb', label: '🥈' }, 3: { bg: '#fefce8', border: '#fde047', text: '#ca8a04', label: '🥇' } };
+
+function computeAchievements(empStats) {
+  const results = {};
+  const now = new Date();
+  const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const dm = gdim(D.y, D.m);
+
+  empStats.forEach(({ emp, sc, yl }) => {
+    const badges = [];
+    const totalLeave = (yl.sick || 0) + (yl.personal || 0) + (yl.vacation || 0);
+    const swapCount = emp.swap_count || 0;
+    const empSwapsReceived = (D.swapReqs || []).filter(sr => sr.to_employee_id === emp.id && sr.status === 'approved').length;
+
+    // 🔥 Iron Will — ไม่ลาเลยเดือนนี้ (ดูจาก approved leaves ในเดือนปัจจุบัน)
+    const monthLeaves = (D.yld || []).filter(l => l.employee_id === emp.id && l.date.startsWith(D.y + '-' + String(D.m + 1).padStart(2, '0')) && l.status === 'approved');
+    if (monthLeaves.length === 0) badges.push('iron_will');
+
+    // 💎 Diamond Hands — ไม่ลา 3 เดือนล่าสุด
+    let diamond = true;
+    for (let i = 0; i < 3; i++) {
+      let checkM = D.m - i, checkY = D.y;
+      if (checkM < 0) { checkM += 12; checkY--; }
+      const prefix = checkY + '-' + String(checkM + 1).padStart(2, '0');
+      const mLeaves = (D.yld || []).filter(l => l.employee_id === emp.id && l.date.startsWith(prefix) && l.status === 'approved');
+      if (mLeaves.length > 0) { diamond = false; break; }
+    }
+    if (diamond) badges.push('diamond');
+
+    // ⭐ Perfect KPI — 0 error เดือนนี้
+    const kpiErrors = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(D.y + '-' + String(D.m + 1).padStart(2, '0')));
+    if (kpiErrors.length === 0) badges.push('perfect_kpi');
+
+    // 🛡️ Zero Damage — ค่าเสียหาย 0 บาทเดือนนี้
+    const monthDmg = kpiErrors.reduce((s, e) => s + (e.damage_cost || 0), 0);
+    if (monthDmg === 0) badges.push('zero_damage');
+
+    // 🦸 Steady Rock — ไม่สลับกะเลยเดือนนี้
+    const monthSwaps = (D.swapReqs || []).filter(sr => sr.from_employee_id === emp.id && sr.status === 'approved' && sr.date && sr.date.startsWith(D.y + '-' + String(D.m + 1).padStart(2, '0')));
+    if (monthSwaps.length === 0) badges.push('no_swap');
+
+    // 🤝 Team Player — รับสลับช่วยเพื่อน 3+ ครั้ง (ทั้งปี)
+    if (empSwapsReceived >= 3) badges.push('team_player');
+
+    // 🎯 Streak — นับวันติดต่อกันไม่ลา
+    let streak = 0, maxStreak = 0;
+    const yearLeaves = new Set((D.yld || []).filter(l => l.employee_id === emp.id && l.status === 'approved').map(l => l.date));
+    const jan1 = new Date(D.y, 0, 1);
+    const endDate = new Date(D.y, D.m, dm);
+    for (let dt = new Date(jan1); dt <= endDate; dt.setDate(dt.getDate() + 1)) {
+      const dow = dt.getDay();
+      const empOffs = (emp.default_off_day || '6').split(',').map(Number);
+      if (empOffs.includes(dow)) continue; // skip off days
+      const iso = dt.toISOString().slice(0, 10);
+      if (yearLeaves.has(iso)) { maxStreak = Math.max(maxStreak, streak); streak = 0; }
+      else { streak++; }
+    }
+    maxStreak = Math.max(maxStreak, streak);
+    if (maxStreak >= 90) badges.push('streak_90');
+    else if (maxStreak >= 60) badges.push('streak_60');
+    else if (maxStreak >= 30) badges.push('streak_30');
+
+    const totalPoints = badges.reduce((s, id) => s + (ACHIEVEMENTS.find(a => a.id === id)?.points || 0), 0);
+    results[emp.id] = { badges, totalPoints, streak: maxStreak };
+  });
+
+  // 👑 MVP — คะแนนสูงสุด
+  let maxPts = 0, mvpId = null;
+  Object.entries(results).forEach(([id, r]) => { if (r.totalPoints > maxPts) { maxPts = r.totalPoints; mvpId = id; } });
+  if (mvpId && maxPts > 0) {
+    results[mvpId].badges.push('mvp');
+    results[mvpId].totalPoints += 30;
+  }
+
+  return results;
+}
+
+function renderBadges(badges) {
+  if (!badges.length) return h('div', { style: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' } }, '— ยังไม่ได้ badge —');
+  const wrap = h('div', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' } });
+  badges.forEach(id => {
+    const a = ACHIEVEMENTS.find(x => x.id === id);
+    if (!a) return;
+    const tc = TIER_COLORS[a.tier];
+    const badge = h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, background: tc.bg, border: '1.5px solid ' + tc.border, color: tc.text, cursor: 'pointer', transition: 'all .2s' }, title: a.desc },
+      h('span', {}, a.icon), h('span', {}, a.name));
+    badge.onmouseenter = () => { badge.style.transform = 'scale(1.1)'; badge.style.boxShadow = '0 2px 8px ' + tc.border + '80'; };
+    badge.onmouseleave = () => { badge.style.transform = 'scale(1)'; badge.style.boxShadow = 'none'; };
+    wrap.appendChild(badge);
+  });
+  return wrap;
+}
+
+function rAchievementBoard(empStats, achData) {
+  const board = h('div', { style: { background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)', borderRadius: '16px', padding: '24px', marginBottom: '20px', color: '#fff' } });
+  board.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' } },
+    h('div', { style: { fontSize: '28px' } }, '🏆'),
+    h('div', {},
+      h('div', { style: { fontSize: '16px', fontWeight: 800, letterSpacing: '0.5px' } }, 'Achievement Leaderboard'),
+      h('div', { style: { fontSize: '11px', opacity: 0.5 } }, D.y + ' — ใครจะเป็น MVP?'))));
+
+  // Sort by points
+  const ranked = empStats.map(({ emp }) => {
+    const ad = achData[emp.id] || { badges: [], totalPoints: 0, streak: 0 };
+    return { emp, ...ad };
+  }).sort((a, b) => b.totalPoints - a.totalPoints);
+
+  const podiumColors = ['#fbbf24', '#94a3b8', '#cd7f32'];
+  ranked.forEach((r, idx) => {
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', borderRadius: '12px', marginBottom: '8px', background: idx < 3 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)', border: idx < 3 ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.05)', transition: 'all .2s' } });
+    row.onmouseenter = () => { row.style.background = 'rgba(255,255,255,0.15)'; row.style.transform = 'translateX(4px)'; };
+    row.onmouseleave = () => { row.style.background = idx < 3 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'; row.style.transform = 'translateX(0)'; };
+
+    // Rank
+    const rankBg = idx < 3 ? podiumColors[idx] : 'rgba(255,255,255,0.1)';
+    row.appendChild(h('div', { style: { width: '32px', height: '32px', borderRadius: '50%', background: rankBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800, color: idx < 3 ? '#1e1b4b' : '#94a3b8', flexShrink: 0 } }, String(idx + 1)));
+
+    // Avatar + name
+    row.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 } },
+      r.emp.profile_image ? h('img', { src: r.emp.profile_image, style: { width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + (idx < 3 ? podiumColors[idx] : 'rgba(255,255,255,0.2)') } }) : h('span', { style: { fontSize: '22px' } }, r.emp.avatar),
+      h('div', { style: { minWidth: 0 } },
+        h('div', { style: { fontWeight: 700, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dn(r.emp)),
+        h('div', { style: { display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '2px' } },
+          ...r.badges.slice(0, 6).map(bid => {
+            const a = ACHIEVEMENTS.find(x => x.id === bid);
+            return a ? h('span', { title: a.name + ': ' + a.desc, style: { fontSize: '14px', cursor: 'pointer' } }, a.icon) : '';
+          }),
+          r.badges.length > 6 ? h('span', { style: { fontSize: '11px', opacity: 0.5 } }, '+' + (r.badges.length - 6)) : ''))));
+
+    // Points + streak
+    const pointsEl = h('div', { style: { textAlign: 'right', flexShrink: 0 } });
+    const ptsNum = h('div', { style: { fontSize: '18px', fontWeight: 800, color: r.totalPoints > 0 ? '#fbbf24' : '#64748b' } }, '0');
+    pointsEl.appendChild(ptsNum);
+    pointsEl.appendChild(h('div', { style: { fontSize: '9px', opacity: 0.5 } }, '🎯 streak ' + r.streak + 'd'));
+    row.appendChild(pointsEl);
+
+    // Animate points count-up
+    if (r.totalPoints > 0) {
+      setTimeout(() => {
+        let cur = 0; const target = r.totalPoints;
+        const step = () => { cur += Math.ceil(target / 15); if (cur >= target) { ptsNum.textContent = String(target); return; } ptsNum.textContent = String(cur); requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+      }, idx * 100 + 300);
+    }
+
+    board.appendChild(row);
+  });
+
+  // Legend
+  const legend = h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' } });
+  ACHIEVEMENTS.forEach(a => {
+    const tc = TIER_COLORS[a.tier];
+    legend.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', cursor: 'default' }, title: a.desc },
+      h('span', {}, a.icon), h('span', { style: { opacity: 0.7 } }, a.name), h('span', { style: { opacity: 0.4 } }, '+' + a.points)));
+  });
+  board.appendChild(legend);
+
+  return board;
+}
+
 // === STATS ===
 function rSta() {
   const w = h('div', {}), dm = gdim(D.y, D.m);
+
+  // Load KPI data for achievements if not loaded
+  if (!D.kpiYearLoaded) {
+    D.kpiYearLoaded = true;
+    api('/api/kpi/errors?year=' + D.y).then(r => { D.kpiYear = r.data || []; render(); }).catch(() => { D.kpiYear = []; });
+  }
+
   const allEmps = ce();
   let totalDay = 0, totalEvening = 0, totalOff = 0, totalSick = 0, totalPersonal = 0, totalVacation = 0;
   const empStats = [];
@@ -801,6 +982,13 @@ function rSta() {
     totalSick += (yl.sick || 0); totalPersonal += (yl.personal || 0); totalVacation += (yl.vacation || 0);
     empStats.push({ emp, sc, yl });
   });
+
+  // Compute achievements
+  const achData = computeAchievements(empStats);
+  // 🏆 Achievement Leaderboard (before racing chart)
+  w.appendChild(rAchievementBoard(empStats, achData));
+  // Store achData for employee cards
+  D._achData = achData;
 
   // === Leave Racing Chart 🏎️ (Animated) ===
   const chartBox = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', borderRadius: '16px', padding: '24px', marginBottom: '20px', color: '#fff' } });
@@ -940,6 +1128,11 @@ function rSta() {
       mkStat('🔄', swapCount, '#d97706', 'สลับกะ', 'swap'),
       mkStat('📅', dayoffSwapCount, '#059669', 'สลับวันหยุด', 'dayoffSwap'),
       mkStat('🔀', moveCount, '#7c3aed', 'ย้ายวันหยุด', 'selfMove')));
+    // 🏆 Achievement badges
+    const empAch = (D._achData || {})[emp.id];
+    if (empAch && empAch.badges.length > 0) {
+      card.appendChild(renderBadges(empAch.badges));
+    }
     empGrid.appendChild(card);
   });
   w.appendChild(empGrid);
