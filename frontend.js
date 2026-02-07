@@ -891,7 +891,14 @@ const DEFAULT_ACHIEVEMENTS = [
   { id: 'monitor_30', icon: '🌍', name: 'ศูนย์บัญชาการโลก', desc: 'สะสม monitor ≥250 ครั้ง', tier: 3, points: 50, cat: 'monitor' },
 ];
 const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', team: '🏅 ทีม', monitor: '📡 Monitor', special: '👑 พิเศษ' };
-function getAchievements() { return D.achievements || DEFAULT_ACHIEVEMENTS; }
+function getAchievements() {
+  if (!D.achievements) return DEFAULT_ACHIEVEMENTS;
+  // Merge: เอา saved data เป็นหลัก แต่เพิ่ม badge ใหม่จาก DEFAULT ที่ยังไม่มี
+  const savedIds = new Set(D.achievements.map(a => a.id));
+  const merged = [...D.achievements];
+  DEFAULT_ACHIEVEMENTS.forEach(da => { if (!savedIds.has(da.id)) merged.push(da); });
+  return merged;
+}
 const TIER_COLORS = { 1: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: '🥉' }, 2: { bg: '#eff6ff', border: '#93c5fd', text: '#2563eb', label: '🥈' }, 3: { bg: '#fefce8', border: '#fde047', text: '#ca8a04', label: '🥇' } };
 const TIER_NAMES = { 1: 'ทองแดง', 2: 'เงิน', 3: 'ทอง' };
 
