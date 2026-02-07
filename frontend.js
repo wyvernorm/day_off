@@ -2187,8 +2187,8 @@ function rEmp() {
     h('div', { style: { display: 'flex', gap: '8px', marginBottom: '8px' } }, h('input', { type: 'text', className: 'fi', id: 'nn', placeholder: 'ชื่อ', style: { flex: 1 } }), h('input', { type: 'email', className: 'fi', id: 'ne', placeholder: 'Email', style: { flex: 1 } })),
     h('div', { style: { display: 'flex', gap: '8px', marginBottom: '8px' } },
       h('select', { className: 'fi', id: 'ns', style: { flex: 1 }, innerHTML: '<option value="day">☀️ กลางวัน</option><option value="evening">🌙 กลางคืน</option>' }),
-      h('input', { type: 'time', className: 'fi', id: 'nss', value: '09:00', style: { flex: 1 } }),
-      h('input', { type: 'time', className: 'fi', id: 'nse', value: '17:00', style: { flex: 1 } })),
+      h('input', { type: 'text', className: 'fi', id: 'nss', value: '09:00', placeholder: 'HH:MM', pattern: '[0-2][0-9]:[0-5][0-9]', maxLength: 5, style: { flex: 1 } }),
+      h('input', { type: 'text', className: 'fi', id: 'nse', value: '17:00', placeholder: 'HH:MM', pattern: '[0-2][0-9]:[0-5][0-9]', maxLength: 5, style: { flex: 1 } })),
     h('div', { style: { marginBottom: '8px' } }, h('label', { className: 'fl' }, 'วันหยุดประจำ'),
       h('div', { className: 'pg', id: 'nd' }, ...DAYF.map((d, i) => h('button', { className: 'pl', id: 'nd-' + i, 'data-day': i,
         onClick: e => { e.target.classList.toggle('on'); e.target.style.borderColor = e.target.classList.contains('on') ? '#10b981' : 'transparent'; e.target.style.background = e.target.classList.contains('on') ? '#d1fae5' : '#f8fafc'; e.target.style.color = e.target.classList.contains('on') ? '#10b981' : '#64748b'; } }, d)))),
@@ -2220,8 +2220,8 @@ function rEditEmp() {
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'Email'), h('input', { type: 'email', className: 'fi', id: 'ee', value: emp.email || '' })));
   m.appendChild(h('div', { style: { display: 'flex', gap: '10px' } },
     h('div', { className: 'fg', style: { flex: 1 } }, h('label', { className: 'fl' }, 'กะ'), h('select', { className: 'fi', id: 'es', innerHTML: '<option value="day"' + (emp.default_shift === 'day' ? ' selected' : '') + '>☀️ กลางวัน</option><option value="evening"' + (emp.default_shift === 'evening' ? ' selected' : '') + '>🌙 กลางคืน</option>' })),
-    h('div', { className: 'fg', style: { flex: 1 } }, h('label', { className: 'fl' }, 'เริ่มงาน'), h('input', { type: 'time', className: 'fi', id: 'ess', value: emp.shift_start || '09:00' })),
-    h('div', { className: 'fg', style: { flex: 1 } }, h('label', { className: 'fl' }, 'เลิกงาน'), h('input', { type: 'time', className: 'fi', id: 'ese', value: emp.shift_end || '17:00' })),
+    h('div', { className: 'fg', style: { flex: 1 } }, h('label', { className: 'fl' }, 'เริ่มงาน'), h('input', { type: 'text', className: 'fi', id: 'ess', value: emp.shift_start || '09:00', placeholder: 'HH:MM', pattern: '[0-2][0-9]:[0-5][0-9]', maxLength: 5 })),
+    h('div', { className: 'fg', style: { flex: 1 } }, h('label', { className: 'fl' }, 'เลิกงาน'), h('input', { type: 'text', className: 'fi', id: 'ese', value: emp.shift_end || '17:00', placeholder: 'HH:MM', pattern: '[0-2][0-9]:[0-5][0-9]', maxLength: 5 })),
   ));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'โควต้าวันลา/ปี'), h('input', { type: 'number', className: 'fi', id: 'emx', value: emp.max_leave_per_year || 20 })));
   const curOff = offD(emp);
