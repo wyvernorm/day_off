@@ -927,7 +927,7 @@ function computeAchievements(empStats) {
 
   // Init results
   empStats.forEach(({ emp }) => {
-    results[emp.id] = { badges: [], badgeDetails: [], totalPoints: 0, streak: 0 };
+    results[emp.id] = { badges: [], badgeDetails: [], totalPoints: 0, streak: 0, progress: {} };
   });
 
   // === วนทุกเดือนที่จบแล้ว สะสม badge ===
@@ -1111,6 +1111,52 @@ function computeAchievements(empStats) {
       const bMonth = parseInt(emp.birthday.split('-')[1]) - 1; // 0-based
       if (pastMonths.includes(bMonth)) addOnce('birthday');
     }
+
+    // 📊 PROGRESS — คำนวณ progress สำหรับ badge ที่ยังไม่ได้
+    const prog = results[emp.id].progress;
+    const earned = new Set(results[emp.id].badges);
+    // Streak badges
+    prog['streak_30'] = { current: maxStreak, target: 30, unit: 'วัน' };
+    prog['streak_60'] = { current: maxStreak, target: 60, unit: 'วัน' };
+    prog['streak_90'] = { current: maxStreak, target: 90, unit: 'วัน' };
+    // Diamond (3 months no leave)
+    let noLeaveMonths = 0;
+    for (let i = pastMonths.length - 1; i >= 0; i--) {
+      if (countLeaves(emp.id, getMonthPrefix(D.y, pastMonths[i])) === 0) noLeaveMonths++; else break;
+    }
+    prog['diamond'] = { current: noLeaveMonths, target: 3, unit: 'เดือน' };
+    prog['half_year_gold'] = { current: noLeaveMonths, target: 6, unit: 'เดือน' };
+    // KPI streaks
+    let kpiC = 0;
+    for (let i = pastMonths.length - 1; i >= 0; i--) {
+      if (countKpiErrors(emp.id, getMonthPrefix(D.y, pastMonths[i])) > 0) break; kpiC++;
+    }
+    prog['kpi_streak_3'] = { current: kpiC, target: 3, unit: 'เดือน' };
+    prog['kpi_streak_6'] = { current: kpiC, target: 6, unit: 'เดือน' };
+    prog['kpi_streak_12'] = { current: kpiC, target: 12, unit: 'เดือน' };
+    // Rock (no swap) streaks
+    let swC = 0;
+    for (let i = pastMonths.length - 1; i >= 0; i--) {
+      if (countSwaps(emp.id, getMonthPrefix(D.y, pastMonths[i])) > 0) break; swC++;
+    }
+    prog['rock_3m'] = { current: swC, target: 3, unit: 'เดือน' };
+    prog['rock_6m'] = { current: swC, target: 6, unit: 'เดือน' };
+    prog['rock_12m'] = { current: swC, target: 12, unit: 'เดือน' };
+    // No sick year
+    const sickCnt = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
+    prog['no_sick_year'] = { current: sickCnt === 0 ? pastMonths.length : 0, target: 12, unit: 'เดือน', inverted: sickCnt > 0 };
+    // Team streaks
+    if (visibleEmps.length > 1) {
+      let tC = 0;
+      for (let i = pastMonths.length - 1; i >= 0; i--) {
+        const mp2 = getMonthPrefix(D.y, pastMonths[i]);
+        if (!visibleEmps.every(({ emp: e }) => countLeaves(e.id, mp2) === 0 && countSwaps(e.id, mp2) === 0 && countSelfMoves(e.id, mp2) === 0)) break;
+        tC++;
+      }
+      prog['team_streak_2'] = { current: tC, target: 2, unit: 'เดือน' };
+      prog['team_streak_3'] = { current: tC, target: 3, unit: 'เดือน' };
+      prog['team_streak_6'] = { current: tC, target: 6, unit: 'เดือน' };
+    }
   });
 
   // 👑 MVP — คะแนนรวมสูงสุด
@@ -1146,7 +1192,8 @@ function renderBadges(badges) {
 function showAchGuide(achData) {
   const allAchs = getAchievements().filter(a => a.enabled !== false);
   const myId = U.id;
-  const myData = achData[myId] || { badges: [], badgeDetails: [], totalPoints: 0 };
+  const myData = achData[myId] || { badges: [], badgeDetails: [], totalPoints: 0, progress: {} };
+  const myProgress = myData.progress || {};
   // นับจำนวนครั้งต่อ badge
   const myBadgeCounts = {};
   (myData.badges || []).forEach(id => { myBadgeCounts[id] = (myBadgeCounts[id] || 0) + 1; });
@@ -1252,6 +1299,24 @@ function showAchGuide(achData) {
         bCard.appendChild(h('div', { style: { fontSize: '12px', fontWeight: 800, color: '#34d399', background: 'rgba(34,197,94,0.15)', padding: '4px 10px', borderRadius: '8px', display: 'inline-block' } }, '✅ +' + a.points + ' แต้ม'));
       } else {
         bCard.appendChild(h('div', { style: { fontSize: '12px', fontWeight: 800, color: tc.text, background: tc.bg, padding: '4px 10px', borderRadius: '8px', display: 'inline-block' } }, '+' + a.points + ' แต้ม'));
+      }
+
+      // Progress bar (unearned badges with progress data)
+      const prog = myProgress[a.id];
+      if (!earned && prog && prog.target > 0 && !prog.inverted) {
+        const pct = Math.min(Math.round((prog.current / prog.target) * 100), 100);
+        const barColor = pct >= 80 ? '#34d399' : pct >= 50 ? '#fbbf24' : pct >= 20 ? '#f97316' : '#64748b';
+        const progWrap = h('div', { style: { marginTop: '8px', width: '100%' } });
+        progWrap.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '3px', color: pct >= 50 ? barColor : '#94a3b8', fontWeight: 700 } },
+          h('span', {}, prog.current + '/' + prog.target + ' ' + prog.unit),
+          h('span', {}, pct >= 80 ? '🔥 ใกล้แล้ว!' : pct >= 50 ? '💪 ไปได้สวย' : '')));
+        const barOuter = h('div', { style: { height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' } });
+        const barInner = h('div', { style: { height: '100%', borderRadius: '3px', background: barColor, width: '0%', transition: 'width 0.8s ease' } });
+        barOuter.appendChild(barInner);
+        progWrap.appendChild(barOuter);
+        bCard.appendChild(progWrap);
+        // Animate
+        setTimeout(() => { barInner.style.width = pct + '%'; }, 100);
       }
 
       // How many people got it
