@@ -3,11 +3,11 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MONTHS_TH, DAYS_SHORT, SHIFTS, LEAVE_TYPES } from '@/lib/constants';
 import { cn, getDaysInMonth, dateKey, displayName } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Users, Calendar, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, LayoutGrid, Plus, ArrowLeftRight, CalendarOff, Users } from 'lucide-react';
 import DayModal from '@/components/calendar/DayModal';
 
 export default function CalendarPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, canApprove } = useAuth();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -56,64 +56,134 @@ export default function CalendarPage() {
     }).length;
   }
 
-  const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  // Build pill label like legacy: "น้ำตาล (หยุด)" or "ปุ่นปุ้ย (ลากิจ)"
+  function getPillInfo(emp, dk) {
+    const status = getEmpStatus(emp, dk);
+    const name = emp.nickname || emp.name?.split(' ')[0];
+    const avatar = emp.avatar || '👤';
 
-  // Pill styles
-  const PILL_STYLES = {
-    day: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-400' },
-    evening: { bg: 'bg-indigo-50 dark:bg-indigo-900/20', text: 'text-indigo-700 dark:text-indigo-300', dot: 'bg-indigo-400' },
-    off: { bg: 'bg-slate-100 dark:bg-slate-700/50', text: 'text-slate-400', dot: 'bg-slate-300' },
-    sick: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-300', dot: 'bg-red-400' },
-    personal: { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-600 dark:text-orange-300', dot: 'bg-orange-400' },
-    vacation: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-300', dot: 'bg-blue-400' },
-    pending: { bg: 'bg-yellow-50 dark:bg-yellow-900/20 border border-dashed border-yellow-300 dark:border-yellow-600', text: 'text-yellow-700 dark:text-yellow-300', dot: 'bg-yellow-400' },
-  };
+    if (status.type === 'leave') {
+      const lt = LEAVE_TYPES[status.leave_type] || {};
+      const isPending = status.status === 'pending';
+      const label = `${name} (${lt.label || status.leave_type})`;
+      return {
+        label, avatar, isPending,
+        bg: isPending ? 'bg-yellow-50 border-2 border-dashed border-yellow-300'
+          : status.leave_type === 'sick' ? 'bg-red-50 border border-red-200'
+          : status.leave_type === 'personal' ? 'bg-orange-50 border border-orange-200'
+          : 'bg-blue-50 border border-blue-200',
+        text: isPending ? 'text-yellow-700'
+          : status.leave_type === 'sick' ? 'text-red-600'
+          : status.leave_type === 'personal' ? 'text-orange-600'
+          : 'text-blue-600',
+        icon: isPending ? '⏳' : lt.icon,
+        isOff: true,
+      };
+    }
+
+    const st = status.shift_type || 'day';
+    const sh = SHIFTS[st] || {};
+    if (st === 'off') {
+      return {
+        label: `${name} (หยุด)`, avatar,
+        bg: 'bg-red-50 border border-dashed border-red-300',
+        text: 'text-red-500',
+        icon: '😴', isOff: true,
+      };
+    }
+    return {
+      label: name, avatar,
+      bg: st === 'day' ? 'bg-amber-50/80' : 'bg-indigo-50/80',
+      text: st === 'day' ? 'text-amber-800' : 'text-indigo-700',
+      icon: sh.icon || '☀️', isOff: false,
+    };
+  }
+
+  const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
 
   return (
     <div>
       {/* ─── Header ─── */}
-      <div className="flex items-center justify-between mb-6 animate-in">
-        <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="btn-ghost p-2.5 rounded-xl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 animate-in">
+        {/* Month nav */}
+        <div className="flex items-center gap-2">
+          <button onClick={prevMonth} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <button onClick={nextMonth} className="btn-ghost p-2.5 rounded-xl">
+          <div className="text-center min-w-[160px]">
+            <h1 className="text-2xl font-extrabold tracking-tight">{MONTHS_TH[month]} {year + 543}</h1>
+          </div>
+          <button onClick={nextMonth} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
             <ChevronRight className="w-5 h-5" />
           </button>
-          <div className="ml-3">
-            <h1 className="text-xl font-extrabold tracking-tight leading-tight">{MONTHS_TH[month]}</h1>
-            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>พ.ศ. {year + 543}</p>
-          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={goToday} className="px-4 py-2 text-xs font-bold rounded-xl transition-all hover:-translate-y-0.5" style={{ background: 'var(--brand-light)', color: 'var(--brand)' }}>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={goToday} className="btn-ghost px-4 py-2 text-xs font-bold rounded-xl border-2" style={{ borderColor: 'var(--brand)', color: 'var(--brand)' }}>
             วันนี้
           </button>
-          <div className="flex rounded-xl p-1" style={{ background: 'var(--surface-alt)' }}>
-            <button onClick={() => setView('calendar')} className={cn('p-2 rounded-lg transition-all', view === 'calendar' && 'bg-white dark:bg-slate-700 shadow-sm')}>
-              <Calendar className="w-4 h-4" />
+          <div className="flex rounded-xl p-1 border" style={{ borderColor: 'var(--border)' }}>
+            <button onClick={() => setView('calendar')} className={cn('px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1', view === 'calendar' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'opacity-50')}>
+              <Calendar className="w-3.5 h-3.5" /> ปฏิทิน
             </button>
-            <button onClick={() => setView('roster')} className={cn('p-2 rounded-lg transition-all', view === 'roster' && 'bg-white dark:bg-slate-700 shadow-sm')}>
-              <LayoutGrid className="w-4 h-4" />
+            <button onClick={() => setView('roster')} className={cn('px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1', view === 'roster' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'opacity-50')}>
+              <LayoutGrid className="w-3.5 h-3.5" /> ตารางกะ
             </button>
           </div>
         </div>
       </div>
 
+      {/* ─── Action Buttons (like legacy) ─── */}
+      {isAdmin && (
+        <div className="flex flex-wrap gap-2 mb-4 animate-in stagger-1">
+          <a href="/legacy#tab-calendar" className="btn text-xs px-4 py-2 rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100">
+            <Plus className="w-3.5 h-3.5" /> ลางาน
+          </a>
+          <a href="/legacy#tab-calendar" className="btn text-xs px-4 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100">
+            <ArrowLeftRight className="w-3.5 h-3.5" /> สลับกะ
+          </a>
+          <a href="/legacy#tab-calendar" className="btn text-xs px-4 py-2 rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">
+            <CalendarOff className="w-3.5 h-3.5" /> สลับวันหยุด
+          </a>
+          <a href="/legacy#tab-calendar" className="btn text-xs px-4 py-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100">
+            <CalendarOff className="w-3.5 h-3.5" /> ย้ายวันหยุด
+          </a>
+          <a href="/legacy#tab-calendar" className="btn text-xs px-4 py-2 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100">
+            <Users className="w-3.5 h-3.5" /> จัดการพนักงาน
+          </a>
+        </div>
+      )}
+
+      {/* ─── Legend (top like legacy) ─── */}
+      <div className="flex flex-wrap gap-3 mb-4 px-1 animate-in stagger-1">
+        {Object.entries(SHIFTS).map(([k, v]) => (
+          <div key={k} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-sm">{v.icon}</span> {v.label}
+          </div>
+        ))}
+        {Object.entries(LEAVE_TYPES).map(([k, v]) => (
+          <div key={k} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-sm">{v.icon}</span> {v.label}
+          </div>
+        ))}
+      </div>
+
       {loading ? (
-        <div className="card p-24 flex flex-col items-center justify-center animate-in" style={{ color: 'var(--text-muted)' }}>
+        <div className="card p-24 flex flex-col items-center justify-center" style={{ color: 'var(--text-muted)' }}>
           <div className="animate-spin w-8 h-8 border-[3px] rounded-full mb-3" style={{ borderColor: 'var(--brand)', borderTopColor: 'transparent' }} />
           <span className="text-sm font-medium">กำลังโหลด...</span>
         </div>
       ) : view === 'calendar' ? (
         <>
           {/* ─── Calendar Grid ─── */}
-          <div className="card overflow-hidden animate-in stagger-1">
+          <div className="card overflow-hidden animate-in stagger-2">
             {/* Day headers */}
-            <div className="grid grid-cols-7" style={{ background: 'var(--surface-alt)' }}>
+            <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border)' }}>
               {DAYS_SHORT.map((d, i) => (
-                <div key={i} className={cn('text-center py-3 text-xs font-bold tracking-widest uppercase',
-                  i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : ''
+                <div key={i} className={cn(
+                  'text-center py-3 text-sm font-bold',
+                  i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : ''
                 )} style={{ color: i !== 0 && i !== 6 ? 'var(--text-muted)' : undefined }}>
                   {d}
                 </div>
@@ -123,7 +193,7 @@ export default function CalendarPage() {
             <div className="grid grid-cols-7">
               {/* Empty cells */}
               {Array.from({ length: firstDayOfWeek }, (_, i) => (
-                <div key={`e-${i}`} className="min-h-[120px] border-b border-r" style={{ background: 'var(--surface-alt)', opacity: 0.5, borderColor: 'var(--border)' }} />
+                <div key={`e-${i}`} className="min-h-[140px] border-b border-r" style={{ background: 'var(--surface-alt)', borderColor: 'var(--border)' }} />
               ))}
 
               {/* Date cells */}
@@ -132,91 +202,69 @@ export default function CalendarPage() {
                 const dow = new Date(year, month, day).getDay();
                 const isHoliday = !!holidayMap[dk], isToday = dk === todayKey;
                 const headcount = getHeadcount(dk), total = employees.length;
-                const hcColor = headcount === total ? 'text-emerald-600 bg-emerald-50' : headcount < total * 0.6 ? 'text-red-500 bg-red-50' : 'text-slate-500 bg-slate-100';
+                const isSatSun = dow === 0 || dow === 6;
 
                 return (
                   <div
                     key={day}
                     onClick={() => setSelectedDate(dk)}
                     className={cn(
-                      'min-h-[120px] p-2 border-b border-r cursor-pointer transition-all duration-200',
-                      'hover:bg-blue-50/60 dark:hover:bg-blue-900/10 hover:z-10',
-                      isToday && 'ring-2 ring-inset',
-                      isHoliday && 'bg-red-50/30 dark:bg-red-900/10',
+                      'min-h-[140px] p-2 border-b border-r cursor-pointer transition-colors duration-150',
+                      'hover:bg-blue-50/50 dark:hover:bg-blue-900/10',
+                      isToday && 'ring-2 ring-inset ring-blue-500',
+                      isHoliday && 'bg-red-50/40',
+                      isSatSun && !isToday && !isHoliday && 'bg-amber-50/30',
                     )}
-                    style={{
-                      borderColor: 'var(--border)',
-                      ...(isToday ? { ringColor: 'var(--brand)' } : {}),
-                      ...(dow === 0 || dow === 6 ? { background: !isToday && !isHoliday ? 'var(--surface-alt)' : undefined } : {}),
-                    }}
+                    style={{ borderColor: 'var(--border)' }}
                   >
-                    {/* Date + Headcount */}
+                    {/* Date number + headcount */}
                     <div className="flex items-center justify-between mb-1.5">
-                      <div className={cn(
+                      <span className={cn(
                         'text-sm font-bold',
-                        isToday ? 'text-white w-7 h-7 rounded-full flex items-center justify-center text-xs' : '',
-                        dow === 0 && !isToday ? 'text-red-400' : '',
-                        dow === 6 && !isToday ? 'text-blue-400' : '',
-                      )} style={isToday ? { background: 'var(--brand)' } : {}}>
+                        isToday ? 'bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs' : '',
+                        dow === 0 && !isToday ? 'text-red-500' : '',
+                        dow === 6 && !isToday ? 'text-blue-500' : '',
+                      )}>
                         {day}
-                      </div>
+                      </span>
                       {total > 0 && (
-                        <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-lg', hcColor)}>
-                          {headcount}/{total}
+                        <span className={cn(
+                          'text-[10px] font-bold px-1.5 py-0.5 rounded-lg',
+                          headcount === total ? 'text-emerald-700 bg-emerald-100' :
+                          headcount < total * 0.6 ? 'text-red-600 bg-red-100' :
+                          'text-amber-700 bg-amber-100'
+                        )}>
+                          👥 {headcount}/{total}
                         </span>
                       )}
                     </div>
 
-                    {/* Holiday */}
+                    {/* Holiday label */}
                     {isHoliday && (
-                      <div className="text-[10px] text-red-500 font-bold truncate mb-1">
+                      <div className="text-[10px] text-red-500 font-bold truncate mb-1 bg-red-100 rounded px-1 py-0.5 inline-block">
                         🔴 {holidayMap[dk].name}
                       </div>
                     )}
 
-                    {/* Employee pills */}
-                    <div className="space-y-[3px]">
-                      {employees.slice(0, 5).map(emp => {
-                        const status = getEmpStatus(emp, dk);
-                        let styleKey;
-                        if (status.type === 'leave') {
-                          styleKey = status.status === 'pending' ? 'pending' : status.leave_type;
-                        } else {
-                          styleKey = status.shift_type || 'day';
-                        }
-                        const ps = PILL_STYLES[styleKey] || PILL_STYLES.day;
-
+                    {/* Employee pills — RICH like legacy */}
+                    <div className="space-y-[2px]">
+                      {employees.map(emp => {
+                        const pill = getPillInfo(emp, dk);
                         return (
-                          <div key={emp.id} className={cn('flex items-center gap-1 px-1.5 py-[3px] rounded-lg text-[11px] font-semibold truncate', ps.bg, ps.text)}>
-                            <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', ps.dot)} />
-                            <span className="truncate">{emp.nickname || emp.name?.split(' ')[0]}</span>
+                          <div key={emp.id} className={cn(
+                            'flex items-center gap-1 px-1.5 py-[3px] rounded-lg text-[11px] font-semibold truncate',
+                            pill.bg, pill.text,
+                          )}>
+                            <span className="text-[10px] shrink-0">{pill.avatar}</span>
+                            <span className="truncate">{pill.label}</span>
                           </div>
                         );
                       })}
-                      {employees.length > 5 && (
-                        <div className="text-[10px] font-medium pl-1" style={{ color: 'var(--text-muted)' }}>+{employees.length - 5}</div>
-                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
-
-          {/* ─── Legend ─── */}
-          <div className="mt-5 flex flex-wrap gap-4 justify-center animate-in stagger-2">
-            {Object.entries(SHIFTS).map(([k, v]) => (
-              <div key={k} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                <div className={cn('w-2.5 h-2.5 rounded-full', PILL_STYLES[k]?.dot)} />
-                <span className="font-medium">{v.label}</span>
-              </div>
-            ))}
-            {Object.entries(LEAVE_TYPES).map(([k, v]) => (
-              <div key={k} className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-                <div className={cn('w-2.5 h-2.5 rounded-full', PILL_STYLES[k]?.dot)} />
-                <span className="font-medium">{v.label}</span>
-              </div>
-            ))}
           </div>
         </>
       ) : (
@@ -246,22 +294,24 @@ export default function CalendarPage() {
                 </div>
                 <div className="grid grid-cols-7 gap-1.5">
                   {days.map(d => {
-                    let styleKey;
-                    if (d.type === 'leave') styleKey = d.status === 'pending' ? 'pending' : d.leave_type;
-                    else styleKey = d.shift_type || 'day';
-                    const ps = PILL_STYLES[styleKey] || PILL_STYLES.day;
+                    let bg, text;
+                    if (d.type === 'leave') {
+                      const isPending = d.status === 'pending';
+                      bg = isPending ? 'bg-yellow-100 border border-dashed border-yellow-300'
+                        : d.leave_type === 'sick' ? 'bg-red-100' : d.leave_type === 'personal' ? 'bg-orange-100' : 'bg-blue-100';
+                      text = isPending ? 'text-yellow-700' : d.leave_type === 'sick' ? 'text-red-600' : d.leave_type === 'personal' ? 'text-orange-600' : 'text-blue-600';
+                    } else {
+                      const st = d.shift_type || 'day';
+                      bg = st === 'day' ? 'bg-amber-50' : st === 'evening' ? 'bg-indigo-100' : 'bg-slate-100';
+                      text = st === 'day' ? 'text-amber-700' : st === 'evening' ? 'text-indigo-700' : 'text-slate-400';
+                    }
                     return (
-                      <button
-                        key={d.day}
-                        onClick={() => setSelectedDate(d.dk)}
-                        className={cn(
-                          'aspect-square rounded-xl flex flex-col items-center justify-center text-[10px] font-bold transition-all',
-                          'hover:ring-2 hover:ring-blue-300 cursor-pointer',
-                          d.isToday && 'ring-2',
-                          ps.bg, ps.text,
-                        )}
-                        style={d.isToday ? { ringColor: 'var(--brand)' } : {}}
-                      >
+                      <button key={d.day} onClick={() => setSelectedDate(d.dk)} className={cn(
+                        'aspect-square rounded-xl flex flex-col items-center justify-center text-[10px] font-bold transition-all',
+                        'hover:ring-2 hover:ring-blue-300 cursor-pointer',
+                        d.isToday && 'ring-2 ring-blue-500',
+                        bg, text,
+                      )}>
                         <span className="text-[9px] opacity-50">{d.day}</span>
                         <span className="text-xs">
                           {d.type === 'leave' ? LEAVE_TYPES[d.leave_type]?.icon : SHIFTS[d.shift_type]?.icon}
