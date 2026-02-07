@@ -2629,7 +2629,7 @@ function rPrf() {
     // Birthday
     const bdInput = document.getElementById('pbd');
     if (bdInput && bdInput.value) {
-      if (!confirm('⚠️ ยืนยันวันเกิด: ' + bdInput.value + '\n\nใส่แล้วจะแก้ไขไม่ได้อีก!')) return;
+      if (!confirm('⚠️ ยืนยันวันเกิด: ' + bdInput.value + ' — ใส่แล้วจะแก้ไขไม่ได้อีก!')) return;
       payload.birthday = bdInput.value;
     }
     try {
