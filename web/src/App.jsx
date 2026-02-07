@@ -6,9 +6,10 @@ import LoginPage from '@/pages/LoginPage';
 import CalendarPage from '@/pages/CalendarPage';
 import PendingPage from '@/pages/PendingPage';
 import StatsPage from '@/pages/StatsPage';
-import {
-  HistoryPage, KpiPage, WalletPage, SettingsPage,
-} from '@/pages/PlaceholderPages';
+import HistoryPage from '@/pages/HistoryPage';
+import KpiPage from '@/pages/KpiPage';
+import WalletPage from '@/pages/WalletPage';
+import { SettingsPage } from '@/pages/PlaceholderPages';
 
 function AppContent() {
   const { user, loading } = useAuth();
