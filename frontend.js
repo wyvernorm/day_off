@@ -1948,7 +1948,7 @@ function rHist() {
   const all = [];
   D.hist.leaves.forEach(l => all.push({ kind: 'leave', status: l.status, date: l.date, approvedAt: l.approved_at, data: l }));
   D.hist.swaps.forEach(s => all.push({ kind: s.swap_type === 'dayoff' ? 'dayoff' : 'swap', status: s.status, date: s.date, approvedAt: s.approved_at, data: s }));
-  all.sort((a, b) => (b.approvedAt || '').localeCompare(a.approvedAt || ''));
+  all.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.approvedAt || '').localeCompare(a.approvedAt || ''));
 
   let filtered = all;
   if (hf.type !== 'all') filtered = filtered.filter(i => i.kind === hf.type);
