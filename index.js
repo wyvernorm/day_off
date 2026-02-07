@@ -197,22 +197,13 @@ export default {
 
       await ensureTables(env.DB);
 
-      // Legacy frontend route — /legacy serves old frontend.js directly
-      if (url.pathname === '/legacy') {
-        return new Response(getHTML(currentUser), {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
-      }
-
-      // Serve React SPA — use env.ASSETS if available (Cloudflare assets binding)
-      if (env.ASSETS) {
+      // React route — /new serves React SPA
+      if (url.pathname === '/new' && env.ASSETS) {
         try {
-          // Try to serve index.html from built React app
           const assetUrl = new URL('/index.html', request.url);
           const assetReq = new Request(assetUrl, request);
           const assetRes = await env.ASSETS.fetch(assetReq);
           if (assetRes.ok) {
-            // Inject user data as script tag so React can read it
             let html = await assetRes.text();
             const userJson = JSON.stringify({
               id: currentUser.employee_id, name: currentUser.name, nickname: currentUser.nickname,
@@ -224,12 +215,10 @@ export default {
               headers: { 'Content-Type': 'text/html; charset=utf-8' },
             });
           }
-        } catch (e) {
-          // Fallback to legacy frontend
-        }
+        } catch (e) { /* fallback */ }
       }
 
-      // Fallback: legacy frontend (frontend.js)
+      // Main: legacy frontend (frontend.js) — full featured
       return new Response(getHTML(currentUser), {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
