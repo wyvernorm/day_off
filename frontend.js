@@ -833,24 +833,30 @@ const DEFAULT_ACHIEVEMENTS = [
   { id: 'streak_30', icon: '🏃', name: 'ต่อเนื่อง 30', desc: 'ไม่ลาติดต่อกัน 30 วัน', tier: 1, points: 5, cat: 'attendance' },
   { id: 'streak_60', icon: '🏃', name: 'ต่อเนื่อง 60', desc: 'ไม่ลาติดต่อกัน 60 วัน', tier: 2, points: 10, cat: 'attendance' },
   { id: 'streak_90', icon: '🏃', name: 'ต่อเนื่อง 90', desc: 'ไม่ลาติดต่อกัน 90 วัน', tier: 3, points: 20, cat: 'attendance' },
+  { id: 'early_bird', icon: '🐦', name: 'ขยันมาเช้า', desc: 'ไม่ลาเลย + ไม่สลับกะ ทั้งเดือน', tier: 2, points: 8, cat: 'attendance' },
   // ⚡ หมวด KPI (รายเดือน)
   { id: 'perfect_kpi', icon: '⭐', name: 'ไร้ที่ติ', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 5, cat: 'kpi' },
   { id: 'zero_damage', icon: '🛡️', name: 'ไร้ค่าเสียหาย', desc: 'ค่าเสียหาย 0 บาททั้งเดือน', tier: 1, points: 3, cat: 'kpi' },
   { id: 'kpi_3months', icon: '💯', name: 'KPI ไร้มลทิน', desc: 'KPI 0 error 3 เดือนติด', tier: 3, points: 20, cat: 'kpi' },
   { id: 'kpi_improve', icon: '📉', name: 'พัฒนาขึ้น', desc: 'error เดือนนี้ < เดือนก่อน', tier: 2, points: 5, cat: 'kpi' },
+  { id: 'kpi_max2', icon: '🎯', name: 'ใกล้สมบูรณ์', desc: 'error ไม่เกิน 2 ครั้งทั้งเดือน', tier: 1, points: 3, cat: 'kpi' },
+  { id: 'low_damage', icon: '💸', name: 'ประหยัดค่าเสียหาย', desc: 'ค่าเสียหายรวมไม่เกิน 100 บาท', tier: 1, points: 3, cat: 'kpi' },
   // 🦸 หมวดความมั่นคง (รายเดือน)
   { id: 'no_swap', icon: '🦸', name: 'มั่นคง', desc: 'ไม่สลับกะเลยทั้งเดือน', tier: 1, points: 3, cat: 'stability' },
   { id: 'rock_solid', icon: '🧱', name: 'หินแกร่ง', desc: 'ไม่สลับกะ 3 เดือนติด', tier: 3, points: 15, cat: 'stability' },
   // 🏥 หมวดสุขภาพ
   { id: 'no_sick_month', icon: '🍀', name: 'โชคดีมีสุข', desc: 'ไม่ลาป่วยทั้งเดือน', tier: 1, points: 3, cat: 'health' },
   { id: 'no_sick_year', icon: '💚', name: 'สุขภาพเหล็ก', desc: 'ไม่ลาป่วยเลยทั้งปี', tier: 3, points: 30, cat: 'health' },
-  // 📊 หมวดโควต้า (ทั้งปี — claim ได้ครั้งเดียว)
+  // 📊 หมวดโควต้า (ทั้งปี)
   { id: 'quota_saver', icon: '💰', name: 'ประหยัดวันลา', desc: 'ใช้โควต้าไม่เกิน 25%', tier: 2, points: 10, cat: 'quota' },
   { id: 'quota_rich', icon: '🏦', name: 'เศรษฐีวันลา', desc: 'ใช้โควต้าไม่เกิน 10%', tier: 3, points: 20, cat: 'quota' },
+  // 🏅 หมวดทีม
+  { id: 'team_player', icon: '🤝', name: 'ทีมเวิร์ค', desc: 'ไม่มีใครในทีมลาทั้งเดือน', tier: 2, points: 10, cat: 'team' },
   // 👑 หมวดพิเศษ
+  { id: 'comeback', icon: '🔄', name: 'กลับมาแข็งแกร่ง', desc: 'เดือนก่อนมี error แต่เดือนนี้ 0', tier: 2, points: 8, cat: 'special' },
   { id: 'mvp', icon: '👑', name: 'ดีเด่น', desc: 'คะแนนรวมสูงสุดของเดือน', tier: 3, points: 10, cat: 'special' },
 ];
-const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', special: '👑 พิเศษ' };
+const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', team: '🏅 ทีม', special: '👑 พิเศษ' };
 function getAchievements() { return D.achievements || DEFAULT_ACHIEVEMENTS; }
 const TIER_COLORS = { 1: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', label: '🥉' }, 2: { bg: '#eff6ff', border: '#93c5fd', text: '#2563eb', label: '🥈' }, 3: { bg: '#fefce8', border: '#fde047', text: '#ca8a04', label: '🥇' } };
 const TIER_NAMES = { 1: 'ทองแดง', 2: 'เงิน', 3: 'ทอง' };
@@ -961,9 +967,33 @@ function computeAchievements(empStats) {
     if (achIds.has('quota_rich') && quotaPct <= 0.1) badges.push('quota_rich');
     else if (achIds.has('quota_saver') && quotaPct <= 0.25) badges.push('quota_saver');
 
+    // === 🐦 EARLY BIRD — ไม่ลา + ไม่สลับ ===
+    if (achIds.has('early_bird') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0) badges.push('early_bird');
+
+    // === 🎯 KPI ใกล้สมบูรณ์ — error ≤ 2 ===
+    if (achIds.has('kpi_max2') && workedThisMonth && kpiThisMonth <= 2 && kpiThisMonth > 0) badges.push('kpi_max2');
+
+    // === 💸 ประหยัดค่าเสียหาย — ≤ 100 บาท แต่ > 0 ===
+    if (achIds.has('low_damage') && workedThisMonth && kpiDmg > 0 && kpiDmg <= 100) badges.push('low_damage');
+
+    // === 🔄 กลับมาแข็งแกร่ง — เดือนก่อนมี error แต่เดือนนี้ 0 ===
+    if (achIds.has('comeback') && workedThisMonth && D.m > 0) {
+      let pm = D.m - 1, py = D.y; if (pm < 0) { pm = 11; py--; }
+      const prevErrors = countKpiErrors(emp.id, getMonthPrefix(py, pm));
+      if (prevErrors > 0 && kpiThisMonth === 0) badges.push('comeback');
+    }
+
     const totalPoints = badges.reduce((s, id) => s + (achs.find(a => a.id === id)?.points || 0), 0);
     results[emp.id] = { badges, totalPoints, streak: maxStreak };
   });
+
+  // === 🏅 TEAM PLAYER — ทุกคนไม่ลาทั้งเดือน ===
+  if (achIds.has('team_player')) {
+    const allNoLeave = empStats.every(({ emp }) => countLeaves(emp.id, monthPrefix) === 0);
+    if (allNoLeave && empStats.length > 0) {
+      empStats.forEach(({ emp }) => { if (results[emp.id]) results[emp.id].badges.push('team_player'); results[emp.id].totalPoints += 10; });
+    }
+  }
 
   // 👑 MVP — คะแนนสูงสุด
   let maxPts = 0, mvpId = null;
@@ -990,6 +1020,82 @@ function renderBadges(badges) {
     wrap.appendChild(badge);
   });
   return wrap;
+}
+
+// === EMPLOYEE ACHIEVEMENT DETAIL POPUP ===
+function showEmpAchDetail(r, rank, achData) {
+  const allAchs = getAchievements().filter(a => a.enabled !== false);
+  const earned = r.badges || [];
+  const missed = allAchs.filter(a => !earned.includes(a.id));
+
+  const overlay = h('div', { style: { position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(8px)' }, onClick: () => document.body.removeChild(overlay) });
+  const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', borderRadius: '24px', padding: '28px', maxWidth: '500px', width: '90vw', maxHeight: '85vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 60px rgba(0,0,0,.4)' }, onClick: e => e.stopPropagation() });
+
+  // Header
+  const hdr = h('div', { style: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' } });
+  hdr.appendChild(r.emp.profile_image
+    ? h('img', { src: r.emp.profile_image, style: { width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #fbbf24' } })
+    : h('div', { style: { fontSize: '40px' } }, r.emp.avatar));
+  const hdrInfo = h('div', { style: { flex: 1 } });
+  hdrInfo.appendChild(h('div', { style: { fontSize: '18px', fontWeight: 800 } }, dn(r.emp)));
+  hdrInfo.appendChild(h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' } },
+    h('span', { style: { fontSize: '12px', padding: '3px 10px', borderRadius: '8px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', fontWeight: 700 } }, '🏆 อันดับ ' + (rank + 1)),
+    h('span', { style: { fontSize: '12px', padding: '3px 10px', borderRadius: '8px', background: 'rgba(52,211,153,0.15)', color: '#34d399', fontWeight: 700 } }, '🔥 ' + r.streak + ' วันต่อเนื่อง')));
+  hdr.appendChild(hdrInfo);
+  // Close btn
+  hdr.appendChild(h('button', { style: { background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }, onClick: () => document.body.removeChild(overlay) }, '✕'));
+  card.appendChild(hdr);
+
+  // Points summary
+  const ptCard = h('div', { style: { background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', color: '#1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } });
+  ptCard.appendChild(h('div', {}, h('div', { style: { fontSize: '12px', fontWeight: 600, opacity: 0.7 } }, 'คะแนนรวมเดือนนี้'),
+    h('div', { style: { fontSize: '28px', fontWeight: 800 } }, r.totalPoints + ' แต้ม')));
+  ptCard.appendChild(h('div', { style: { textAlign: 'right' } }, h('div', { style: { fontSize: '12px', fontWeight: 600, opacity: 0.7 } }, 'ได้รับ'),
+    h('div', { style: { fontSize: '20px', fontWeight: 800 } }, earned.length + '/' + allAchs.length + ' badge')));
+  card.appendChild(ptCard);
+
+  // Earned badges
+  if (earned.length > 0) {
+    card.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' } }, '✅ Badge ที่ได้รับ (' + earned.length + ')'));
+    const earnedGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', marginBottom: '20px' } });
+    earned.forEach(bid => {
+      const a = allAchs.find(x => x.id === bid);
+      if (!a) return;
+      const tc = TIER_COLORS[a.tier];
+      const bCard = h('div', { style: { background: 'rgba(255,255,255,0.06)', borderRadius: '12px', padding: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' } });
+      bCard.appendChild(h('div', { style: { fontSize: '28px', marginBottom: '4px' } }, a.icon));
+      bCard.appendChild(h('div', { style: { fontSize: '11px', fontWeight: 700, marginBottom: '2px' } }, a.name));
+      bCard.appendChild(h('div', { style: { fontSize: '9px', color: '#94a3b8', marginBottom: '4px' } }, a.desc));
+      bCard.appendChild(h('div', { style: { fontSize: '11px', fontWeight: 800, color: tc.text, background: tc.bg, borderRadius: '6px', padding: '2px 6px', display: 'inline-block' } }, '+' + a.points + ' pt'));
+      earnedGrid.appendChild(bCard);
+    });
+    card.appendChild(earnedGrid);
+  }
+
+  // Missed badges — show as locked
+  if (missed.length > 0) {
+    card.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8' } }, '🔒 ยังไม่ได้ (' + missed.length + ')'));
+    const missedGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', marginBottom: '16px' } });
+    missed.forEach(a => {
+      const bCard = h('div', { style: { background: 'rgba(255,255,255,0.02)', borderRadius: '12px', padding: '12px', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.06)', opacity: 0.5 } });
+      bCard.appendChild(h('div', { style: { fontSize: '24px', marginBottom: '4px', filter: 'grayscale(1)' } }, a.icon));
+      bCard.appendChild(h('div', { style: { fontSize: '11px', fontWeight: 700, marginBottom: '2px' } }, a.name));
+      bCard.appendChild(h('div', { style: { fontSize: '9px', color: '#64748b' } }, a.desc));
+      missedGrid.appendChild(bCard);
+    });
+    card.appendChild(missedGrid);
+  }
+
+  // Tips
+  if (missed.length > 0) {
+    const tip = missed[0];
+    card.appendChild(h('div', { style: { background: 'rgba(251,191,36,0.08)', borderRadius: '12px', padding: '12px 16px', border: '1px solid rgba(251,191,36,0.15)' } },
+      h('div', { style: { fontSize: '11px', fontWeight: 700, color: '#fbbf24', marginBottom: '4px' } }, '💡 เป้าหมายถัดไป'),
+      h('div', { style: { fontSize: '12px', color: '#e2e8f0' } }, tip.icon + ' ' + tip.name + ' — ' + tip.desc + ' (+' + tip.points + ' แต้ม)')));
+  }
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 }
 
 function rAchievementBoard(empStats, achData) {
@@ -1116,9 +1222,10 @@ function rAchievementBoard(empStats, achData) {
   const table = h('div', { style: { background: 'rgba(255,255,255,0.04)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' } });
   ranked.forEach((r, idx) => {
     const theme = RANK_THEMES[Math.min(idx, RANK_THEMES.length - 1)];
-    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: idx < ranked.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', transition: 'all .15s', cursor: 'default' } });
+    const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderBottom: idx < ranked.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', transition: 'all .15s', cursor: 'pointer' } });
     row.onmouseenter = () => { row.style.background = 'rgba(255,255,255,0.06)'; };
     row.onmouseleave = () => { row.style.background = 'transparent'; };
+    row.onclick = () => showEmpAchDetail(r, idx, achData);
 
     // Rank with themed emoji
     row.appendChild(h('div', { style: { width: '28px', fontWeight: 800, fontSize: '16px', color: theme.color, textAlign: 'center', flexShrink: 0 } }, theme.emoji));
