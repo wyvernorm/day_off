@@ -846,10 +846,10 @@ const DEFAULT_ACHIEVEMENTS = [
   { id: 'rock_solid', icon: '🧱', name: 'หินแกร่ง', desc: 'ไม่สลับกะ 3 เดือนติด', tier: 3, points: 15, cat: 'stability' },
   // 🏥 หมวดสุขภาพ
   { id: 'no_sick_month', icon: '🍀', name: 'โชคดีมีสุข', desc: 'ไม่ลาป่วยทั้งเดือน', tier: 1, points: 3, cat: 'health' },
-  { id: 'no_sick_year', icon: '💚', name: 'สุขภาพเหล็ก', desc: 'ไม่ลาป่วยเลยทั้งปี', tier: 3, points: 30, cat: 'health' },
+  { id: 'no_sick_year', icon: '💚', name: 'สุขภาพเหล็ก', desc: 'ไม่ลาป่วยเลยทั้งปี (สรุปปลายปี)', tier: 3, points: 30, cat: 'health' },
   // 📊 หมวดโควต้า (ทั้งปี)
-  { id: 'quota_saver', icon: '💰', name: 'ประหยัดวันลา', desc: 'ใช้โควต้าไม่เกิน 25%', tier: 2, points: 10, cat: 'quota' },
-  { id: 'quota_rich', icon: '🏦', name: 'เศรษฐีวันลา', desc: 'ใช้โควต้าไม่เกิน 10%', tier: 3, points: 20, cat: 'quota' },
+  { id: 'quota_saver', icon: '💰', name: 'ประหยัดวันลา', desc: 'ใช้โควต้าไม่เกิน 25% (สรุปปลายปี)', tier: 2, points: 10, cat: 'quota' },
+  { id: 'quota_rich', icon: '🏦', name: 'เศรษฐีวันลา', desc: 'ใช้โควต้าไม่เกิน 10% (สรุปปลายปี)', tier: 3, points: 20, cat: 'quota' },
   // 🏅 หมวดทีม
   { id: 'team_player', icon: '🤝', name: 'ทีมเวิร์ค', desc: 'ไม่มีใครในทีมลาทั้งเดือน', tier: 2, points: 10, cat: 'team' },
   // 👑 หมวดพิเศษ
@@ -958,14 +958,16 @@ function computeAchievements(empStats) {
     // === 🏥 HEALTH ===
     if (achIds.has('no_sick_month') && workedThisMonth && countSickLeaves(emp.id, monthPrefix) === 0) badges.push('no_sick_month');
 
-    if (achIds.has('no_sick_year')) {
+    if (achIds.has('no_sick_year') && D.m === 11) {
       const yearlySick = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
       if (yearlySick === 0) badges.push('no_sick_year');
     }
 
-    // === 📊 QUOTA ===
-    if (achIds.has('quota_rich') && quotaPct <= 0.1) badges.push('quota_rich');
-    else if (achIds.has('quota_saver') && quotaPct <= 0.25) badges.push('quota_saver');
+    // === 📊 QUOTA (เฉพาะเดือน ธ.ค. เท่านั้น) ===
+    if (D.m === 11) { // December = month index 11
+      if (achIds.has('quota_rich') && quotaPct <= 0.1) badges.push('quota_rich');
+      else if (achIds.has('quota_saver') && quotaPct <= 0.25) badges.push('quota_saver');
+    }
 
     // === 🐦 EARLY BIRD — ไม่ลา + ไม่สลับ ===
     if (achIds.has('early_bird') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0) badges.push('early_bird');
@@ -1279,7 +1281,7 @@ function rAchievementBoard(empStats, achData) {
         h('span', { style: { fontSize: '14px' } }, a.icon),
         h('span', { style: { fontWeight: 600 } }, a.name),
         h('span', { style: { fontSize: '9px', padding: '1px 5px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label),
-        count > 0 ? h('span', { style: { fontSize: '9px', color: '#34d399', fontWeight: 700 } }, '×' + count) : h('span', { style: { fontSize: '9px', color: '#475569' } }, '—'));
+        count > 0 ? h('span', { style: { fontSize: '9px', color: '#34d399', fontWeight: 700 } }, count + ' คน') : h('span', { style: { fontSize: '9px', color: '#475569' } }, 'ยังไม่มี'));
       pill.onmouseenter = () => { pill.style.background = 'rgba(255,255,255,0.12)'; pill.style.transform = 'translateY(-1px)'; };
       pill.onmouseleave = () => { pill.style.background = 'rgba(255,255,255,0.06)'; pill.style.transform = 'translateY(0)'; };
       grid.appendChild(pill);
