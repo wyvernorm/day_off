@@ -2189,7 +2189,22 @@ function rEditEmp() {
         style: on ? { borderColor: '#10b981', background: '#d1fae5', color: '#10b981' } : {},
         onClick: e => { e.target.classList.toggle('on'); e.target.style.borderColor = e.target.classList.contains('on') ? '#10b981' : 'transparent'; e.target.style.background = e.target.classList.contains('on') ? '#d1fae5' : '#f8fafc'; e.target.style.color = e.target.classList.contains('on') ? '#10b981' : '#64748b'; } }, d);
     }))));
-  // Save button - stays on same modal, shows success indicator
+  // Show in calendar toggle
+  const showCal = emp.show_in_calendar !== 0;
+  m.appendChild(h('div', { className: 'fg', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: showCal ? '#f0fdf4' : '#fef2f2', borderRadius: '10px', border: '1px solid ' + (showCal ? '#86efac' : '#fca5a5'), cursor: 'pointer', transition: 'all .2s' }, id: 'sic-wrap', onClick: () => {
+    const el = document.getElementById('sic-wrap');
+    const inp = document.getElementById('sic');
+    inp.value = inp.value === '1' ? '0' : '1';
+    const on = inp.value === '1';
+    el.style.background = on ? '#f0fdf4' : '#fef2f2';
+    el.style.borderColor = on ? '#86efac' : '#fca5a5';
+    el.querySelector('.sic-label').textContent = on ? '✅ แสดงในปฏิทิน' : '❌ ซ่อนจากปฏิทิน (บัญชีทดสอบ)';
+    el.querySelector('.sic-dot').style.background = on ? '#16a34a' : '#dc2626';
+  } },
+    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('div', { className: 'sic-dot', style: { width: '10px', height: '10px', borderRadius: '50%', background: showCal ? '#16a34a' : '#dc2626' } }),
+      h('span', { className: 'sic-label', style: { fontWeight: 600, fontSize: '13px', color: '#1e293b' } }, showCal ? '✅ แสดงในปฏิทิน' : '❌ ซ่อนจากปฏิทิน (บัญชีทดสอบ)')),
+    h('input', { type: 'hidden', id: 'sic', value: showCal ? '1' : '0' })));
   m.appendChild(h('button', { className: 'btn', id: 'save-btn', style: { background: '#3b82f6' }, onClick: async (ev) => {
     const btn = ev.target; btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
     const offArr = []; document.querySelectorAll('#ed .pl.on').forEach(el => offArr.push(el.dataset.day));
@@ -2200,6 +2215,7 @@ function rEditEmp() {
         shift_start: document.getElementById('ess').value, shift_end: document.getElementById('ese').value,
         max_leave_per_year: parseInt(document.getElementById('emx').value) || 20,
         default_off_day: offArr.join(',') || '6',
+        show_in_calendar: parseInt(document.getElementById('sic').value),
       });
       btn.textContent = '✅ บันทึกแล้ว!'; btn.style.background = '#10b981';
       const ok = document.getElementById('save-ok'); if (ok) ok.classList.add('show');
