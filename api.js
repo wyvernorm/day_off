@@ -982,23 +982,13 @@ export async function handleAPI(request, env, url, currentUser) {
   // ==================== MONITOR STATS (cached + fallback) ====================
   if (pathname === '/api/monitor-stats' && method === 'GET') {
     const month = url.searchParams.get('month');
-    // Try cache first
-    try {
-      await DB.prepare(`CREATE TABLE IF NOT EXISTS monitor_cache (month TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at TEXT DEFAULT (datetime('now')))`).run();
-      if (month) {
-        const cached = await DB.prepare('SELECT data, updated_at FROM monitor_cache WHERE month=?').bind(month).first();
-        if (cached) return json({ data: JSON.parse(cached.data), cached: true, cached_at: cached.updated_at });
-      }
-    } catch (e) { /* ignore cache errors */ }
-    // Fallback: live fetch
+    // Clear old cache if exists
+    try { await DB.prepare('DROP TABLE IF EXISTS monitor_cache').run(); } catch (e) {}
+    // Always fetch live
     const apiUrl = 'https://admin-monitor.iplusview.workers.dev/api/public/monitor-stats?key=wyvernorm' + (month ? '&month=' + month : '&days=all');
     try {
       const resp = await fetch(apiUrl);
       const data = await resp.json();
-      // Save to cache
-      if (month) {
-        try { await DB.prepare('INSERT OR REPLACE INTO monitor_cache (month, data, updated_at) VALUES (?, ?, datetime(\'now\'))').bind(month, JSON.stringify(data)).run(); } catch (e) {}
-      }
       return json({ data });
     } catch (e) {
       return json({ data: { users: [], total_monitor_adds: 0 } });

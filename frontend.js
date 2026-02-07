@@ -1871,7 +1871,8 @@ function rSta() {
   const w = h('div', {}), dm = gdim(D.y, D.m);
 
   // Load KPI + Monitor data for achievements if not loaded
-  if (!D.kpiYearLoaded) {
+  const monitorEmpty = D.monitorData && Object.values(D.monitorData).every(md => !md?.users?.length);
+  if (!D.kpiYearLoaded || monitorEmpty) {
     D.kpiYearLoaded = true;
     const now = new Date();
     const monitorPromises = [];
