@@ -1209,6 +1209,15 @@ function computeAchievements(empStats) {
     // Build email → empId map
     const emailToEmp = {};
     empStats.forEach(({ emp }) => { if (emp.email) emailToEmp[emp.email.toLowerCase()] = emp.id; });
+    // Debug: log matching
+    console.log('📡 Monitor email matching:');
+    console.log('  Employee emails:', Object.keys(emailToEmp));
+    Object.values(D.monitorData).forEach(md => {
+      if (md && md.users) md.users.forEach(u => {
+        const matched = emailToEmp[u.email.toLowerCase()];
+        console.log('  Monitor:', u.email, '→', matched ? 'MATCH (id:' + matched + ')' : '❌ NO MATCH');
+      });
+    });
 
     // Per-month monitor badges
     pastMonths.forEach(m => {
