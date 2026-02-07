@@ -105,7 +105,7 @@ export async function handleAPI(request, env, url, currentUser) {
     }
     const r = await DB.prepare(
       `INSERT INTO employees (name,nickname,email,role,default_shift,shift_start,shift_end,default_off_day,avatar,show_in_calendar,max_leave_per_year) VALUES (?,?,?,?,?,?,?,?,?,?,?)`
-    ).bind(b.name, b.nickname || null, b.email || null, b.role || 'staff', b.default_shift || 'day',
+    ).bind(b.name, b.nickname || null, b.email || null, b.role || 'employee', b.default_shift || 'day',
            b.shift_start || '09:00', b.shift_end || '17:00', b.default_off_day ?? '6', b.avatar || '👤',
            b.show_in_calendar ?? 1, b.max_leave_per_year ?? 20).run();
     return json({ data: { id: r.meta.last_row_id }, message: 'เพิ่มสำเร็จ' }, 201);
@@ -116,14 +116,24 @@ export async function handleAPI(request, env, url, currentUser) {
     // ตัวเองแก้ได้เฉพาะ phone, line_id
     const selfFields = ['phone','line_id'];
     if (!isAdmin && !isSelf) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    // เช็ค email ซ้ำ (ถ้ามีการเปลี่ยน email)
+    if (b.email && isAdmin) {
+      const dup = await DB.prepare('SELECT id FROM employees WHERE email=? AND id!=? AND is_active=1').bind(b.email, id).first();
+      if (dup) return json({ error: 'อีเมล ' + b.email + ' ถูกใช้โดยพนักงานคนอื่นแล้ว' }, 400);
+    }
     const al = isAdmin ? ['name','nickname','email','role','department','default_shift','shift_start','shift_end',
                 'default_off_day','avatar','phone','line_id','show_in_calendar','max_leave_per_year','is_active'] : selfFields;
     const f = [], v = [];
     for (const [k, val] of Object.entries(b)) { if (al.includes(k)) { f.push(`${k}=?`); v.push(val); } }
     if (!f.length) return json({ error: 'ไม่มีข้อมูล' }, 400);
     f.push("updated_at=datetime('now')"); v.push(id);
-    await DB.prepare(`UPDATE employees SET ${f.join(',')} WHERE id=?`).bind(...v).run();
-    return json({ message: 'แก้ไขสำเร็จ' });
+    try {
+      await DB.prepare(`UPDATE employees SET ${f.join(',')} WHERE id=?`).bind(...v).run();
+      return json({ message: 'แก้ไขสำเร็จ' });
+    } catch (e) {
+      if (e.message && e.message.includes('UNIQUE')) return json({ error: 'อีเมลนี้ถูกใช้แล้ว' }, 400);
+      throw e;
+    }
   }
   if (pathname.match(/^\/api\/employees\/\d+$/) && method === 'DELETE') {
     if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
