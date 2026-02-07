@@ -2195,21 +2195,94 @@ function rKpi() {
     }
 
     // === EMPLOYEE RANKING ===
-    w.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '12px' } }, '🏆 อันดับพนักงาน'));
+    w.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '12px' } }, '🏆 อันดับพนักงาน — กดดูรายละเอียด'));
     const empBox = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px', marginBottom: '16px' } });
     const em = {}; sum.byEmployee.forEach(e => { em[e.employee_id] = e; });
     const sortedEmps = [...ce()].sort((a, b) => ((em[a.id]?.total_points||0) - (em[b.id]?.total_points||0)));
+
+    // Rank icons for different levels
+    const getRankIcon = (pts, idx, total) => {
+      if (pts === 0) return { icon: '🏆', label: 'สะอาดเอี่ยม', color: '#22c55e' };
+      if (idx >= total - 1) return { icon: '💀', label: 'อันดับสุดท้าย', color: '#ef4444' };
+      if (idx >= total - 2) return { icon: '😱', label: 'อันตราย', color: '#f97316' };
+      if (pts >= 10) return { icon: '🔥', label: 'ไฟลุก', color: '#ef4444' };
+      if (pts >= 5) return { icon: '⚠️', label: 'ต้องระวัง', color: '#f59e0b' };
+      return { icon: '📋', label: 'มีบ้าง', color: '#94a3b8' };
+    };
+
     sortedEmps.forEach((emp, idx) => {
       const d = em[emp.id] || { error_count: 0, total_points: 0, total_damage: 0 };
       const ok = d.total_points === 0, me = emp.id === U.id;
-      const medal = ok ? '🏆' : '';
+      const rank = getRankIcon(d.total_points, idx, sortedEmps.length);
       const borderCol = ok ? '#22c55e' : d.total_points >= 10 ? '#ef4444' : d.total_points >= 5 ? '#f59e0b' : 'rgba(255,255,255,0.08)';
       const cardBg = ok ? 'rgba(34,197,94,0.06)' : d.total_points >= 10 ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)';
-      const card = h('div', { style: { background: me ? 'rgba(99,102,241,0.08)' : cardBg, borderRadius: '16px', padding: '18px', border: '2px solid ' + borderCol, position: 'relative', transition: 'all .15s' } });
+      const card = h('div', { style: { background: me ? 'rgba(99,102,241,0.08)' : cardBg, borderRadius: '16px', padding: '18px', border: '2px solid ' + borderCol, position: 'relative', transition: 'all .15s', cursor: 'pointer' } });
       card.onmouseenter = () => { card.style.transform = 'translateY(-2px)'; card.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)'; };
       card.onmouseleave = () => { card.style.transform = 'translateY(0)'; card.style.boxShadow = 'none'; };
-      if (medal) card.appendChild(h('div', { style: { position: 'absolute', top: '10px', right: '12px', fontSize: '22px' } }, medal));
-      card.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' } },
+
+      // Click to show detail popup
+      card.onclick = () => {
+        const empErrs = errs.filter(e => e.employee_id === emp.id);
+        const overlay = h('div', { style: { position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }, onClick: e => { if (e.target === overlay) document.body.removeChild(overlay); } });
+        const popup = h('div', { style: { background: 'linear-gradient(135deg, #0f172a, #1e1b4b)', borderRadius: '20px', padding: '24px', maxWidth: '500px', width: '90vw', maxHeight: '80vh', overflowY: 'auto', color: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }, onClick: e => e.stopPropagation() });
+
+        // Header
+        const popHdr = h('div', { style: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' } });
+        popHdr.appendChild(emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', border: '3px solid ' + borderCol } }) : h('div', { style: { fontSize: '40px' } }, emp.avatar));
+        popHdr.appendChild(h('div', { style: { flex: 1 } },
+          h('div', { style: { fontSize: '18px', fontWeight: 800 } }, dn(emp)),
+          h('div', { style: { display: 'flex', gap: '6px', marginTop: '4px' } },
+            h('span', { style: { fontSize: '11px', padding: '3px 8px', borderRadius: '8px', background: rank.color + '20', color: rank.color, fontWeight: 700 } }, rank.icon + ' ' + rank.label))));
+        popHdr.appendChild(h('button', { style: { background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }, onClick: () => document.body.removeChild(overlay) }, '✕'));
+        popup.appendChild(popHdr);
+
+        // Stats summary
+        const statGrid = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' } });
+        statGrid.appendChild(h('div', { style: { textAlign: 'center', padding: '12px', background: 'rgba(239,68,68,0.1)', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.15)' } },
+          h('div', { style: { fontSize: '24px', fontWeight: 800, color: ok ? '#22c55e' : '#f87171' } }, ok ? '✨' : String(d.total_points)),
+          h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้ม')));
+        statGrid.appendChild(h('div', { style: { textAlign: 'center', padding: '12px', background: 'rgba(99,102,241,0.1)', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.15)' } },
+          h('div', { style: { fontSize: '24px', fontWeight: 800, color: '#818cf8' } }, String(d.error_count)),
+          h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ครั้ง')));
+        statGrid.appendChild(h('div', { style: { textAlign: 'center', padding: '12px', background: 'rgba(249,115,22,0.1)', borderRadius: '12px', border: '1px solid rgba(249,115,22,0.15)' } },
+          h('div', { style: { fontSize: '24px', fontWeight: 800, color: '#fb923c' } }, (d.total_damage || 0).toLocaleString()),
+          h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ค่าเสียหาย ฿')));
+        popup.appendChild(statGrid);
+
+        // Error list
+        if (empErrs.length === 0) {
+          popup.appendChild(h('div', { style: { textAlign: 'center', padding: '24px', background: 'rgba(34,197,94,0.06)', borderRadius: '14px', border: '1px solid rgba(34,197,94,0.15)' } },
+            h('div', { style: { fontSize: '36px', marginBottom: '6px' } }, '🎉'),
+            h('div', { style: { fontSize: '14px', fontWeight: 700, color: '#34d399' } }, 'ไม่มีข้อผิดพลาดเลย!')));
+        } else {
+          popup.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, marginBottom: '10px', color: '#94a3b8' } }, '📋 รายการข้อผิดพลาด (' + empErrs.length + ')'));
+          empErrs.forEach((er, ei) => {
+            const errCard = h('div', { style: { padding: '12px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', marginBottom: '6px', borderLeft: '4px solid ' + (er.cat_color || '#6366f1'), transition: 'all .1s' } });
+            errCard.onmouseenter = () => { errCard.style.background = 'rgba(255,255,255,0.07)'; };
+            errCard.onmouseleave = () => { errCard.style.background = 'rgba(255,255,255,0.04)'; };
+            const errTop = h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } });
+            errTop.appendChild(h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } },
+              h('span', { style: { fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, background: (er.cat_color||'#6366f1') + '25', color: er.cat_color } }, er.cat_name),
+              h('span', { style: { fontSize: '13px', fontWeight: 600 } }, er.detail_desc || er.note || '—')));
+            errTop.appendChild(h('span', { style: { fontSize: '13px', fontWeight: 800, color: '#f87171', minWidth: '40px', textAlign: 'right' } }, '+' + er.points));
+            errCard.appendChild(errTop);
+            errCard.appendChild(h('div', { style: { fontSize: '11px', color: '#64748b', display: 'flex', gap: '10px' } },
+              h('span', {}, '📅 ' + fmtDate(er.date)),
+              er.damage_cost > 0 ? h('span', { style: { color: '#fb923c' } }, '💸 ' + er.damage_cost.toLocaleString() + ' ฿') : '',
+              er.note ? h('span', { style: { fontStyle: 'italic' } }, '💬 ' + er.note) : ''));
+            popup.appendChild(errCard);
+          });
+        }
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+      };
+
+      // Rank badge top-left
+      card.appendChild(h('div', { style: { position: 'absolute', top: '-6px', left: '-6px', fontSize: '28px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' } }, rank.icon));
+      // Rank label top-right
+      card.appendChild(h('div', { style: { position: 'absolute', top: '10px', right: '10px', fontSize: '9px', padding: '2px 8px', borderRadius: '8px', background: rank.color + '20', color: rank.color, fontWeight: 700 } }, rank.label));
+
+      card.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', marginTop: '4px' } },
         emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + borderCol } }) : h('div', { style: { fontSize: '32px' } }, emp.avatar),
         h('div', {}, h('div', { style: { fontWeight: 700, fontSize: '15px' } }, dn(emp)),
           me ? h('div', { style: { fontSize: '10px', color: '#818cf8', fontWeight: 700 } }, '⭐ คุณ') : '')));
@@ -2225,6 +2298,8 @@ function rKpi() {
         h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'ครั้ง')));
       card.appendChild(statsRow);
       if (d.total_damage > 0) card.appendChild(h('div', { style: { marginTop: '10px', textAlign: 'center', fontSize: '12px', color: '#f97316', fontWeight: 700, padding: '6px', background: 'rgba(249,115,22,0.1)', borderRadius: '8px' } }, '💸 ' + d.total_damage.toLocaleString() + ' ฿'));
+      // Click hint
+      card.appendChild(h('div', { style: { marginTop: '10px', textAlign: 'center', fontSize: '10px', color: '#64748b', opacity: 0.6 } }, '👆 กดดูรายละเอียด'));
       empBox.appendChild(card);
     });
     w.appendChild(empBox);
