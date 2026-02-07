@@ -865,6 +865,7 @@ const DEFAULT_ACHIEVEMENTS = [
   { id: 'team_streak_6', icon: '☄️', name: 'ทีมอุกกาบาต', desc: 'ป้อมปราการ 6 เดือนติด', tier: 3, points: 2000, cat: 'team' },
   // 👑 หมวดพิเศษ
   { id: 'comeback', icon: '🔄', name: 'ฟื้นจากเถ้าถ่าน', desc: 'เดือนก่อนมี error → เดือนนี้ 0', tier: 2, points: 15, cat: 'special' },
+  { id: 'birthday', icon: '🎂', name: 'สุขสันต์วันเกิด!', desc: 'เคลมได้ในเดือนเกิดของคุณ', tier: 3, points: 100, cat: 'special' },
   { id: 'mvp', icon: '👑', name: 'เทพประจำเดือน', desc: 'คะแนนรวมสูงสุด', tier: 3, points: 20, cat: 'special' },
 ];
 const ACH_CATS = { attendance: '🎯 มาทำงาน', kpi: '⚡ KPI', stability: '🦸 ความมั่นคง', health: '🏥 สุขภาพ', quota: '📊 โควต้า', team: '🏅 ทีม', special: '👑 พิเศษ' };
@@ -984,6 +985,12 @@ function computeAchievements(empStats) {
     if (D.m === 11) {
       if (achIds.has('quota_rich') && quotaPct <= 0.1) badges.push('quota_rich');
       else if (achIds.has('quota_saver') && quotaPct <= 0.25) badges.push('quota_saver');
+    }
+
+    // === 🎂 BIRTHDAY ===
+    if (achIds.has('birthday') && emp.birthday) {
+      const bMonth = parseInt(emp.birthday.split('-')[1]); // 1-12
+      if (bMonth === D.m + 1) badges.push('birthday');
     }
 
     const totalPoints = badges.reduce((s, id) => s + (achs.find(a => a.id === id)?.points || 0), 0);
@@ -2570,7 +2577,35 @@ function rPrf() {
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'ไอคอน'), h('input', { type: 'text', className: 'fi', id: 'pa', value: me.avatar || '👤', style: { fontSize: '24px' } })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'เบอร์โทร'), h('input', { type: 'tel', className: 'fi', id: 'pp', value: me.phone || '' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'LINE ID'), h('input', { type: 'text', className: 'fi', id: 'pli', value: me.line_id || '' })));
-  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/me', 'PUT', { nickname: document.getElementById('pn').value.trim(), avatar: document.getElementById('pa').value.trim() || '👤', phone: document.getElementById('pp').value.trim() || null, line_id: document.getElementById('pli').value.trim() || null }); toast('✅ อัพเดทสำเร็จ'); U.nickname = document.getElementById('pn').value.trim(); U.avatar = document.getElementById('pa').value.trim() || '👤'; closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
+
+  // Birthday — write-once
+  const hasBirthday = !!me.birthday;
+  const bdGroup = h('div', { className: 'fg' });
+  bdGroup.appendChild(h('label', { className: 'fl' }, '🎂 วันเกิด' + (hasBirthday ? ' (ล็อคแล้ว)' : ' (ใส่ครั้งเดียว)')));
+  if (hasBirthday) {
+    const [by, bm, bd] = me.birthday.split('-');
+    bdGroup.appendChild(h('div', { style: { padding: '10px 14px', borderRadius: '10px', background: '#f0fdf4', border: '1px solid #86efac', color: '#16a34a', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('span', {}, '🔒'),
+      h('span', {}, (+bd) + '/' + (+bm) + '/' + (+by + 543))));
+  } else {
+    bdGroup.appendChild(h('input', { type: 'date', className: 'fi', id: 'pbd', max: new Date().toISOString().split('T')[0] }));
+    bdGroup.appendChild(h('div', { style: { fontSize: '10px', color: '#f59e0b', marginTop: '4px' } }, '⚠️ ใส่แล้วจะแก้ไขไม่ได้อีก — กรุณาตรวจสอบให้ถูกต้อง'));
+  }
+  m.appendChild(bdGroup);
+
+  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => {
+    const payload = { nickname: document.getElementById('pn').value.trim(), avatar: document.getElementById('pa').value.trim() || '👤', phone: document.getElementById('pp').value.trim() || null, line_id: document.getElementById('pli').value.trim() || null };
+    // Birthday
+    const bdInput = document.getElementById('pbd');
+    if (bdInput && bdInput.value) {
+      if (!confirm('⚠️ ยืนยันวันเกิด: ' + bdInput.value + '\n\nใส่แล้วจะแก้ไขไม่ได้อีก!')) return;
+      payload.birthday = bdInput.value;
+    }
+    try {
+      await api('/api/me', 'PUT', payload);
+      toast('✅ อัพเดทสำเร็จ'); U.nickname = payload.nickname; U.avatar = payload.avatar; closeModal(); load();
+    } catch (er) { toast(er.message, true); }
+  } }, 'บันทึก'));
   o.appendChild(m); return o;
 }
 

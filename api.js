@@ -42,6 +42,12 @@ export async function handleAPI(request, env, url, currentUser) {
     const b = await getBody();
     const a = ['nickname', 'avatar', 'phone', 'line_id'], f = [], v = [];
     for (const [k, val] of Object.entries(b)) { if (a.includes(k)) { f.push(`${k}=?`); v.push(val); } }
+    // Birthday — write-once only
+    if (b.birthday) {
+      const existing = await DB.prepare('SELECT birthday FROM employees WHERE id=?').bind(currentUser.employee_id).first();
+      if (existing?.birthday) return json({ error: 'วันเกิดถูกตั้งค่าแล้ว ไม่สามารถแก้ไขได้' }, 400);
+      f.push('birthday=?'); v.push(b.birthday);
+    }
     if (!f.length) return json({ error: 'ไม่มีข้อมูล' }, 400);
     f.push("updated_at=datetime('now')"); v.push(currentUser.employee_id);
     await DB.prepare(`UPDATE employees SET ${f.join(',')} WHERE id=?`).bind(...v).run();
@@ -1070,6 +1076,8 @@ export async function ensureTables(DB) {
     )`).run();
     // Add dayoff_swap_count column if not exists
     try { await DB.prepare('ALTER TABLE employees ADD COLUMN dayoff_swap_count INTEGER DEFAULT 0').run(); } catch(e) { /* already exists */ }
+    // Add birthday column if not exists
+    try { await DB.prepare('ALTER TABLE employees ADD COLUMN birthday TEXT DEFAULT NULL').run(); } catch(e) { /* already exists */ }
   } catch (e) { /* ignore */ }
 }
 function fmtDateTH(iso) { if (!iso) return ''; const [y,m,d] = iso.split('-'); return d+'/'+m+'/'+(+y+543); }
