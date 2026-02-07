@@ -2943,21 +2943,24 @@ function rAchMgr() {
 function rWallet() {
   const w = h('div', {});
 
-  // Load wallet data
+  // Load wallet data + kpiYear (จำเป็นสำหรับ compute achievements)
   if (!D.walletLoaded) {
     D.walletLoaded = true;
+    const kpiPromise = D.kpiYearLoaded ? Promise.resolve({ data: D.kpiYear }) : api('/api/kpi/errors?year=' + D.y);
     Promise.all([
       api('/api/wallet/balance'),
       api('/api/wallet/transactions'),
       api('/api/achievements/claims'),
       api('/api/rewards'),
       isO ? api('/api/rewards/redemptions') : api('/api/rewards/redemptions?employee_id=' + U.id),
-    ]).then(([bal, txn, claims, rewards, redemptions]) => {
+      kpiPromise,
+    ]).then(([bal, txn, claims, rewards, redemptions, kpi]) => {
       D.walletBal = bal.data.balance || 0;
       D.walletTxn = txn.data || [];
       D.achClaims = claims.data || [];
       D.rewardsList = rewards.data || [];
       D.redemptions = redemptions.data || [];
+      if (!D.kpiYearLoaded) { D.kpiYear = kpi.data || []; D.kpiYearLoaded = true; }
       render();
     }).catch(() => {});
     // Show loading
