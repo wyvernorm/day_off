@@ -247,11 +247,15 @@ textarea.fi { resize: vertical; min-height: 70px; }
   --pr: #6c8dff; --pb: #1a2350; --dg: #ff6b8a; --db: #2d1520;
   --su: #34d399; --sb: #0a2e20; --wn: #fbbf24; --wb: #2d2006;
   --sh: 0 2px 8px rgba(0,0,0,.3); --sl: 0 12px 40px rgba(0,0,0,.4);
+  color: var(--tx);
 }
+[data-theme="dark"] body { background: var(--bg); color: var(--tx); }
+[data-theme="dark"] .ctn { color: var(--tx); }
+[data-theme="dark"] .hdr h1 { color: var(--tx); }
 [data-theme="dark"] .cd { background: var(--sf); border-color: var(--bd); }
 [data-theme="dark"] .cd:hover { box-shadow: 0 10px 30px rgba(0,0,0,.4); }
 [data-theme="dark"] .cd.today { border-color: var(--pr); background: var(--pb); }
-[data-theme="dark"] .rt th { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .rt th { background: #1e293b; border-color: #334155; color: #e2e8f0; }
 [data-theme="dark"] .rt td { border-color: #1e293b; }
 [data-theme="dark"] .rt td.sk { background: #1e293b; }
 [data-theme="dark"] .nb { background: #334155; color: #e2e8f0; }
@@ -259,6 +263,7 @@ textarea.fi { resize: vertical; min-height: 70px; }
 [data-theme="dark"] .ubtn { background: #334155; color: #e2e8f0; }
 [data-theme="dark"] .ubtn:hover { background: #475569; }
 [data-theme="dark"] .tab { color: var(--ts); }
+[data-theme="dark"] .tab.on { background: var(--pr); color: #fff; }
 [data-theme="dark"] .md { background: #1e293b; color: #e2e8f0; }
 [data-theme="dark"] .fi { background: #0f172a; border-color: #334155; color: #e2e8f0; }
 [data-theme="dark"] .mc { background: #334155; color: #e2e8f0; }
@@ -266,6 +271,16 @@ textarea.fi { resize: vertical; min-height: 70px; }
 [data-theme="dark"] .row:hover { border-color: var(--pr); }
 [data-theme="dark"] .row.sel { background: var(--pb); }
 [data-theme="dark"] .tst { background: #1e293b; color: #e2e8f0; }
+[data-theme="dark"] .ab { opacity: 0.9; }
+[data-theme="dark"] .lgd { background: var(--sf); border-color: var(--bd); color: var(--tx); }
+/* Roster table dark mode */
+[data-theme="dark"] table { color: var(--tx); }
+[data-theme="dark"] .ros-section { background: #161638 !important; border-color: #2a2d50 !important; }
+[data-theme="dark"] .ros-weekhdr { background: #1e293b !important; border-color: #2a2d50 !important; color: #94a3b8 !important; }
+[data-theme="dark"] .ros-th { background: #1e293b !important; border-color: #2a2d50 !important; }
+[data-theme="dark"] .ros-td { border-color: #1e293b !important; }
+[data-theme="dark"] .ros-name { background: #161638 !important; color: #e2e8f0 !important; }
+[data-theme="dark"] .ros-today { background: #1a2350 !important; }
 
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
@@ -733,10 +748,10 @@ function rRos() {
     const wStart = validDays[0], wEnd = validDays[validDays.length - 1];
     const weekLabel = 'สัปดาห์ที่ ' + (wi + 1) + ' — วันที่ ' + wStart + '-' + wEnd + ' ' + MON[D.m];
 
-    const section = h('div', { style: { marginBottom: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' } });
+    const section = h('div', { className: 'ros-section', style: { marginBottom: '16px', background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' } });
 
     // Week title bar
-    section.appendChild(h('div', { style: { padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 700, color: '#475569' } }, weekLabel));
+    section.appendChild(h('div', { className: 'ros-weekhdr', style: { padding: '10px 16px', background: '#f8fafc', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 700, color: '#475569' } }, weekLabel));
 
     // Table for this week
     const tb = h('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } });
@@ -744,17 +759,17 @@ function rRos() {
     // Header row: days of week
     const thd = h('thead');
     const hr = h('tr');
-    hr.appendChild(h('th', { style: { padding: '8px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, minWidth: '130px', position: 'sticky', left: 0, zIndex: 2 } }, 'พนักงาน'));
+    hr.appendChild(h('th', { className: 'ros-th', style: { padding: '8px 12px', textAlign: 'left', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', fontWeight: 700, minWidth: '130px', position: 'sticky', left: 0, zIndex: 2 } }, 'พนักงาน'));
     wk.forEach((d, di) => {
       if (d === null) {
-        hr.appendChild(h('th', { style: { padding: '8px 6px', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', minWidth: '70px' } }));
+        hr.appendChild(h('th', { className: 'ros-th', style: { padding: '8px 6px', background: '#f8fafc', borderBottom: '2px solid #e5e7eb', minWidth: '70px' } }));
         return;
       }
       const k = dk(D.y, D.m, d);
       const td = itd(D.y, D.m, d);
       const hl = D.hol[k];
       const isWe = di === 0 || di === 6;
-      hr.appendChild(h('th', { style: {
+      hr.appendChild(h('th', { className: 'ros-th' + (td ? ' ros-today' : ''), style: {
         padding: '8px 6px', textAlign: 'center', borderBottom: '2px solid #e5e7eb', minWidth: '70px',
         background: td ? '#eff6ff' : hl ? '#fffbeb' : '#f8fafc',
         color: isWe ? '#ef4444' : td ? '#3b82f6' : '#475569', fontWeight: 700
@@ -771,20 +786,20 @@ function rRos() {
     const bd = h('tbody');
     emps.forEach(emp => {
       const r = h('tr');
-      r.appendChild(h('td', { style: { padding: '8px 12px', borderBottom: '1px solid #f1f5f9', position: 'sticky', left: 0, background: '#fff', zIndex: 1 } },
+      r.appendChild(h('td', { className: 'ros-name ros-td', style: { padding: '8px 12px', borderBottom: '1px solid #f1f5f9', position: 'sticky', left: 0, background: '#fff', zIndex: 1 } },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
           av(emp),
           h('div', { style: { fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' } }, dn(emp)))));
 
       wk.forEach(d => {
         if (d === null) {
-          r.appendChild(h('td', { style: { borderBottom: '1px solid #f1f5f9' } }));
+          r.appendChild(h('td', { className: 'ros-td', style: { borderBottom: '1px solid #f1f5f9' } }));
           return;
         }
         const k = dk(D.y, D.m, d);
         const td = itd(D.y, D.m, d);
         if (isBlackout(k)) {
-          r.appendChild(h('td', { style: { textAlign: 'center', borderBottom: '1px solid #f1f5f9', opacity: 0.3 } }, '—'));
+          r.appendChild(h('td', { className: 'ros-td', style: { textAlign: 'center', borderBottom: '1px solid #f1f5f9', opacity: 0.3 } }, '—'));
           return;
         }
         const inf = disp(emp, k, D.y, D.m, d);
@@ -794,6 +809,7 @@ function rRos() {
           textAlign: 'center', padding: '4px', borderBottom: '1px solid #f1f5f9',
           background: td ? '#f0f7ff' : 'transparent'
         };
+        const cellClass = 'ros-td' + (td ? ' ros-today' : '');
         const tagStyle = isPendingLeave ? {
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
@@ -813,7 +829,7 @@ function rRos() {
           whiteSpace: 'nowrap'
         };
         const label = inf.isL ? inf.i + ' ' + inf.l + (isPendingLeave ? ' ⏳' : '') : isOffDay ? '🏖️ หยุด' : inf.i + ' ' + inf.l;
-        r.appendChild(h('td', { style: cellStyle }, h('span', { style: tagStyle, title: inf.l || '' }, label)));
+        r.appendChild(h('td', { className: cellClass, style: cellStyle }, h('span', { style: tagStyle, title: inf.l || '' }, label)));
       });
       bd.appendChild(r);
     });
