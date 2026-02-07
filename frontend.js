@@ -3981,15 +3981,42 @@ function rRewardMgr() {
     } }, '⏹️ ปิด'));
   } else {
     const flashForm = h('div', { style: { marginTop: '10px' } });
-    const row1 = h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' } });
-    row1.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } },
-      h('span', { style: { fontSize: '11px' } }, 'ลด'),
-      (() => { const sel = h('select', { id: 'fs-disc', style: { width: '65px', padding: '5px', fontSize: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.3)', background: '#1e293b', color: '#fbbf24', fontWeight: 700 } });
-        [20, 30, 40, 50].forEach(v => { const opt = h('option', { value: v }, v + '%'); if (v === 50) opt.selected = true; sel.appendChild(opt); }); return sel; })(),
-      h('span', { style: { fontSize: '11px' } }, 'หมดเวลาใน'),
-      (() => { const sel = h('select', { id: 'fs-dur', style: { width: '85px', padding: '5px', fontSize: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.3)', background: '#1e293b', color: '#fbbf24', fontWeight: 700 } });
-        [[6,'6 ชม.'],[12,'12 ชม.'],[24,'24 ชม.'],[48,'2 วัน']].forEach(([v,l]) => { sel.appendChild(h('option', { value: v }, l)); }); return sel; })()));
+    // Discount: quick buttons + custom input
+    const row1 = h('div', { style: { marginBottom: '10px' } });
+    row1.appendChild(h('div', { style: { fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '6px' } }, '💰 ส่วนลด (%):'));
+    const discRow = h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } });
+    let discVal = 50;
+    const discInput = h('input', { type: 'number', id: 'fs-disc', min: 1, max: 90, value: '50', style: { width: '55px', padding: '6px', fontSize: '14px', borderRadius: '8px', border: '2px solid #fbbf24', background: '#1e293b', color: '#fbbf24', fontWeight: 800, textAlign: 'center' } });
+    [10, 20, 30, 40, 50, 60, 70].forEach(v => {
+      const btn = h('button', { style: { padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: v === 50 ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.05)', color: v === 50 ? '#fbbf24' : 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 700, cursor: 'pointer', transition: 'all .15s' }, onClick: () => {
+        discInput.value = v;
+        discRow.querySelectorAll('button').forEach(b => { b.style.background = 'rgba(255,255,255,0.05)'; b.style.color = 'rgba(255,255,255,0.6)'; });
+        btn.style.background = 'rgba(251,191,36,0.2)'; btn.style.color = '#fbbf24';
+      } }, v + '%');
+      discRow.appendChild(btn);
+    });
+    discRow.appendChild(discInput);
+    discRow.appendChild(h('span', { style: { fontSize: '11px', color: 'rgba(255,255,255,0.5)' } }, '%'));
+    row1.appendChild(discRow);
     flashForm.appendChild(row1);
+
+    // Duration: quick buttons + custom input
+    const row2 = h('div', { style: { marginBottom: '10px' } });
+    row2.appendChild(h('div', { style: { fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '6px' } }, '⏰ หมดเวลาใน (ชั่วโมง):'));
+    const durRow = h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' } });
+    const durInput = h('input', { type: 'number', id: 'fs-dur', min: 1, max: 720, value: '24', style: { width: '55px', padding: '6px', fontSize: '14px', borderRadius: '8px', border: '2px solid #fbbf24', background: '#1e293b', color: '#fbbf24', fontWeight: 800, textAlign: 'center' } });
+    [[3,'3ชม.'],[6,'6ชม.'],[12,'12ชม.'],[24,'1วัน'],[48,'2วัน'],[72,'3วัน'],[168,'7วัน']].forEach(([v,l]) => {
+      const btn = h('button', { style: { padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: v === 24 ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.05)', color: v === 24 ? '#fbbf24' : 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 700, cursor: 'pointer', transition: 'all .15s' }, onClick: () => {
+        durInput.value = v;
+        durRow.querySelectorAll('button').forEach(b => { b.style.background = 'rgba(255,255,255,0.05)'; b.style.color = 'rgba(255,255,255,0.6)'; });
+        btn.style.background = 'rgba(251,191,36,0.2)'; btn.style.color = '#fbbf24';
+      } }, l);
+      durRow.appendChild(btn);
+    });
+    durRow.appendChild(durInput);
+    durRow.appendChild(h('span', { style: { fontSize: '11px', color: 'rgba(255,255,255,0.5)' } }, 'ชม.'));
+    row2.appendChild(durRow);
+    flashForm.appendChild(row2);
     // Reward picker
     const rewardList = D.rewardsList || [];
     if (rewardList.length > 0) {
