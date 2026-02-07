@@ -4,8 +4,9 @@ import { ToastProvider } from '@/components/shared/Toast';
 import AppLayout from '@/components/layout/AppLayout';
 import LoginPage from '@/pages/LoginPage';
 import CalendarPage from '@/pages/CalendarPage';
+import PendingPage from '@/pages/PendingPage';
 import {
-  StatsPage, PendingPage, HistoryPage, KpiPage, WalletPage, SettingsPage,
+  StatsPage, HistoryPage, KpiPage, WalletPage, SettingsPage,
 } from '@/pages/PlaceholderPages';
 
 function AppContent() {

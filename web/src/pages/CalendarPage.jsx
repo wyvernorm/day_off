@@ -97,12 +97,12 @@ export default function CalendarPage() {
           <div className="card overflow-hidden">
             <div className="grid grid-cols-7 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
               {DAYS_SHORT.map((d, i) => (
-                <div key={i} className={cn('text-center py-2.5 text-[11px] font-bold tracking-wider', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400')}>{d}</div>
+                <div key={i} className={cn('text-center py-3 text-xs font-bold tracking-wider', i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400')}>{d}</div>
               ))}
             </div>
             <div className="grid grid-cols-7">
               {Array.from({ length: firstDayOfWeek }, (_, i) => (
-                <div key={`e-${i}`} className="min-h-[90px] bg-slate-50/50 dark:bg-slate-800/20 border-b border-r border-slate-100 dark:border-slate-700/50" />
+                <div key={`e-${i}`} className="min-h-[110px] bg-slate-50/50 dark:bg-slate-800/20 border-b border-r border-slate-100 dark:border-slate-700/50" />
               ))}
               {Array.from({ length: daysInMonth }, (_, i) => {
                 const day = i + 1, dk = dateKey(year, month, day);
@@ -111,22 +111,22 @@ export default function CalendarPage() {
                 const headcount = getHeadcount(dk), total = employees.length;
                 return (
                   <div key={day} onClick={() => setSelectedDate(dk)} className={cn(
-                    'min-h-[90px] p-1.5 border-b border-r border-slate-100 dark:border-slate-700/50 relative group cursor-pointer transition-all duration-150',
+                    'min-h-[110px] p-2 border-b border-r border-slate-100 dark:border-slate-700/50 relative group cursor-pointer transition-all duration-150',
                     'hover:bg-blue-50/70 dark:hover:bg-blue-900/10 hover:z-10',
                     isToday && 'bg-blue-50/40 dark:bg-blue-900/10',
                     isHoliday && 'bg-red-50/40 dark:bg-red-900/10',
                     (dow === 0 || dow === 6) && !isToday && !isHoliday && 'bg-slate-50/50 dark:bg-slate-800/30',
                   )}>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className={cn('text-xs font-semibold', isToday ? 'bg-blue-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[11px]' : '', dow === 0 && !isToday ? 'text-red-400' : '', dow === 6 && !isToday ? 'text-blue-400' : '')}>{day}</div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className={cn('text-sm font-bold', isToday ? 'bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs' : '', dow === 0 && !isToday ? 'text-red-400' : '', dow === 6 && !isToday ? 'text-blue-400' : '')}>{day}</div>
                       {total > 0 && (
-                        <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-md', headcount === total ? 'bg-emerald-100 text-emerald-600' : headcount < total * 0.6 ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-500')}>
+                        <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-md', headcount === total ? 'bg-emerald-100 text-emerald-600' : headcount < total * 0.6 ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-500')}>
                           👥{headcount}/{total}
                         </span>
                       )}
                     </div>
-                    {isHoliday && <div className="text-[8px] text-red-500 font-semibold truncate mb-0.5">🔴 {holidayMap[dk].name}</div>}
-                    <div className="space-y-[2px]">
+                    {isHoliday && <div className="text-[10px] text-red-500 font-semibold truncate mb-1">🔴 {holidayMap[dk].name}</div>}
+                    <div className="space-y-[3px]">
                       {employees.slice(0, 5).map(emp => {
                         const status = getEmpStatus(emp, dk);
                         let pillClass, pillIcon;
@@ -140,25 +140,25 @@ export default function CalendarPage() {
                           pillIcon = SHIFTS[st]?.icon || '☀️';
                         }
                         return (
-                          <div key={emp.id} className={cn('flex items-center gap-0.5 px-1 py-[1px] rounded text-[9px] font-medium truncate', pillClass)}>
-                            <span className="text-[8px]">{pillIcon}</span>
+                          <div key={emp.id} className={cn('flex items-center gap-1 px-1.5 py-[2px] rounded text-[11px] font-medium truncate', pillClass)}>
+                            <span className="text-[10px]">{pillIcon}</span>
                             <span className="truncate">{emp.nickname || emp.name?.split(' ')[0]}</span>
                           </div>
                         );
                       })}
-                      {employees.length > 5 && <div className="text-[8px] text-slate-400 pl-1">+{employees.length - 5}</div>}
+                      {employees.length > 5 && <div className="text-[10px] text-slate-400 pl-1">+{employees.length - 5}</div>}
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-3 justify-center">
+          <div className="mt-4 flex flex-wrap gap-4 justify-center">
             {Object.entries(SHIFTS).map(([k, v]) => (
-              <div key={k} className="flex items-center gap-1.5 text-xs text-slate-500"><span>{v.icon}</span><span>{v.label}</span></div>
+              <div key={k} className="flex items-center gap-1.5 text-sm text-slate-500"><span>{v.icon}</span><span>{v.label}</span></div>
             ))}
             {Object.entries(LEAVE_TYPES).map(([k, v]) => (
-              <div key={k} className="flex items-center gap-1.5 text-xs text-slate-500"><span>{v.icon}</span><span>{v.label}</span></div>
+              <div key={k} className="flex items-center gap-1.5 text-sm text-slate-500"><span>{v.icon}</span><span>{v.label}</span></div>
             ))}
           </div>
         </>
