@@ -1024,7 +1024,8 @@ function computeAchievements(empStats) {
       if (yearLeaves.has(iso)) { maxStreak = Math.max(maxStreak, streak); streak = 0; } else { streak++; }
     }
     maxStreak = Math.max(maxStreak, streak);
-    results[emp.id].streak = maxStreak;
+    results[emp.id].streak = streak; // streak ปัจจุบัน (ต่อเนื่องจนถึงวันนี้)
+    results[emp.id].bestStreak = maxStreak; // สูงสุดในปี
     if (achIds.has('streak_90') && maxStreak >= 90) addOnce('streak_90');
     else if (achIds.has('streak_60') && maxStreak >= 60) addOnce('streak_60');
     else if (achIds.has('streak_30') && maxStreak >= 30) addOnce('streak_30');
@@ -1282,7 +1283,8 @@ function showEmpAchDetail(r, rank, achData) {
   hdrInfo.appendChild(h('div', { style: { fontSize: '18px', fontWeight: 800 } }, dn(r.emp)));
   hdrInfo.appendChild(h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' } },
     h('span', { style: { fontSize: '12px', padding: '3px 10px', borderRadius: '8px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', fontWeight: 700 } }, '🏆 อันดับ ' + (rank + 1)),
-    h('span', { style: { fontSize: '12px', padding: '3px 10px', borderRadius: '8px', background: 'rgba(52,211,153,0.15)', color: '#34d399', fontWeight: 700 } }, '🔥 ' + r.streak + ' วันต่อเนื่อง')));
+    h('span', { style: { fontSize: '12px', padding: '3px 10px', borderRadius: '8px', background: 'rgba(52,211,153,0.15)', color: '#34d399', fontWeight: 700 } }, '🔥 ' + r.streak + ' วันต่อเนื่อง'),
+    r.bestStreak && r.bestStreak > r.streak ? h('span', { style: { fontSize: '12px', padding: '3px 10px', borderRadius: '8px', background: 'rgba(251,191,36,0.1)', color: '#fbbf24', fontWeight: 700 } }, '🏆 สูงสุด ' + r.bestStreak + ' วัน') : ''));
   hdr.appendChild(hdrInfo);
   // Close btn
   hdr.appendChild(h('button', { style: { background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer' }, onClick: () => document.body.removeChild(overlay) }, '✕'));
@@ -1486,10 +1488,15 @@ function rAchievementBoard(empStats, achData) {
           }))));
     row.appendChild(nameArea);
 
-    // Streak
-    row.appendChild(h('div', { style: { fontSize: '10px', color: '#94a3b8', textAlign: 'center', flexShrink: 0, width: '50px' } },
-      h('div', { style: { fontWeight: 700, color: r.streak >= 60 ? '#fbbf24' : r.streak >= 30 ? '#34d399' : '#64748b' } }, r.streak + ' วัน'),
-      h('div', { style: { fontSize: '8px', opacity: 0.5 } }, 'ไม่ลาติดต่อกัน')));
+    // Streak — current + best
+    const streakCol = h('div', { style: { fontSize: '10px', color: '#94a3b8', textAlign: 'center', flexShrink: 0, width: '60px' } });
+    streakCol.appendChild(h('div', { style: { fontWeight: 700, color: r.streak >= 60 ? '#fbbf24' : r.streak >= 30 ? '#34d399' : r.streak > 0 ? '#cbd5e1' : '#64748b' } }, '🔥 ' + r.streak + ' วัน'));
+    if (r.bestStreak && r.bestStreak > r.streak) {
+      streakCol.appendChild(h('div', { style: { fontSize: '8px', color: '#fbbf24', opacity: 0.7 } }, '🏆 ' + r.bestStreak));
+    } else {
+      streakCol.appendChild(h('div', { style: { fontSize: '8px', opacity: 0.4 } }, 'ต่อเนื่อง'));
+    }
+    row.appendChild(streakCol);
 
     // Points
     const ptColor = r.totalPoints > 100 ? '#fbbf24' : r.totalPoints > 50 ? '#a78bfa' : r.totalPoints > 0 ? '#34d399' : '#475569';
