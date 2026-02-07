@@ -53,7 +53,7 @@ export function getHTML(currentUser) {
     profile_image: currentUser.profile_image, show_in_calendar: currentUser.show_in_calendar,
   });
 
-  return `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  return `<!DOCTYPE html><html lang="th-u-hc-h23"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>📅 ระบบจัดการกะ & วันลา</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -2310,7 +2310,7 @@ function rSet() {
           if (!logs.length) box.appendChild(h('p', { style: { color: '#94a3b8' } }, 'ยังไม่มีบันทึก'));
           logs.forEach(l => {
             const d = new Date(l.created_at + 'Z');
-            const ts = d.toLocaleDateString('th-TH') + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const ts = d.toLocaleDateString('th-TH') + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
             box.appendChild(h('div', { style: { padding: '8px 12px', borderLeft: '3px solid #6366f1', marginBottom: '4px', background: '#f8fafc', borderRadius: '0 8px 8px 0', fontSize: '13px' } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between' } },
                 h('span', { style: { fontWeight: 600 } }, (l.avatar||'👤') + ' ' + (l.nickname || l.name)),
@@ -2686,7 +2686,7 @@ function rWallet() {
   txns.slice(0, 20).forEach(tx => {
     const isEarn = tx.amount > 0;
     const dt = new Date(tx.created_at + 'Z');
-    const ts = dt.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ' + dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    const ts = dt.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ' ' + dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
     histSec.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' } },
       h('div', {},
         h('div', { style: { fontSize: '12px', fontWeight: 600 } }, (isEarn ? '🟢' : '🔴') + ' ' + (tx.description || tx.type)),
