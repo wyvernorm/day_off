@@ -1,14 +1,14 @@
 {
   "name": "shift-manager",
-  "version": "1.0.0",
-  "description": "ระบบจัดการกะ & วันลา - Cloudflare Worker + D1",
-  "main": "src/index.js",
+  "version": "2.0.0",
+  "description": "ระบบจัดการกะ & วันลา - Cloudflare Worker + D1 + React",
+  "main": "index.js",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:init": "wrangler d1 execute shift-manager-db --file=schema.sql",
-    "db:init:local": "wrangler d1 execute shift-manager-db --local --file=schema.sql",
-    "dev:local": "wrangler dev --local"
+    "dev:react": "cd web && npm run dev",
+    "build": "cd web && npm install && npm run build",
+    "deploy": "npm run build && wrangler deploy",
+    "db:init": "wrangler d1 execute shift-manager-db --file=schema.sql"
   },
   "devDependencies": {
     "wrangler": "^4.63.0"

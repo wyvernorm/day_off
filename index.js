@@ -31,10 +31,15 @@ function checkRateLimit(token) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // CORS — support React frontend on Pages (credentials for cookie auth)
+    const origin = request.headers.get('Origin') || '*';
+    const allowedOrigins = [env.APP_URL, env.PAGES_URL, url.origin].filter(Boolean);
+    const corsOrigin = allowedOrigins.includes(origin) ? origin : (allowedOrigins[0] || '*');
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
     };
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -180,7 +185,10 @@ export default {
         return new Response(response.body, { status: response.status, headers });
       }
 
-      // Main page - require auth
+      // Static assets (JS, CSS, images) — let Cloudflare [assets] handle
+      // These are served automatically by wrangler [assets] config
+
+      // Main page — not logged in → login page
       if (!currentUser) {
         return new Response(getLoginHTML(APP_URL), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -188,6 +196,33 @@ export default {
       }
 
       await ensureTables(env.DB);
+
+      // Serve React SPA — use env.ASSETS if available (Cloudflare assets binding)
+      if (env.ASSETS) {
+        try {
+          // Try to serve index.html from built React app
+          const assetUrl = new URL('/index.html', request.url);
+          const assetReq = new Request(assetUrl, request);
+          const assetRes = await env.ASSETS.fetch(assetReq);
+          if (assetRes.ok) {
+            // Inject user data as script tag so React can read it
+            let html = await assetRes.text();
+            const userJson = JSON.stringify({
+              id: currentUser.employee_id, name: currentUser.name, nickname: currentUser.nickname,
+              email: currentUser.email, role: currentUser.role, avatar: currentUser.avatar,
+              profile_image: currentUser.profile_image, show_in_calendar: currentUser.show_in_calendar,
+            });
+            html = html.replace('</head>', `<script>window.__USER__=${userJson};</script></head>`);
+            return new Response(html, {
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            });
+          }
+        } catch (e) {
+          // Fallback to legacy frontend
+        }
+      }
+
+      // Fallback: legacy frontend (frontend.js)
       return new Response(getHTML(currentUser), {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });

@@ -2,6 +2,10 @@ name = "shift-manager"
 main = "index.js"
 compatibility_date = "2024-12-01"
 
+# Serve React build from /dist
+[assets]
+directory = "./dist"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "shift-manager-db"
