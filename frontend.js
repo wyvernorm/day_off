@@ -1213,6 +1213,15 @@ function computeAchievements(empStats) {
 
     // Cumulative monitor badges (all time)
     let totalByEmp = {};
+    let currentMonthByEmp = {};
+    // Current month data
+    const curMonData = D.monitorData[currentMonth];
+    if (curMonData && curMonData.users) {
+      curMonData.users.forEach(u => {
+        const empId = emailToEmp[u.email.toLowerCase()];
+        if (empId) currentMonthByEmp[empId] = u.count || 0;
+      });
+    }
     Object.values(D.monitorData).forEach(md => {
       if (!md || !md.users) return;
       md.users.forEach(u => {
@@ -1231,10 +1240,22 @@ function computeAchievements(empStats) {
         results[empId].badges.push('monitor_10');
         results[empId].totalPoints += pts;
       }
-      // Progress
+      // Progress + monitor stats
       if (results[empId].progress) {
         results[empId].progress['monitor_10'] = { current: total, target: 100, unit: 'ครั้ง' };
         results[empId].progress['monitor_30'] = { current: total, target: 250, unit: 'ครั้ง' };
+        const curMonth = currentMonthByEmp[empId] || 0;
+        results[empId].progress['monitor_active'] = { current: curMonth, target: 20, unit: 'ครั้ง' };
+        results[empId].progress['monitor_mvp'] = { current: curMonth, target: 0, unit: 'ครั้ง' }; // no bar, just show count
+      }
+      results[empId].monitorTotal = total;
+      results[empId].monitorMonth = currentMonthByEmp[empId] || 0;
+    });
+    // Also set for employees with 0 monitor
+    empStats.forEach(({ emp }) => {
+      if (results[emp.id] && !results[emp.id].monitorTotal) {
+        results[emp.id].monitorTotal = 0;
+        results[emp.id].monitorMonth = 0;
       }
     });
   }
@@ -1337,6 +1358,31 @@ function showAchGuide(achData) {
       : h('span', { style: { fontSize: '11px', color: '#64748b', fontWeight: 600 } }, catEarned + '/' + catAchs.length);
     catHdr.appendChild(catProg);
     sec.appendChild(catHdr);
+
+    // 📡 Monitor category — show personal stats
+    if (cat === 'monitor') {
+      const monTotal = myData.monitorTotal || 0;
+      const monMonth = myData.monitorMonth || 0;
+      const statBox = h('div', { style: { display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' } });
+      statBox.appendChild(h('div', { style: { flex: 1, minWidth: '120px', background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12))', borderRadius: '12px', padding: '14px', textAlign: 'center', border: '1px solid rgba(99,102,241,0.2)' } },
+        h('div', { style: { fontSize: '24px', fontWeight: 900, color: '#818cf8' } }, String(monMonth)),
+        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '2px' } }, '📡 เดือนนี้')));
+      statBox.appendChild(h('div', { style: { flex: 1, minWidth: '120px', background: 'linear-gradient(135deg, rgba(251,191,36,0.1), rgba(245,158,11,0.1))', borderRadius: '12px', padding: '14px', textAlign: 'center', border: '1px solid rgba(251,191,36,0.2)' } },
+        h('div', { style: { fontSize: '24px', fontWeight: 900, color: '#fbbf24' } }, String(monTotal)),
+        h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '2px' } }, '🛰️ สะสมทั้งหมด')));
+      // Mini progress to next milestone
+      const nextTarget = monTotal < 100 ? 100 : monTotal < 250 ? 250 : 0;
+      if (nextTarget > 0) {
+        const miPct = Math.min(Math.round((monTotal / nextTarget) * 100), 100);
+        const nextName = nextTarget === 100 ? '🛰️ สถานีอวกาศ' : '🌍 ศูนย์บัญชาการโลก';
+        statBox.appendChild(h('div', { style: { flex: 1, minWidth: '120px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '14px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)' } },
+          h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '6px' } }, 'ถัดไป: ' + nextName),
+          h('div', { style: { height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' } },
+            h('div', { style: { height: '100%', width: miPct + '%', borderRadius: '3px', background: miPct >= 80 ? '#34d399' : '#818cf8' } })),
+          h('div', { style: { fontSize: '10px', color: '#64748b', marginTop: '4px' } }, monTotal + '/' + nextTarget + ' (' + miPct + '%)')));
+      }
+      sec.appendChild(statBox);
+    }
 
     // Badge cards grid
     const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' } });
