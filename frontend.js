@@ -1029,7 +1029,7 @@ function showEmpAchDetail(r, rank, achData) {
   const missed = allAchs.filter(a => !earned.includes(a.id));
 
   const overlay = h('div', { style: { position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(8px)' }, onClick: () => document.body.removeChild(overlay) });
-  const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', borderRadius: '24px', padding: '28px', maxWidth: '500px', width: '90vw', maxHeight: '85vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 60px rgba(0,0,0,.4)' }, onClick: e => e.stopPropagation() });
+  const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', borderRadius: '24px', padding: '28px', maxWidth: '720px', width: '94vw', maxHeight: '85vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 60px rgba(0,0,0,.4)' }, onClick: e => e.stopPropagation() });
 
   // Header
   const hdr = h('div', { style: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' } });
@@ -1057,7 +1057,7 @@ function showEmpAchDetail(r, rank, achData) {
   // Earned badges
   if (earned.length > 0) {
     card.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' } }, '✅ Badge ที่ได้รับ (' + earned.length + ')'));
-    const earnedGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', marginBottom: '20px' } });
+    const earnedGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '20px' } });
     earned.forEach(bid => {
       const a = allAchs.find(x => x.id === bid);
       if (!a) return;
@@ -1075,7 +1075,7 @@ function showEmpAchDetail(r, rank, achData) {
   // Missed badges — show as locked
   if (missed.length > 0) {
     card.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8' } }, '🔒 ยังไม่ได้ (' + missed.length + ')'));
-    const missedGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px', marginBottom: '16px' } });
+    const missedGrid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' } });
     missed.forEach(a => {
       const bCard = h('div', { style: { background: 'rgba(255,255,255,0.02)', borderRadius: '12px', padding: '12px', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.06)', opacity: 0.5 } });
       bCard.appendChild(h('div', { style: { fontSize: '24px', marginBottom: '4px', filter: 'grayscale(1)' } }, a.icon));
