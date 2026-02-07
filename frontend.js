@@ -636,6 +636,7 @@ function rHdr() {
         h('button', { className: 'ubtn', onClick: () => openModal('profile') }, 'โปรไฟล์'),
         isO ? h('button', { className: 'ubtn', onClick: () => openModal('settings') }, '⚙️') : '',
         h('button', { className: 'ubtn', onClick: () => { const d = document.documentElement; const isDark = d.getAttribute('data-theme') === 'dark'; d.setAttribute('data-theme', isDark ? '' : 'dark'); localStorage.setItem('theme', isDark ? 'light' : 'dark'); } }, document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'),
+        h('button', { className: 'ubtn', style: { background: '#eff6ff', color: '#6366f1' }, onClick: () => { window.open('https://admin-monitor.iplusview.workers.dev/', '_blank'); } }, '📡'),
         h('button', { className: 'ubtn', style: { color: '#ef4444' }, onClick: () => { location.href = '/auth/logout'; } }, 'ออก'),
       ),
     ),
