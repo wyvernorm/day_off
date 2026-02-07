@@ -1478,6 +1478,14 @@ function showAchGuide(achData, targetId) {
         if (dbg.monitorEmails.length === 0 && monKeys.length === 0) {
           dbgBox.appendChild(h('div', { style: { color: '#f87171', fontWeight: 700, marginTop: '6px' } }, '⚠️ ไม่มีข้อมูล Monitor เลย — ตรวจสอบว่า api.js deploy ล่าสุดหรือยัง'));
         }
+        // API response debug
+        if (D._monitorApiDebug) {
+          dbgBox.appendChild(h('div', { style: { color: '#fbbf24', fontWeight: 700, marginTop: '6px' } }, '🌐 API Response Debug:'));
+          D._monitorApiDebug.forEach(d => {
+            const info = d._debug ? JSON.stringify(d._debug) : 'no debug info';
+            dbgBox.appendChild(h('div', { style: { color: '#94a3b8', fontSize: '10px', wordBreak: 'break-all' } }, 'month ' + d.month + ': hasUsers=' + d.hasUsers + ' | ' + info));
+          });
+        }
         sec.appendChild(dbgBox);
       }
     }
@@ -1879,7 +1887,7 @@ function rSta() {
     for (let m = 0; m < 12; m++) {
       if (D.y < now.getFullYear() || (D.y === now.getFullYear() && m <= now.getMonth())) {
         const mp = D.y + '-' + String(m + 1).padStart(2, '0');
-        monitorPromises.push(api('/api/monitor-stats?month=' + mp).then(r => ({ month: m, data: r.data })).catch(() => ({ month: m, data: { users: [] } })));
+        monitorPromises.push(api('/api/monitor-stats?month=' + mp).then(r => ({ month: m, data: r.data, _debug: r._debug })).catch(e => ({ month: m, data: { users: [] }, _debug: { error: 'frontend_catch', msg: e.message } })));
       }
     }
     Promise.all([
@@ -1888,7 +1896,8 @@ function rSta() {
     ]).then(([kpiR, monResults]) => {
       D.kpiYear = kpiR.data || [];
       D.monitorData = {};
-      monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; });
+      D._monitorApiDebug = [];
+      monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; D._monitorApiDebug.push({ month: mr.month, _debug: mr._debug, hasUsers: !!(mr.data?.users?.length) }); });
       D.monitorLastFetch = Date.now();
       render();
     }).catch(() => { D.kpiYear = []; D.monitorData = {}; });
