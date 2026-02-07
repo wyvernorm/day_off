@@ -2129,54 +2129,140 @@ function rKpi() {
     }
     w.appendChild(hero);
 
-    // === MONTHLY TREND ===
+    // === MONTHLY TREND (with per-employee stacked bars) ===
     if (errs.length > 0) {
-      const trendBox = h('div', { style: { background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '20px 24px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '20px' } });
-      trendBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📈 แนวโน้มรายเดือน'));
+      const trendBox = h('div', { style: { background: 'rgba(255,255,255,0.03)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '20px' } });
+      trendBox.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' } },
+        h('div', { style: { fontSize: '16px', fontWeight: 800 } }, '📈 แนวโน้มรายเดือน'),
+        h('div', { style: { fontSize: '11px', color: '#64748b' } }, 'แต้มข้อผิดพลาด / เดือน')));
+
+      // Collect per-employee per-month data
+      const empColors = {};
+      const colorPalette = ['#f87171','#fb923c','#fbbf24','#a78bfa','#818cf8','#38bdf8','#34d399','#f472b6','#c084fc','#22d3ee'];
+      ce().forEach((emp, i) => { empColors[emp.id] = colorPalette[i % colorPalette.length]; });
+
       const monthData = {};
-      for (let m = 0; m < 12; m++) monthData[m] = { count: 0, points: 0 };
-      errs.forEach(e => { const mo = parseInt(e.date.split('-')[1]) - 1; if (monthData[mo] !== undefined) { monthData[mo].count++; monthData[mo].points += e.points; } });
-      const maxPts = Math.max(...Object.values(monthData).map(m => m.points), 1);
-      const trendGrid = h('div', { style: { display: 'flex', gap: '4px', alignItems: 'flex-end', height: '120px' } });
+      for (let m = 0; m < 12; m++) monthData[m] = { total: 0, emps: {} };
+      errs.forEach(e => {
+        const mo = parseInt(e.date.split('-')[1]) - 1;
+        if (monthData[mo] !== undefined) {
+          monthData[mo].total += e.points;
+          if (!monthData[mo].emps[e.employee_id]) monthData[mo].emps[e.employee_id] = { pts: 0, name: e.emp_nick || e.emp_name };
+          monthData[mo].emps[e.employee_id].pts += e.points;
+        }
+      });
+      const maxPts = Math.max(...Object.values(monthData).map(m => m.total), 1);
       const now = new Date();
+
+      const trendGrid = h('div', { style: { display: 'flex', gap: '6px', alignItems: 'flex-end', height: '160px', padding: '0 4px' } });
       for (let m = 0; m < 12; m++) {
         const md = monthData[m];
-        const barH = md.points > 0 ? Math.max((md.points / maxPts) * 100, 8) : 0;
         const isCurrent = D.y === now.getFullYear() && m === now.getMonth();
         const isPast = D.y < now.getFullYear() || (D.y === now.getFullYear() && m < now.getMonth());
-        const barColor = md.points === 0 ? (isPast ? '#22c55e' : '#334155') : md.points >= 5 ? '#ef4444' : md.points >= 3 ? '#f59e0b' : '#fb923c';
-        const col = h('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }, title: MON[m] + ': ' + md.count + ' ครั้ง (' + md.points + ' แต้ม)' });
-        if (md.points > 0) col.appendChild(h('div', { style: { fontSize: '9px', fontWeight: 700, color: barColor } }, String(md.points)));
-        const bar = h('div', { style: { width: '100%', maxWidth: '32px', height: '0px', background: barColor, borderRadius: '4px 4px 0 0', transition: 'height 0.6s ease', minHeight: isPast && md.points === 0 ? '4px' : '0' } });
-        col.appendChild(bar);
-        col.appendChild(h('div', { style: { fontSize: '9px', color: isCurrent ? '#818cf8' : '#64748b', fontWeight: isCurrent ? 700 : 400 } }, MON[m].substring(0, 3)));
-        if (isPast && md.points === 0) col.appendChild(h('div', { style: { fontSize: '8px', color: '#22c55e' } }, '✓'));
+
+        const col = h('div', { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', position: 'relative' } });
+
+        // Points label on top
+        if (md.total > 0) {
+          col.appendChild(h('div', { style: { fontSize: '11px', fontWeight: 800, color: md.total >= 5 ? '#f87171' : '#fbbf24', marginBottom: '2px' } }, String(md.total)));
+        }
+
+        // Stacked bar
+        const barWrap = h('div', { style: { width: '100%', maxWidth: '36px', display: 'flex', flexDirection: 'column-reverse', borderRadius: '6px 6px 0 0', overflow: 'hidden', minHeight: isPast && md.total === 0 ? '6px' : '0' } });
+
+        if (md.total === 0 && isPast) {
+          barWrap.appendChild(h('div', { style: { height: '6px', background: '#22c55e', borderRadius: '6px' } }));
+        } else {
+          // Sort employees by points desc for this month
+          const empEntries = Object.entries(md.emps).sort((a, b) => b[1].pts - a[1].pts);
+          empEntries.forEach(([eid, ed]) => {
+            const segH = Math.max((ed.pts / maxPts) * 130, 4);
+            const seg = h('div', { style: { height: '0px', background: empColors[eid] || '#818cf8', transition: 'height 0.6s ease', cursor: 'pointer', position: 'relative' }, title: ed.name + ': ' + ed.pts + ' แต้ม' });
+            barWrap.appendChild(seg);
+            setTimeout(() => { seg.style.height = segH + 'px'; }, 100 + m * 60);
+          });
+        }
+        col.appendChild(barWrap);
+
+        // Month label
+        col.appendChild(h('div', { style: { fontSize: '10px', color: isCurrent ? '#818cf8' : '#64748b', fontWeight: isCurrent ? 800 : 400, marginTop: '4px' } }, MON[m].substring(0, 3)));
+        if (isPast && md.total === 0) col.appendChild(h('div', { style: { fontSize: '9px', color: '#22c55e' } }, '✓'));
+
+        // Tooltip on hover — show who
+        if (md.total > 0) {
+          const tooltip = h('div', { style: { display: 'none', position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '8px 10px', zIndex: 10, minWidth: '120px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' } });
+          tooltip.appendChild(h('div', { style: { fontSize: '11px', fontWeight: 700, color: '#e2e8f0', marginBottom: '4px', textAlign: 'center' } }, MON[m] + ' (' + md.total + ' แต้ม)'));
+          Object.entries(md.emps).sort((a, b) => b[1].pts - a[1].pts).forEach(([eid, ed]) => {
+            tooltip.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '10px', padding: '2px 0' } },
+              h('span', { style: { display: 'flex', alignItems: 'center', gap: '4px' } },
+                h('div', { style: { width: '6px', height: '6px', borderRadius: '50%', background: empColors[eid] || '#818cf8' } }), h('span', { style: { color: '#cbd5e1' } }, ed.name)),
+              h('span', { style: { fontWeight: 700, color: '#f87171' } }, '+' + ed.pts)));
+          });
+          col.appendChild(tooltip);
+          col.onmouseenter = () => { tooltip.style.display = 'block'; };
+          col.onmouseleave = () => { tooltip.style.display = 'none'; };
+        }
+
         trendGrid.appendChild(col);
-        setTimeout(() => { bar.style.height = barH + 'px'; }, 100 + m * 50);
       }
       trendBox.appendChild(trendGrid);
+
+      // Legend — employee colors
+      const legend = h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' } });
+      const shownEmps = new Set();
+      errs.forEach(e => shownEmps.add(e.employee_id));
+      ce().filter(emp => shownEmps.has(emp.id)).forEach(emp => {
+        legend.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' } },
+          h('div', { style: { width: '8px', height: '8px', borderRadius: '50%', background: empColors[emp.id] } }),
+          h('span', { style: { color: '#94a3b8' } }, dn(emp))));
+      });
+      trendBox.appendChild(legend);
       w.appendChild(trendBox);
     }
 
     // === CATEGORY BREAKDOWN ===
     if (sum.byCategory.length) {
-      const catBox = h('div', { style: { background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '24px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '20px' } });
-      catBox.appendChild(h('div', { style: { fontSize: '15px', fontWeight: 700, marginBottom: '16px' } }, '📂 แต้มตามหมวดหมู่'));
+      const catBox = h('div', { style: { background: 'rgba(255,255,255,0.03)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: '20px' } });
+      catBox.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, marginBottom: '20px' } }, '📂 แต้มตามหมวดหมู่'));
       const tp = sum.totals.points || 1;
-      const catRow = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '24px', alignItems: 'center' } });
+      const catRow = h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '28px', alignItems: 'center' } });
       const barsDiv = h('div', {});
       sum.byCategory.forEach((c, ci) => {
         const pct = (c.total_points / tp * 100).toFixed(1);
-        barsDiv.appendChild(h('div', { style: { marginBottom: '12px' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' } },
-            h('span', { style: { fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' } },
-              h('div', { style: { width: '10px', height: '10px', borderRadius: '50%', background: c.color } }), c.name),
-            h('span', { style: { fontWeight: 700, color: c.color } }, c.total_points + ' แต้ม (' + pct + '%)')),
-          h('div', { style: { height: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', overflow: 'hidden' } },
-            (() => { const bar = h('div', { style: { width: '0%', height: '100%', background: 'linear-gradient(90deg, ' + c.color + ', ' + c.color + 'cc)', borderRadius: '6px', transition: 'width 0.8s ease' } }); setTimeout(() => { bar.style.width = pct + '%'; }, 150 + ci * 100); return bar; })())));
+        // Find who contributed to this category
+        const catErrs = errs.filter(e => e.cat_name === c.name);
+        const catEmpPts = {};
+        catErrs.forEach(e => {
+          const key = e.emp_nick || e.emp_name;
+          catEmpPts[key] = (catEmpPts[key] || 0) + e.points;
+        });
+        const topContributors = Object.entries(catEmpPts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+        const barBlock = h('div', { style: { marginBottom: '16px', padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' } });
+        barBlock.appendChild(h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' } },
+          h('span', { style: { fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' } },
+            h('div', { style: { width: '12px', height: '12px', borderRadius: '4px', background: c.color } }), c.name),
+          h('span', { style: { fontWeight: 800, color: c.color, fontSize: '15px' } }, c.total_points + ' แต้ม')));
+
+        // Bar
+        barBlock.appendChild(h('div', { style: { height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden', marginBottom: '8px' } },
+          (() => { const bar = h('div', { style: { width: '0%', height: '100%', background: 'linear-gradient(90deg, ' + c.color + ', ' + c.color + 'aa)', borderRadius: '4px', transition: 'width 0.8s ease' } }); setTimeout(() => { bar.style.width = pct + '%'; }, 150 + ci * 100); return bar; })()));
+
+        // Top contributors
+        if (topContributors.length > 0) {
+          const contRow = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } });
+          topContributors.forEach(([name, pts]) => {
+            contRow.appendChild(h('span', { style: { fontSize: '10px', padding: '3px 8px', borderRadius: '8px', background: c.color + '15', color: c.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' } },
+              h('span', {}, name), h('span', { style: { fontWeight: 800 } }, '+' + pts)));
+          });
+          barBlock.appendChild(contRow);
+        }
+
+        barsDiv.appendChild(barBlock);
       });
       catRow.appendChild(barsDiv);
-      // Donut
+
+      // Donut — bigger with labels
       let accumulated = 0;
       const segments = sum.byCategory.map(c => {
         const pct = (c.total_points / tp * 100);
@@ -2184,11 +2270,21 @@ function rKpi() {
         accumulated += pct;
         return c.color + ' ' + start + '% ' + accumulated + '%';
       });
-      const donutDiv = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center' } });
-      donutDiv.appendChild(h('div', { style: { width: '130px', height: '130px', borderRadius: '50%', background: 'conic-gradient(' + segments.join(', ') + ')', position: 'relative', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' } },
-        h('div', { style: { position: 'absolute', top: '22px', left: '22px', right: '22px', bottom: '22px', borderRadius: '50%', background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
-          h('div', { style: { fontSize: '24px', fontWeight: 800, color: '#f87171' } }, String(sum.totals.points)),
+      const donutDiv = h('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' } });
+      donutDiv.appendChild(h('div', { style: { width: '150px', height: '150px', borderRadius: '50%', background: 'conic-gradient(' + segments.join(', ') + ')', position: 'relative', boxShadow: '0 4px 32px rgba(0,0,0,0.3)' } },
+        h('div', { style: { position: 'absolute', top: '25px', left: '25px', right: '25px', bottom: '25px', borderRadius: '50%', background: '#0f172a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' } },
+          h('div', { style: { fontSize: '28px', fontWeight: 900, color: '#f87171' } }, String(sum.totals.points)),
           h('div', { style: { fontSize: '10px', color: '#94a3b8' } }, 'แต้มรวม'))));
+      // Donut legend
+      const donutLeg = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } });
+      sum.byCategory.forEach(c => {
+        const pct = (c.total_points / tp * 100).toFixed(0);
+        donutLeg.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' } },
+          h('div', { style: { width: '8px', height: '8px', borderRadius: '3px', background: c.color } }),
+          h('span', { style: { color: '#cbd5e1' } }, c.name),
+          h('span', { style: { color: c.color, fontWeight: 700 } }, pct + '%')));
+      });
+      donutDiv.appendChild(donutLeg);
       catRow.appendChild(donutDiv);
       catBox.appendChild(catRow);
       w.appendChild(catBox);
