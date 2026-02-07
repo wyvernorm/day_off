@@ -796,9 +796,8 @@ export async function handleAPI(request, env, url, currentUser) {
     if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     await DB.prepare('DELETE FROM achievement_claims').run();
     await DB.prepare('DELETE FROM wallet_transactions').run();
-    await DB.prepare("UPDATE employees SET wallet_balance = 0").run();
     await logActivity(DB, currentUser.employee_id, 'reset_achievements', 'ล้างข้อมูล achievement + wallet ทั้งหมด');
-    return json({ message: 'ล้างข้อมูลสำเร็จ — achievement claims, wallet transactions, balance ถูก reset ทั้งหมด' });
+    return json({ message: 'ล้างข้อมูลสำเร็จ — achievement claims + wallet transactions ถูก reset ทั้งหมด' });
   }
 
   // ==================== REWARDS ====================
