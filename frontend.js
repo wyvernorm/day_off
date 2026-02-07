@@ -836,7 +836,7 @@ const DEFAULT_ACHIEVEMENTS = [
   { id: 'early_bird', icon: '🐦', name: 'ขยันมาเช้า', desc: 'ไม่ลาเลย + ไม่สลับกะ ทั้งเดือน', tier: 2, points: 8, cat: 'attendance' },
   // ⚡ หมวด KPI (รายเดือน)
   { id: 'perfect_kpi', icon: '⭐', name: 'ไร้ที่ติ', desc: 'KPI 0 error ทั้งเดือน', tier: 1, points: 5, cat: 'kpi' },
-  { id: 'zero_damage', icon: '🛡️', name: 'ไร้ค่าเสียหาย', desc: 'ค่าเสียหาย 0 บาททั้งเดือน', tier: 1, points: 3, cat: 'kpi' },
+  { id: 'zero_damage', icon: '🛡️', name: 'ไร้ค่าเสียหาย', desc: 'มี error แต่ค่าเสียหาย 0 บาท', tier: 1, points: 3, cat: 'kpi' },
   { id: 'kpi_3months', icon: '💯', name: 'KPI ไร้มลทิน', desc: 'KPI 0 error 3 เดือนติด', tier: 3, points: 20, cat: 'kpi' },
   { id: 'kpi_improve', icon: '📉', name: 'พัฒนาขึ้น', desc: 'error เดือนนี้ < เดือนก่อน', tier: 2, points: 5, cat: 'kpi' },
   { id: 'kpi_max2', icon: '🎯', name: 'ใกล้สมบูรณ์', desc: 'error ไม่เกิน 2 ครั้งทั้งเดือน', tier: 1, points: 3, cat: 'kpi' },
@@ -899,8 +899,8 @@ function computeAchievements(empStats) {
     if (achIds.has('iron_will') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0) badges.push('iron_will');
 
     if (achIds.has('diamond')) {
-      let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
+      let ok = D.m >= 2; // ต้องอย่างน้อยเดือน 3 (มี.ค.) ถึงจะเช็คย้อน 3 เดือนในปีเดียวกันได้
+      if (ok) { for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } } }
       if (ok) badges.push('diamond');
     }
 
@@ -932,11 +932,11 @@ function computeAchievements(empStats) {
     if (achIds.has('perfect_kpi') && workedThisMonth && kpiThisMonth === 0) badges.push('perfect_kpi');
 
     const kpiDmg = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix)).reduce((s, e) => s + (e.damage_cost || 0), 0);
-    if (achIds.has('zero_damage') && workedThisMonth && kpiDmg === 0) badges.push('zero_damage');
+    if (achIds.has('zero_damage') && workedThisMonth && kpiThisMonth > 0 && kpiDmg === 0) badges.push('zero_damage');
 
-    if (achIds.has('kpi_3months')) {
+    if (achIds.has('kpi_3months') && D.m >= 2) {
       let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countKpiErrors(emp.id, mp) > 0) { ok = false; break; } }
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countKpiErrors(emp.id, mp) > 0) { ok = false; break; } }
       if (ok) badges.push('kpi_3months');
     }
 
@@ -949,9 +949,9 @@ function computeAchievements(empStats) {
     // === 🦸 STABILITY ===
     if (achIds.has('no_swap') && workedThisMonth && countSwaps(emp.id, monthPrefix) === 0) badges.push('no_swap');
 
-    if (achIds.has('rock_solid')) {
+    if (achIds.has('rock_solid') && D.m >= 2) {
       let ok = true;
-      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; if (cm < 0) { cm += 12; cy--; } const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countSwaps(emp.id, mp) > 0) { ok = false; break; } }
+      for (let i = 0; i < 3; i++) { let cm = D.m - i, cy = D.y; const mp = getMonthPrefix(cy, cm); if (!hasWorkedInMonth(emp.id, mp) || countSwaps(emp.id, mp) > 0) { ok = false; break; } }
       if (ok) badges.push('rock_solid');
     }
 
@@ -989,11 +989,12 @@ function computeAchievements(empStats) {
     results[emp.id] = { badges, totalPoints, streak: maxStreak };
   });
 
-  // === 🏅 TEAM PLAYER — ทุกคนไม่ลาทั้งเดือน ===
+  // === 🏅 TEAM PLAYER — ทุกคน (ที่แสดงในปฏิทิน) ไม่ลาทั้งเดือน ===
   if (achIds.has('team_player')) {
-    const allNoLeave = empStats.every(({ emp }) => countLeaves(emp.id, monthPrefix) === 0);
-    if (allNoLeave && empStats.length > 0) {
-      empStats.forEach(({ emp }) => { if (results[emp.id]) results[emp.id].badges.push('team_player'); results[emp.id].totalPoints += 10; });
+    const visibleEmps = empStats.filter(({ emp }) => emp.show_in_calendar !== 0 && emp.show_in_calendar !== '0');
+    const allNoLeave = visibleEmps.length > 1 && visibleEmps.every(({ emp }) => countLeaves(emp.id, monthPrefix) === 0);
+    if (allNoLeave) {
+      visibleEmps.forEach(({ emp }) => { if (results[emp.id]) { results[emp.id].badges.push('team_player'); results[emp.id].totalPoints += 10; } });
     }
   }
 
