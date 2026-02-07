@@ -1487,8 +1487,8 @@ function rAchievementBoard(empStats, achData) {
 
     // Streak
     row.appendChild(h('div', { style: { fontSize: '10px', color: '#94a3b8', textAlign: 'center', flexShrink: 0, width: '50px' } },
-      h('div', { style: { fontWeight: 700, color: r.streak >= 60 ? '#fbbf24' : r.streak >= 30 ? '#34d399' : '#64748b' } }, r.streak + 'd'),
-      h('div', { style: { fontSize: '8px', opacity: 0.5 } }, 'streak')));
+      h('div', { style: { fontWeight: 700, color: r.streak >= 60 ? '#fbbf24' : r.streak >= 30 ? '#34d399' : '#64748b' } }, r.streak + ' วัน'),
+      h('div', { style: { fontSize: '8px', opacity: 0.5 } }, 'ไม่ลาติดต่อกัน')));
 
     // Points
     const ptColor = r.totalPoints > 100 ? '#fbbf24' : r.totalPoints > 50 ? '#a78bfa' : r.totalPoints > 0 ? '#34d399' : '#475569';
