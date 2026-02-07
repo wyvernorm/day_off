@@ -876,8 +876,6 @@ function computeAchievements(empStats) {
   const results = {};
   const achs = getAchievements().filter(a => a.enabled !== false);
   const achIds = new Set(achs.map(a => a.id));
-  const dm = gdim(D.y, D.m);
-  const monthPrefix = D.y + '-' + String(D.m + 1).padStart(2, '0');
   const getMonthPrefix = (y, m) => y + '-' + String(m + 1).padStart(2, '0');
 
   const countLeaves = (empId, prefix) => (D.yld || []).filter(l => l.employee_id === empId && l.date.startsWith(prefix) && l.status === 'approved').length;
@@ -885,6 +883,7 @@ function computeAchievements(empStats) {
   const countKpiErrors = (empId, prefix) => (D.kpiYear || []).filter(e => e.employee_id === empId && e.date && e.date.startsWith(prefix)).length;
   const countSwaps = (empId, prefix) => (D.swapReqs || []).filter(sr => sr.from_employee_id === empId && sr.status === 'approved' && sr.date && sr.date.startsWith(prefix)).length;
   const countSelfMoves = (empId, prefix) => (D.selfMoves || []).filter(sm => sm.employee_id === empId && sm.status === 'approved' && (sm.off_date?.startsWith(prefix) || sm.work_date?.startsWith(prefix))).length;
+  const getKpiDmg = (empId, prefix) => (D.kpiYear || []).filter(e => e.employee_id === empId && e.date && e.date.startsWith(prefix)).reduce((s, e) => s + (e.damage_cost || 0), 0);
 
   const hasWorkedInMonth = (empId, prefix) => {
     const [y, m] = prefix.split('-').map(Number);
@@ -894,43 +893,122 @@ function computeAchievements(empStats) {
     return true;
   };
 
-  // Visible employees for team checks
   const visibleEmps = empStats.filter(({ emp }) => emp.show_in_calendar !== 0 && emp.show_in_calendar !== '0');
 
-  // เช็คว่าเดือนที่ดูจบแล้วหรือยัง (badge "ทั้งเดือน" คำนวณเฉพาะเดือนที่ผ่านไปแล้ว)
+  // หาเดือนที่จบแล้ว (ม.ค. ถึง เดือนก่อนหน้าเดือนปัจจุบัน)
   const now = new Date();
-  const currentMonthPrefix = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  const isViewingPastMonth = monthPrefix < currentMonthPrefix;
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-based
+  const pastMonths = [];
+  for (let m = 0; m < 12; m++) {
+    const mp = getMonthPrefix(D.y, m);
+    if (D.y < currentYear || (D.y === currentYear && m < currentMonth)) {
+      if (hasWorkedInMonth(null, mp)) pastMonths.push(m);
+    }
+  }
 
+  // Init results
+  empStats.forEach(({ emp }) => {
+    results[emp.id] = { badges: [], badgeDetails: [], totalPoints: 0, streak: 0 };
+  });
+
+  // === วนทุกเดือนที่จบแล้ว สะสม badge ===
+  pastMonths.forEach(monthIdx => {
+    const mp = getMonthPrefix(D.y, monthIdx);
+    const monthLabel = String(monthIdx + 1).padStart(2, '0');
+
+    empStats.forEach(({ emp, sc, yl }) => {
+      const worked = hasWorkedInMonth(emp.id, mp);
+      if (!worked) return;
+      const kpiErr = countKpiErrors(emp.id, mp);
+      const kpiDmg = getKpiDmg(emp.id, mp);
+      const leaves = countLeaves(emp.id, mp);
+      const swaps = countSwaps(emp.id, mp);
+      const sickLeaves = countSickLeaves(emp.id, mp);
+
+      const addBadge = (id) => {
+        if (!achIds.has(id)) return;
+        results[emp.id].badges.push(id);
+        results[emp.id].badgeDetails.push({ id, month: monthLabel });
+        results[emp.id].totalPoints += (achs.find(a => a.id === id)?.points || 0);
+      };
+
+      // 🎯 ATTENDANCE
+      if (leaves === 0) addBadge('iron_will');
+      if (leaves === 0 && swaps === 0) addBadge('early_bird');
+
+      // ⚡ KPI
+      if (kpiErr === 0) addBadge('perfect_kpi');
+      if (kpiErr > 0 && kpiDmg === 0) addBadge('zero_damage');
+      if (kpiErr > 0 && kpiErr <= 2) addBadge('kpi_max2');
+      if (kpiDmg <= 100) addBadge('low_damage');
+
+      // KPI improve / comeback (เทียบเดือนก่อน)
+      if (monthIdx > 0) {
+        const prevMp = getMonthPrefix(D.y, monthIdx - 1);
+        const prevErr = countKpiErrors(emp.id, prevMp);
+        if (prevErr > 0 && kpiErr < prevErr) addBadge('kpi_improve');
+        if (prevErr > 0 && kpiErr === 0) addBadge('comeback');
+      }
+
+      // 🦸 STABILITY
+      if (swaps === 0) addBadge('no_swap');
+
+      // 🏥 HEALTH
+      if (sickLeaves === 0) addBadge('no_sick_month');
+    });
+
+    // 🏅 TEAM BADGES (ทุกเดือนที่จบแล้ว)
+    if (visibleEmps.length > 1) {
+      const allNoLeave = visibleEmps.every(({ emp }) => countLeaves(emp.id, mp) === 0);
+      const allPerfect = visibleEmps.every(({ emp }) =>
+        countLeaves(emp.id, mp) === 0 && countSwaps(emp.id, mp) === 0 && countSelfMoves(emp.id, mp) === 0);
+      const allZeroErr = visibleEmps.every(({ emp }) => countKpiErrors(emp.id, mp) === 0);
+
+      const giveTeamBadge = (badgeId) => {
+        if (!achIds.has(badgeId)) return;
+        const pts = achs.find(a => a.id === badgeId)?.points || 0;
+        visibleEmps.forEach(({ emp }) => {
+          results[emp.id].badges.push(badgeId);
+          results[emp.id].badgeDetails.push({ id: badgeId, month: monthLabel });
+          results[emp.id].totalPoints += pts;
+        });
+      };
+
+      if (allNoLeave) giveTeamBadge('team_no_leave');
+      if (allPerfect) giveTeamBadge('team_perfect');
+      if (allZeroErr) giveTeamBadge('team_zero_err');
+    }
+  });
+
+  // === Badge ที่คำนวณครั้งเดียว (ไม่ซ้ำต่อเดือน) ===
   empStats.forEach(({ emp, sc, yl }) => {
-    const badges = [];
-    const quotaUsed = (yl.personal || 0) + (yl.vacation || 0);
-    const maxLv = emp.max_leave_per_year || 20;
-    const quotaPct = maxLv > 0 ? quotaUsed / maxLv : 0;
-    const workedThisMonth = hasWorkedInMonth(emp.id, monthPrefix);
-    const kpiThisMonth = countKpiErrors(emp.id, monthPrefix);
-    const kpiDmg = (D.kpiYear || []).filter(e => e.employee_id === emp.id && e.date && e.date.startsWith(monthPrefix)).reduce((s, e) => s + (e.damage_cost || 0), 0);
+    const addOnce = (id) => {
+      if (!achIds.has(id) || results[emp.id].badges.includes(id)) return;
+      results[emp.id].badges.push(id);
+      results[emp.id].totalPoints += (achs.find(a => a.id === id)?.points || 0);
+    };
 
-    // === 🎯 ATTENDANCE (ทั้งเดือน → ต้องจบเดือนก่อน) ===
-    if (isViewingPastMonth) {
-      if (achIds.has('iron_will') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0) badges.push('iron_will');
-      if (achIds.has('early_bird') && workedThisMonth && countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0) badges.push('early_bird');
+    // 💎 ร่างทิพย์ (3 เดือนติดไม่ลา) — ให้ครั้งเดียวถ้ามี 3 เดือนติดในเดือนที่จบแล้ว
+    if (achIds.has('diamond') && pastMonths.length >= 3) {
+      let consec = 0, got = false;
+      for (const m of pastMonths) {
+        if (countLeaves(emp.id, getMonthPrefix(D.y, m)) === 0) { consec++; if (consec >= 3) { got = true; break; } }
+        else consec = 0;
+      }
+      if (got) addOnce('diamond');
     }
 
-    if (isViewingPastMonth && achIds.has('diamond') && D.m >= 2) {
+    // 🗓️ มนุษย์เหล็กครึ่งปี
+    if (achIds.has('half_year_gold') && pastMonths.length >= 6) {
       let ok = true;
-      for (let i = 0; i < 3; i++) { const mp = getMonthPrefix(D.y, D.m - i); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
-      if (ok) badges.push('diamond');
+      for (let m = 0; m < 6; m++) { if (countLeaves(emp.id, getMonthPrefix(D.y, m)) > 0) { ok = false; break; } }
+      if (ok) addOnce('half_year_gold');
     }
 
-    if (isViewingPastMonth && achIds.has('half_year_gold') && D.m >= 5) {
-      let ok = true;
-      for (let m = 0; m < 6; m++) { const mp = getMonthPrefix(D.y, m); if (!hasWorkedInMonth(emp.id, mp) || countLeaves(emp.id, mp) > 0) { ok = false; break; } }
-      if (ok) badges.push('half_year_gold');
-    }
-
-    // Streak — count pending+approved leaves (ขอลาแล้ว = ตัด streak แม้ยังไม่อนุมัติ)
+    // 🏃 Streak (real-time — นับวันจริงจนถึงวันนี้)
     let streak = 0, maxStreak = 0;
+    const dm = gdim(D.y, D.m);
     const yearLeaves = new Set((D.yld || []).filter(l => l.employee_id === emp.id && (l.status === 'approved' || l.status === 'pending')).map(l => l.date));
     const jan1 = new Date(D.y, 0, 1);
     const today = new Date(); today.setHours(0,0,0,0);
@@ -942,108 +1020,79 @@ function computeAchievements(empStats) {
       if (yearLeaves.has(iso)) { maxStreak = Math.max(maxStreak, streak); streak = 0; } else { streak++; }
     }
     maxStreak = Math.max(maxStreak, streak);
-    if (achIds.has('streak_90') && maxStreak >= 90) badges.push('streak_90');
-    else if (achIds.has('streak_60') && maxStreak >= 60) badges.push('streak_60');
-    else if (achIds.has('streak_30') && maxStreak >= 30) badges.push('streak_30');
+    results[emp.id].streak = maxStreak;
+    if (achIds.has('streak_90') && maxStreak >= 90) addOnce('streak_90');
+    else if (achIds.has('streak_60') && maxStreak >= 60) addOnce('streak_60');
+    else if (achIds.has('streak_30') && maxStreak >= 30) addOnce('streak_30');
 
-    // === ⚡ KPI (ทั้งเดือน → ต้องจบเดือนก่อน) ===
-    if (isViewingPastMonth) {
-      if (achIds.has('perfect_kpi') && workedThisMonth && kpiThisMonth === 0) badges.push('perfect_kpi');
-      if (achIds.has('zero_damage') && workedThisMonth && kpiThisMonth > 0 && kpiDmg === 0) badges.push('zero_damage');
-      if (achIds.has('kpi_max2') && workedThisMonth && kpiThisMonth > 0 && kpiThisMonth <= 2) badges.push('kpi_max2');
-      if (achIds.has('low_damage') && workedThisMonth && kpiDmg <= 100) badges.push('low_damage');
-
-      if (achIds.has('kpi_improve') && D.m > 0) {
-        const prevErrors = countKpiErrors(emp.id, getMonthPrefix(D.y, D.m - 1));
-        if (prevErrors > 0 && kpiThisMonth < prevErrors) badges.push('kpi_improve');
-      }
-      if (achIds.has('comeback') && workedThisMonth && D.m > 0) {
-        const prevErrors = countKpiErrors(emp.id, getMonthPrefix(D.y, D.m - 1));
-        if (prevErrors > 0 && kpiThisMonth === 0) badges.push('comeback');
-      }
-    }
-
-    // KPI progressive streaks (นับเฉพาะเดือนที่จบแล้ว)
-    if (isViewingPastMonth) {
+    // KPI progressive streaks (นับเดือนที่จบแล้วย้อนหลัง)
+    if (pastMonths.length > 0) {
       let kpiConsec = 0;
-      for (let i = 0; i <= D.m; i++) { const mp = getMonthPrefix(D.y, D.m - i); if (!hasWorkedInMonth(emp.id, mp) || countKpiErrors(emp.id, mp) > 0) break; kpiConsec++; }
-      if (achIds.has('kpi_streak_12') && kpiConsec >= 12) badges.push('kpi_streak_12');
-      else if (achIds.has('kpi_streak_6') && kpiConsec >= 6) badges.push('kpi_streak_6');
-      else if (achIds.has('kpi_streak_3') && kpiConsec >= 3) badges.push('kpi_streak_3');
-    }
+      for (let i = pastMonths.length - 1; i >= 0; i--) {
+        if (countKpiErrors(emp.id, getMonthPrefix(D.y, pastMonths[i])) > 0) break;
+        kpiConsec++;
+      }
+      if (achIds.has('kpi_streak_12') && kpiConsec >= 12) addOnce('kpi_streak_12');
+      else if (achIds.has('kpi_streak_6') && kpiConsec >= 6) addOnce('kpi_streak_6');
+      else if (achIds.has('kpi_streak_3') && kpiConsec >= 3) addOnce('kpi_streak_3');
 
-    // === 🦸 STABILITY (ทั้งเดือน → ต้องจบเดือนก่อน) ===
-    if (isViewingPastMonth) {
-      if (achIds.has('no_swap') && workedThisMonth && countSwaps(emp.id, monthPrefix) === 0) badges.push('no_swap');
-    }
-
-    // Stability progressive streaks (นับเฉพาะเดือนที่จบแล้ว)
-    if (isViewingPastMonth) {
       let swapConsec = 0;
-      for (let i = 0; i <= D.m; i++) { const mp = getMonthPrefix(D.y, D.m - i); if (!hasWorkedInMonth(emp.id, mp) || countSwaps(emp.id, mp) > 0) break; swapConsec++; }
-      if (achIds.has('rock_12m') && swapConsec >= 12) badges.push('rock_12m');
-      else if (achIds.has('rock_6m') && swapConsec >= 6) badges.push('rock_6m');
-      else if (achIds.has('rock_3m') && swapConsec >= 3) badges.push('rock_3m');
+      for (let i = pastMonths.length - 1; i >= 0; i--) {
+        if (countSwaps(emp.id, getMonthPrefix(D.y, pastMonths[i])) > 0) break;
+        swapConsec++;
+      }
+      if (achIds.has('rock_12m') && swapConsec >= 12) addOnce('rock_12m');
+      else if (achIds.has('rock_6m') && swapConsec >= 6) addOnce('rock_6m');
+      else if (achIds.has('rock_3m') && swapConsec >= 3) addOnce('rock_3m');
     }
-
-    // === 🏥 HEALTH (ทั้งเดือน → ต้องจบเดือนก่อน) ===
-    if (isViewingPastMonth) {
-      if (achIds.has('no_sick_month') && workedThisMonth && countSickLeaves(emp.id, monthPrefix) === 0) badges.push('no_sick_month');
-    }
-    if (achIds.has('no_sick_year') && D.m === 11) {
-      const yearlySick = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
-      if (yearlySick === 0) badges.push('no_sick_year');
-    }
-
-    // === 📊 QUOTA (ธ.ค.) ===
-    if (D.m === 11) {
-      if (achIds.has('quota_rich') && quotaPct <= 0.1) badges.push('quota_rich');
-      else if (achIds.has('quota_saver') && quotaPct <= 0.25) badges.push('quota_saver');
-    }
-
-    // === 🎂 BIRTHDAY ===
-    if (achIds.has('birthday') && emp.birthday) {
-      const bMonth = parseInt(emp.birthday.split('-')[1]); // 1-12
-      if (bMonth === D.m + 1) badges.push('birthday');
-    }
-
-    const totalPoints = badges.reduce((s, id) => s + (achs.find(a => a.id === id)?.points || 0), 0);
-    results[emp.id] = { badges, totalPoints, streak: maxStreak };
-  });
-
-  // === 🏅 TEAM BADGES (คำนวณเฉพาะเดือนที่ผ่านไปแล้ว) ===
-  if (visibleEmps.length > 1 && isViewingPastMonth) {
-    const allNoLeave = visibleEmps.every(({ emp }) => countLeaves(emp.id, monthPrefix) === 0);
-    const allPerfect = visibleEmps.every(({ emp }) =>
-      countLeaves(emp.id, monthPrefix) === 0 && countSwaps(emp.id, monthPrefix) === 0 && countSelfMoves(emp.id, monthPrefix) === 0);
-    const allZeroErr = visibleEmps.every(({ emp }) => countKpiErrors(emp.id, monthPrefix) === 0);
-
-    const giveTeamBadge = (badgeId, pts) => {
-      if (!achIds.has(badgeId)) return;
-      visibleEmps.forEach(({ emp }) => { if (results[emp.id]) { results[emp.id].badges.push(badgeId); results[emp.id].totalPoints += pts; } });
-    };
-
-    if (allNoLeave) giveTeamBadge('team_no_leave', 50);
-    if (allPerfect) giveTeamBadge('team_perfect', 50);
-    if (allZeroErr) giveTeamBadge('team_zero_err', 50);
 
     // Team progressive streaks
-    if (allPerfect) {
+    if (visibleEmps.length > 1 && pastMonths.length >= 2) {
       let teamConsec = 0;
-      for (let i = 0; i <= D.m; i++) {
-        const mp = getMonthPrefix(D.y, D.m - i);
-        if (!hasWorkedInMonth(null, mp)) break;
-        const ok = visibleEmps.every(({ emp }) => countLeaves(emp.id, mp) === 0 && countSwaps(emp.id, mp) === 0 && countSelfMoves(emp.id, mp) === 0);
+      for (let i = pastMonths.length - 1; i >= 0; i--) {
+        const mp = getMonthPrefix(D.y, pastMonths[i]);
+        const ok = visibleEmps.every(({ emp: e }) => countLeaves(e.id, mp) === 0 && countSwaps(e.id, mp) === 0 && countSelfMoves(e.id, mp) === 0);
         if (!ok) break;
         teamConsec++;
       }
-      if (teamConsec >= 6) giveTeamBadge('team_streak_6', 2000);
-      else if (teamConsec >= 3) giveTeamBadge('team_streak_3', 500);
-      else if (teamConsec >= 2) giveTeamBadge('team_streak_2', 200);
+      const giveTeamOnce = (badgeId) => {
+        if (!achIds.has(badgeId)) return;
+        const pts = achs.find(a => a.id === badgeId)?.points || 0;
+        visibleEmps.forEach(({ emp: e }) => {
+          if (!results[e.id].badges.includes(badgeId)) {
+            results[e.id].badges.push(badgeId);
+            results[e.id].totalPoints += pts;
+          }
+        });
+      };
+      if (teamConsec >= 6) giveTeamOnce('team_streak_6');
+      else if (teamConsec >= 3) giveTeamOnce('team_streak_3');
+      else if (teamConsec >= 2) giveTeamOnce('team_streak_2');
     }
-  }
 
-  // 👑 MVP
+    // 🏥 ไม่ลาป่วยทั้งปี (ธ.ค.)
+    if (achIds.has('no_sick_year') && pastMonths.includes(11)) {
+      const yearlySick = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
+      if (yearlySick === 0) addOnce('no_sick_year');
+    }
+
+    // 📊 QUOTA (ธ.ค.)
+    if (pastMonths.includes(11)) {
+      const quotaUsed = (yl.personal || 0) + (yl.vacation || 0);
+      const maxLv = emp.max_leave_per_year || 20;
+      const quotaPct = maxLv > 0 ? quotaUsed / maxLv : 0;
+      if (achIds.has('quota_rich') && quotaPct <= 0.1) addOnce('quota_rich');
+      else if (achIds.has('quota_saver') && quotaPct <= 0.25) addOnce('quota_saver');
+    }
+
+    // 🎂 BIRTHDAY (เดือนเกิดที่จบแล้ว)
+    if (achIds.has('birthday') && emp.birthday) {
+      const bMonth = parseInt(emp.birthday.split('-')[1]) - 1; // 0-based
+      if (pastMonths.includes(bMonth)) addOnce('birthday');
+    }
+  });
+
+  // 👑 MVP — คะแนนรวมสูงสุด
   let maxPts = 0, mvpId = null;
   Object.entries(results).forEach(([id, r]) => { if (r.totalPoints > maxPts) { maxPts = r.totalPoints; mvpId = id; } });
   if (mvpId && maxPts > 0) { results[mvpId].badges.push('mvp'); results[mvpId].totalPoints += 20; }
