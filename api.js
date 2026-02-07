@@ -808,15 +808,15 @@ export async function handleAPI(request, env, url, currentUser) {
   if (pathname === '/api/rewards' && method === 'POST') {
     if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
-    await DB.prepare('INSERT INTO rewards (name, icon, cost, type) VALUES (?,?,?,?)')
-      .bind(b.name, b.icon || '🎁', b.cost || 100, b.type || 'item').run();
+    await DB.prepare('INSERT INTO rewards (name, icon, cost, type, stock, category) VALUES (?,?,?,?,?,?)')
+      .bind(b.name, b.icon || '🎁', b.cost || 100, b.type || 'item', b.stock ?? -1, b.category || 'item').run();
     return json({ message: 'เพิ่มรางวัลสำเร็จ' });
   }
   if (pathname.match(/^\/api\/rewards\/\d+$/) && method === 'PUT') {
     if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const id = pathname.split('/')[3]; const b = await getBody();
-    await DB.prepare('UPDATE rewards SET name=?,icon=?,cost=?,type=? WHERE id=?')
-      .bind(b.name, b.icon, b.cost, b.type, id).run();
+    await DB.prepare('UPDATE rewards SET name=?,icon=?,cost=?,type=?,stock=?,category=? WHERE id=?')
+      .bind(b.name, b.icon, b.cost, b.type, b.stock ?? -1, b.category || 'item', id).run();
     return json({ message: 'แก้ไขรางวัลสำเร็จ' });
   }
   if (pathname.match(/^\/api\/rewards\/\d+$/) && method === 'DELETE') {
@@ -834,8 +834,14 @@ export async function handleAPI(request, env, url, currentUser) {
     const b = await getBody();
     const reward = await DB.prepare('SELECT * FROM rewards WHERE id=? AND is_active=1').bind(b.reward_id).first();
     if (!reward) return json({ error: 'ไม่พบรางวัล' }, 404);
+    // Stock check
+    if (reward.stock !== null && reward.stock !== -1 && reward.stock <= 0) return json({ error: 'รางวัลนี้หมดแล้ว' }, 400);
     const bal = await DB.prepare('SELECT COALESCE(SUM(amount),0) as balance FROM wallet_transactions WHERE employee_id=?').bind(currentUser.employee_id).first();
     if ((bal?.balance || 0) < reward.cost) return json({ error: 'แต้มไม่พอ (มี ' + (bal?.balance||0) + ' ต้องการ ' + reward.cost + ')' }, 400);
+    // Deduct stock
+    if (reward.stock !== null && reward.stock > 0) {
+      await DB.prepare('UPDATE rewards SET stock=stock-1 WHERE id=?').bind(reward.id).run();
+    }
     // Deduct points
     await DB.prepare("INSERT INTO wallet_transactions (employee_id, amount, type, ref_type, ref_id, description) VALUES (?,?,?,?,?,?)")
       .bind(currentUser.employee_id, -reward.cost, 'spend', 'reward', String(reward.id), 'แลก: ' + reward.icon + ' ' + reward.name).run();
@@ -1086,6 +1092,9 @@ export async function ensureTables(DB) {
     try { await DB.prepare('ALTER TABLE employees ADD COLUMN dayoff_swap_count INTEGER DEFAULT 0').run(); } catch(e) { /* already exists */ }
     // Add birthday column if not exists
     try { await DB.prepare('ALTER TABLE employees ADD COLUMN birthday TEXT DEFAULT NULL').run(); } catch(e) { /* already exists */ }
+    // Add stock + category to rewards
+    try { await DB.prepare('ALTER TABLE rewards ADD COLUMN stock INTEGER DEFAULT -1').run(); } catch(e) {}
+    try { await DB.prepare('ALTER TABLE rewards ADD COLUMN category TEXT DEFAULT "item"').run(); } catch(e) {}
   } catch (e) { /* ignore */ }
 }
 function fmtDateTH(iso) { if (!iso) return ''; const [y,m,d] = iso.split('-'); return d+'/'+m+'/'+(+y+543); }
