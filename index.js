@@ -88,11 +88,9 @@ export default {
         ).bind(user.email).first();
 
         if (!employee) {
-          // Check super_admins setting — auto-create as owner if matched
-          const superSetting = await env.DB.prepare("SELECT value FROM settings WHERE key='super_admins'").first();
-          const superAdmins = (superSetting?.value || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-          if (superAdmins.includes(user.email.toLowerCase())) {
-            // Auto-create as owner, not shown in calendar
+          // Check if this is the very first user (no employees exist) — auto-create as owner
+          const { results: allEmps } = await env.DB.prepare('SELECT id FROM employees WHERE is_active=1').all();
+          if (allEmps.length === 0) {
             await env.DB.prepare(
               `INSERT INTO employees (name, nickname, email, role, default_shift, shift_start, shift_end, default_off_day, avatar, show_in_calendar, is_active, max_leave_per_year)
                VALUES (?, ?, ?, 'owner', 'day', '09:00', '17:00', '0,6', '👑', 0, 1, 20)`
@@ -105,7 +103,7 @@ export default {
 
         if (!employee) {
           const safeEmail = user.email.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-          return new Response(getLoginHTML(APP_URL, 'อีเมล ' + safeEmail + ' ไม่มีสิทธิ์เข้าใช้ระบบ'), {
+          return new Response(getLoginHTML(APP_URL, 'อีเมล ' + safeEmail + ' ไม่มีสิทธิ์เข้าใช้ระบบ — กรุณาติดต่อแอดมินเพื่อเพิ่มบัญชี'), {
             headers: { 'Content-Type': 'text/html; charset=utf-8' },
           });
         }

@@ -282,7 +282,12 @@ const LEAVE = {
 };
 
 const MIN_YEAR = 2026, MIN_MONTH = 0; // ม.ค. 2569 เป็นต้นไป
-const isO = U.role === 'owner' || U.role === 'admin';
+const ROLE_LEVEL = { owner: 100, admin: 80, approver: 60, employee: 40, tester: 20 };
+const isO = ROLE_LEVEL[U.role] >= 80; // owner + admin
+const isOwner = U.role === 'owner';
+const canApproveRole = ROLE_LEVEL[U.role] >= 60; // owner + admin + approver
+const isTester = U.role === 'tester';
+const ROLE_LABELS = { owner: '👑 เจ้าของ', admin: '🛡️ แอดมิน', approver: '👮 ผู้อนุมัติ', employee: '👤 พนักงาน', tester: '🧪 ทดสอบ' };
 const KPI_ADMINS_DEFAULT = []; // ตั้งค่าจาก settings key: kpi_admins
 let KPI_ADMINS = KPI_ADMINS_DEFAULT;
 
@@ -325,7 +330,7 @@ async function load() {
       api('/api/overview?month=' + ms),
       api('/api/leaves?status=pending'),
       api('/api/swaps?status=pending'),
-      (isO || D.isApprover) ? api('/api/self-dayoff') : Promise.resolve({ data: [] }),
+      canApproveRole ? api('/api/self-dayoff') : Promise.resolve({ data: [] }),
     ]);
     D.emp = o.data.employees;
     D.selfDayoffPending = sdp.data || [];
@@ -558,7 +563,7 @@ function rHdr() {
   const tabs = ['calendar', 'stats'];
   // นับ pending leaves แบบ group (ต่อเนื่องนับ 1)
   let groupedLeaveCount = 0;
-  if ((isO || D.isApprover) && D.pl.length > 0) {
+  if (canApproveRole && D.pl.length > 0) {
     const _sorted = [...D.pl].sort((a, b) => (String(a.employee_id) + '|' + a.leave_type).localeCompare(String(b.employee_id) + '|' + b.leave_type) || a.date.localeCompare(b.date));
     let _prev = null;
     _sorted.forEach(l => {
@@ -568,9 +573,9 @@ function rHdr() {
       _prev = l;
     });
   }
-  const myPendingCount = (isO || D.isApprover) ? groupedLeaveCount + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
+  const myPendingCount = canApproveRole ? groupedLeaveCount + D.ps.length + (D.selfDayoffPending||[]).length : D.ps.filter(sw => sw.to_employee_id === U.id).length;
   const hasPendingForMe = D.ps.some(sw => sw.to_employee_id === U.id);
-  if (isO || D.isApprover || hasPendingForMe) tabs.push('pending');
+  if (canApproveRole || hasPendingForMe) tabs.push('pending');
   tabs.push('history');
   tabs.push('kpi');
   tabs.push('wallet');
@@ -585,7 +590,7 @@ function rHdr() {
       })),
       h('div', { className: 'ub' },
         U.profile_image ? h('img', { src: U.profile_image, className: 'ua' }) : h('span', { className: 'uae' }, U.avatar),
-        h('div', {}, h('div', { className: 'un' }, U.nickname || U.name), h('div', { className: 'ur' }, isO ? '👑 Owner' : 'พนักงาน')),
+        h('div', {}, h('div', { className: 'un' }, U.nickname || U.name), h('div', { className: 'ur' }, ROLE_LABELS[U.role] || '👤 พนักงาน')),
         h('button', { className: 'ubtn', onClick: () => openModal('profile') }, 'โปรไฟล์'),
         isO ? h('button', { className: 'ubtn', onClick: () => openModal('settings') }, '⚙️') : '',
         h('button', { className: 'ubtn', onClick: () => { const d = document.documentElement; const isDark = d.getAttribute('data-theme') === 'dark'; d.setAttribute('data-theme', isDark ? '' : 'dark'); localStorage.setItem('theme', isDark ? 'light' : 'dark'); } }, document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙'),
@@ -1256,9 +1261,9 @@ function rSta() {
 // === PENDING ===
 function rPnd() {
   const s = h('div', { className: 'ps' });
-  const canApproveLv = isO || D.isApprover;
+  const canApproveLv = canApproveRole;
   const myLeaves = canApproveLv ? D.pl : [];
-  const mySwaps = isO || D.isApprover ? D.ps : D.ps.filter(sw => sw.to_employee_id === U.id);
+  const mySwaps = canApproveRole ? D.ps : D.ps.filter(sw => sw.to_employee_id === U.id);
 
   // Group consecutive leaves by employee + leave_type (only if dates are consecutive)
   const grouped = [];
@@ -1338,7 +1343,7 @@ function rPnd() {
   });
 
   // Self day-off requests pending (admin only)
-  if ((isO || D.isApprover) && D.selfDayoffPending && D.selfDayoffPending.length > 0) {
+  if (canApproveRole && D.selfDayoffPending && D.selfDayoffPending.length > 0) {
     s.appendChild(h('div', { className: 'pt', style: { marginTop: '24px' } }, '🔀 ย้ายวันหยุดรออนุมัติ (' + D.selfDayoffPending.length + ')'));
     D.selfDayoffPending.forEach(req => {
       s.appendChild(h('div', { className: 'pc' },
@@ -1717,7 +1722,7 @@ function rKpi() {
 
 // === MODALS ROUTER ===
 function rModal() {
-  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, selfDayoff: rSelfDayoff, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet, achievements: rAchMgr, rewardMgr: rRewardMgr };
+  const map = { leave: rLv, swap: rSwp, dayoffSwap: rDayoffSwp, selfDayoff: rSelfDayoff, kpiAdd: rKpiAdd, onboard: rOnboard, employee: rEmp, editEmp: rEditEmp, profile: rPrf, settings: rSet, achievements: rAchMgr, rewardMgr: rRewardMgr, roleMgr: rRoleMgr };
   return (map[D.modal] || (() => h('div')))();
 }
 
@@ -2255,13 +2260,16 @@ function rSet() {
   m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '⚙️ ตั้งค่า'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'ชื่อบริษัท'), h('input', { type: 'text', className: 'fi', id: 'sc', value: D.set.company_name || '' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วันหยุดบริษัท/ปี'), h('input', { type: 'number', className: 'fi', id: 'shv', value: D.set.company_holidays_per_year || '20' })));
-  m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, '👮 ผู้มีสิทธิ์อนุมัติ (อีเมล, คั่นด้วย ,)'), h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '6px' } }, 'ครอบคลุม: ลาป่วย, ลากิจ, ลาพักร้อน, สลับกะ, สลับวันหยุด, ย้ายวันหยุด'), h('input', { type: 'text', className: 'fi', id: 'ssa', value: D.set.sick_approvers || '', placeholder: 'email1@x.com,email2@x.com' })));
   m.appendChild(h('div', { className: 'fg' }, h('label', { className: 'fl' }, 'วัน Blackout (ไม่แสดงข้อมูล, คั่นด้วย ,)'), h('input', { type: 'text', className: 'fi', id: 'sbd', value: D.set.blackout_dates || '', placeholder: '2026-01-01,2026-01-02' })));
-  // Super admins
-  m.appendChild(h('div', { className: 'fg' },
-    h('label', { className: 'fl' }, '👑 ผู้ดูแลระบบ (ไม่ใช่พนักงาน, คั่นด้วย ,)'),
-    h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '6px' } }, 'อีเมลที่ใส่จะสามารถเข้าระบบได้โดยอัตโนมัติเป็นแอดมินสูงสุด ไม่แสดงในปฏิทิน'),
-    h('input', { type: 'text', className: 'fi', id: 'ssa2', value: D.set.super_admins || '', placeholder: 'admin@example.com,boss@example.com' })));
+  // Role management button (owner only)
+  if (isOwner) {
+    m.appendChild(h('div', { style: { background: '#eff6ff', borderRadius: '10px', padding: '14px', marginBottom: '16px', border: '1px solid #93c5fd' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
+        h('div', {},
+          h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#1e40af' } }, '🔐 จัดการสิทธิ์'),
+          h('div', { style: { fontSize: '11px', color: '#3b82f6', marginTop: '2px' } }, 'กำหนด role: เจ้าของ, แอดมิน, ผู้อนุมัติ, พนักงาน, ทดสอบ')),
+        h('button', { style: { background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }, onClick: () => { closeModal(); setTimeout(() => openModal('roleMgr'), 250); } }, '🔐 จัดการสิทธิ์'))));
+  }
   m.appendChild(h('div', { style: { background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px' } },
     h('div', { style: { fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '8px' } }, '📊 สรุป'),
     h('div', { style: { fontSize: '14px', marginBottom: '8px' } }, 'วันหยุดนักขัตฤกษ์เดือนนี้: ' + Object.keys(D.hol).length + ' วัน'),
@@ -2314,7 +2322,87 @@ function rSet() {
       } catch (er) { toast(er.message, true); }
     } }, '🗑️ ลบข้อมูลทดสอบ')));
   m.appendChild(testSec);
-  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, sick_approvers: document.getElementById('ssa').value.trim(), blackout_dates: document.getElementById('sbd').value.trim(), super_admins: document.getElementById('ssa2').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
+  m.appendChild(h('button', { className: 'btn', style: { background: '#3b82f6' }, onClick: async () => { try { await api('/api/settings', 'PUT', { company_name: document.getElementById('sc').value, company_holidays_per_year: document.getElementById('shv').value, blackout_dates: document.getElementById('sbd').value.trim() }); toast('✅ บันทึกสำเร็จ'); closeModal(); load(); } catch (er) { toast(er.message, true); } } }, 'บันทึก'));
+  o.appendChild(m); return o;
+}
+
+// === ROLE MANAGER MODAL 🔐 ===
+function rRoleMgr() {
+  const o = h('div', { className: 'mo', onClick: closeModal }); const m = h('div', { className: 'md', style: { maxWidth: '640px' }, onClick: e => e.stopPropagation() });
+  m.appendChild(h('div', { className: 'mh' }, h('div', { className: 'mt' }, '🔐 จัดการสิทธิ์'), h('button', { className: 'mc', onClick: closeModal }, '✕')));
+
+  // Permission table
+  const permTable = h('div', { style: { background: '#f8fafc', borderRadius: '12px', padding: '14px', marginBottom: '16px', fontSize: '11px' } });
+  permTable.appendChild(h('div', { style: { fontWeight: 700, marginBottom: '8px', color: '#475569' } }, '📋 ตารางสิทธิ์'));
+  const perms = [
+    ['', '👑 เจ้าของ', '🛡️ แอดมิน', '👮 ผู้อนุมัติ', '👤 พนักงาน', '🧪 ทดสอบ'],
+    ['จัดการสิทธิ์', '✅', '❌', '❌', '❌', '❌'],
+    ['ตั้งค่าระบบ', '✅', '✅', '❌', '❌', '❌'],
+    ['จัดการพนักงาน', '✅', '✅', '❌', '❌', '❌'],
+    ['อนุมัติลา/สลับ', '✅', '✅', '✅', '❌', '❌'],
+    ['ดูข้อมูลทุกคน', '✅', '✅', '✅', '❌', '❌'],
+    ['ลา/สลับกะ', '✅', '✅', '✅', '✅', '✅'],
+    ['แสดงในปฏิทิน', '✅', '✅', '✅', '✅', '❌'],
+    ['บันทึก Log', '✅', '✅', '✅', '✅', '❌'],
+  ];
+  const tbl = h('div', { style: { display: 'grid', gridTemplateColumns: 'auto repeat(5, 1fr)', gap: '1px', background: '#e2e8f0', borderRadius: '8px', overflow: 'hidden' } });
+  perms.forEach((row, ri) => {
+    row.forEach((cell, ci) => {
+      const isHeader = ri === 0 || ci === 0;
+      tbl.appendChild(h('div', { style: { padding: '4px 6px', background: isHeader ? '#e2e8f0' : '#fff', fontWeight: isHeader ? 700 : 400, textAlign: ci > 0 ? 'center' : 'left', fontSize: '10px' } }, cell));
+    });
+  });
+  permTable.appendChild(tbl);
+  m.appendChild(permTable);
+
+  // Employee list with role selector
+  const list = h('div', { id: 'role-list' });
+  list.appendChild(h('div', { style: { textAlign: 'center', padding: '20px', color: '#94a3b8' } }, '⏳ กำลังโหลด...'));
+  m.appendChild(list);
+
+  // Load roles
+  api('/api/roles').then(r => {
+    list.innerHTML = '';
+    const roleColors = { owner: '#fbbf24', admin: '#3b82f6', approver: '#8b5cf6', employee: '#10b981', tester: '#94a3b8' };
+    (r.data || []).forEach(emp => {
+      const row = h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#fff', borderRadius: '10px', marginBottom: '6px', border: '1px solid #e2e8f0' } });
+      // Avatar
+      row.appendChild(emp.profile_image ? h('img', { src: emp.profile_image, style: { width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' } }) : h('div', { style: { fontSize: '22px' } }, emp.avatar || '👤'));
+      // Name + email
+      row.appendChild(h('div', { style: { flex: 1, minWidth: 0 } },
+        h('div', { style: { fontWeight: 600, fontSize: '13px' } }, emp.nickname || emp.name),
+        h('div', { style: { fontSize: '10px', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, emp.email || '—')));
+      // Role badge
+      const roleBadge = h('div', { style: { padding: '3px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, background: roleColors[emp.role] + '20', color: roleColors[emp.role], border: '1px solid ' + roleColors[emp.role] + '40', minWidth: '80px', textAlign: 'center' } }, ROLE_LABELS[emp.role] || emp.role);
+      row.appendChild(roleBadge);
+      // Role selector (only for owner)
+      if (isOwner && emp.id !== U.id) {
+        const sel = h('select', { style: { fontSize: '11px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', fontWeight: 600 }, onChange: async (e) => {
+          const newRole = e.target.value;
+          if (!confirm('เปลี่ยน ' + (emp.nickname || emp.name) + ' เป็น ' + ROLE_LABELS[newRole] + '?')) { e.target.value = emp.role; return; }
+          try {
+            await api('/api/roles/' + emp.id, 'PUT', { role: newRole });
+            toast('✅ เปลี่ยนสิทธิ์สำเร็จ');
+            roleBadge.textContent = ROLE_LABELS[newRole];
+            roleBadge.style.background = roleColors[newRole] + '20';
+            roleBadge.style.color = roleColors[newRole];
+            roleBadge.style.borderColor = roleColors[newRole] + '40';
+            emp.role = newRole;
+          } catch (er) { toast(er.message, true); e.target.value = emp.role; }
+        } });
+        ['owner', 'admin', 'approver', 'employee', 'tester'].forEach(r => {
+          const opt = h('option', { value: r }, ROLE_LABELS[r]);
+          if (emp.role === r) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        row.appendChild(sel);
+      } else if (emp.id === U.id) {
+        row.appendChild(h('div', { style: { fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' } }, '(คุณ)'));
+      }
+      list.appendChild(row);
+    });
+  }).catch(er => { list.innerHTML = ''; list.appendChild(h('div', { style: { color: '#dc2626' } }, 'Error: ' + er.message)); });
+
   o.appendChild(m); return o;
 }
 

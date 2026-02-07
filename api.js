@@ -1,28 +1,27 @@
 // =============================================
-// API v7 - swap rules, leave rules, swap_count
+// API v8 - Role-Based Access Control (RBAC)
+// Roles: owner > admin > approver > employee > tester
 // =============================================
 
 export async function handleAPI(request, env, url, currentUser) {
   const { pathname } = url;
   const method = request.method;
   const DB = env.DB;
-  const isO = currentUser.role === 'admin' || currentUser.role === 'owner';
   const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json' } });
   const getBody = async () => { try { return await request.json(); } catch { return {}; } };
 
+  // === ROLE HELPERS ===
+  const ROLE_LEVEL = { owner: 100, admin: 80, approver: 60, employee: 40, tester: 20 };
+  const role = currentUser.role || 'employee';
+  const roleLevel = ROLE_LEVEL[role] || 40;
+  const isOwner = role === 'owner';
+  const isAdmin = roleLevel >= 80;  // owner + admin
+  const canApproveReq = roleLevel >= 60; // owner + admin + approver
+  const isTester = role === 'tester';
+
   // Initialize Telegram env
   setTgEnv(env);
-
-  // Helper: ตรวจสิทธิ์อนุมัติ (admin/owner หรืออยู่ใน approvers list)
-  const _approversCache = {};
-  async function canApprove() {
-    if (isO) return true;
-    if (_approversCache.v !== undefined) return _approversCache.v;
-    const setting = await DB.prepare("SELECT value FROM settings WHERE key='sick_approvers'").first();
-    const approvers = setting ? setting.value.split(',').map(s => s.trim()).filter(Boolean) : [];
-    _approversCache.v = approvers.includes(currentUser.email);
-    return _approversCache.v;
-  }
+  setTgSkip(isTester);
 
   // ==================== ME ====================
   if (pathname === '/api/me' && method === 'GET') {
@@ -44,11 +43,32 @@ export async function handleAPI(request, env, url, currentUser) {
     const s = {}; results.forEach(r => { s[r.key] = r.value; }); return json({ data: s });
   }
   if (pathname === '/api/settings' && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     const stmt = DB.prepare("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=datetime('now')");
     await DB.batch(Object.entries(b).map(([k, v]) => stmt.bind(k, String(v))));
     return json({ message: 'บันทึกสำเร็จ' });
+  }
+
+  // ==================== ROLE MANAGEMENT ====================
+  if (pathname === '/api/roles' && method === 'GET') {
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    const { results } = await DB.prepare('SELECT id, name, nickname, email, avatar, role, show_in_calendar, profile_image FROM employees WHERE is_active=1 ORDER BY role DESC, name').all();
+    return json({ data: results });
+  }
+  if (pathname.match(/^\/api\/roles\/\d+$/) && method === 'PUT') {
+    if (!isOwner) return json({ error: 'เฉพาะเจ้าของเท่านั้น' }, 403);
+    const id = pathname.split('/').pop();
+    const b = await getBody();
+    const validRoles = ['owner', 'admin', 'approver', 'employee', 'tester'];
+    if (!validRoles.includes(b.role)) return json({ error: 'role ไม่ถูกต้อง' }, 400);
+    // Prevent changing own role from owner
+    if (String(currentUser.employee_id) === String(id) && b.role !== 'owner') return json({ error: 'ไม่สามารถลดสิทธิ์ตัวเองจาก owner' }, 400);
+    // Auto set show_in_calendar based on role
+    const showCal = b.role === 'tester' ? 0 : (b.show_in_calendar !== undefined ? b.show_in_calendar : 1);
+    await DB.prepare("UPDATE employees SET role=?, show_in_calendar=?, updated_at=datetime('now') WHERE id=?").bind(b.role, showCal, id).run();
+    await logActivity(DB, currentUser.employee_id, 'change_role', 'เปลี่ยน role #' + id + ' → ' + b.role);
+    return json({ message: 'เปลี่ยนสิทธิ์สำเร็จ' });
   }
 
   // ==================== EMPLOYEES ====================
@@ -57,7 +77,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: results });
   }
   if (pathname === '/api/employees' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     // เช็ค email ซ้ำ
     if (b.email) {
@@ -85,7 +105,7 @@ export async function handleAPI(request, env, url, currentUser) {
     // ตัวเองแก้ได้เฉพาะ phone, line_id
     const selfFields = ['phone','line_id'];
     if (!isO && !isSelf) return json({ error: 'ไม่มีสิทธิ์' }, 403);
-    const al = isO ? ['name','nickname','email','role','department','default_shift','shift_start','shift_end',
+    const al = isAdmin ? ['name','nickname','email','role','department','default_shift','shift_start','shift_end',
                 'default_off_day','avatar','phone','line_id','show_in_calendar','max_leave_per_year','is_active'] : selfFields;
     const f = [], v = [];
     for (const [k, val] of Object.entries(b)) { if (al.includes(k)) { f.push(`${k}=?`); v.push(val); } }
@@ -95,7 +115,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'แก้ไขสำเร็จ' });
   }
   if (pathname.match(/^\/api\/employees\/\d+$/) && method === 'DELETE') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     await DB.prepare("UPDATE employees SET is_active=0,updated_at=datetime('now') WHERE id=?").bind(pathname.split('/').pop()).run();
     return json({ message: 'ลบสำเร็จ' });
   }
@@ -185,7 +205,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const leaveId = pathname.split('/')[3];
     const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
-    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์อนุมัติ' }, 403);
+    if (!(canApproveReq)) return json({ error: 'ไม่มีสิทธิ์อนุมัติ' }, 403);
     await DB.prepare("UPDATE leaves SET status='approved',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
       .bind(currentUser.employee_id, leaveId).run();
     // ส่ง Telegram เฉพาะเมื่อไม่ได้เรียกจาก batch (ดูจาก query param)
@@ -198,7 +218,7 @@ export async function handleAPI(request, env, url, currentUser) {
 
   // Batch approve/reject leaves (grouped consecutive) — sends 1 Telegram
   if (pathname === '/api/leaves/batch' && method === 'PUT') {
-    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!(canApproveReq)) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     const ids = b.ids || [];
     const action = b.action; // 'approve' or 'reject'
@@ -233,7 +253,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const leaveId = pathname.split('/')[3];
     const leave = await DB.prepare('SELECT l.*, e.email as requester_email FROM leaves l JOIN employees e ON l.employee_id=e.id WHERE l.id=?').bind(leaveId).first();
     if (!leave) return json({ error: 'ไม่พบรายการ' }, 404);
-    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์ปฏิเสธ' }, 403);
+    if (!(canApproveReq)) return json({ error: 'ไม่มีสิทธิ์ปฏิเสธ' }, 403);
     await DB.prepare("UPDATE leaves SET status='rejected',approved_by=?,approved_at=datetime('now'),updated_at=datetime('now') WHERE id=?")
       .bind(currentUser.employee_id, leaveId).run();
     const reqEmpR = await DB.prepare('SELECT name,nickname FROM employees WHERE id=?').bind(leave.employee_id).first();
@@ -390,7 +410,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const id = pathname.split('/')[3];
     const sw = await DB.prepare('SELECT * FROM swap_requests WHERE id=?').bind(id).first();
     if (!sw) return json({ error: 'ไม่พบ' }, 404);
-    if (currentUser.employee_id !== sw.to_employee_id && !(await canApprove())) {
+    if (currentUser.employee_id !== sw.to_employee_id && !(canApproveReq)) {
       return json({ error: 'เฉพาะคู่สลับหรือเจ้าของเท่านั้นที่อนุมัติได้' }, 403);
     }
 
@@ -436,7 +456,7 @@ export async function handleAPI(request, env, url, currentUser) {
     const id = pathname.split('/')[3];
     const sw = await DB.prepare('SELECT * FROM swap_requests WHERE id=?').bind(id).first();
     if (!sw) return json({ error: 'ไม่พบ' }, 404);
-    if (currentUser.employee_id !== sw.to_employee_id && !(await canApprove())) {
+    if (currentUser.employee_id !== sw.to_employee_id && !(canApproveReq)) {
       return json({ error: 'เฉพาะคู่สลับหรือเจ้าของเท่านั้นที่ปฏิเสธได้' }, 403);
     }
     await DB.prepare("UPDATE swap_requests SET status='rejected',approved_by=?,approved_at=datetime('now') WHERE id=?")
@@ -454,13 +474,13 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: results });
   }
   if (pathname === '/api/holidays' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     await DB.prepare('INSERT OR REPLACE INTO holidays (date,name,type) VALUES (?,?,?)').bind(b.date, b.name, b.type || 'company').run();
     return json({ message: 'เพิ่มสำเร็จ' }, 201);
   }
   if (pathname.match(/^\/api\/holidays\/\d+$/) && method === 'DELETE') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     await DB.prepare('DELETE FROM holidays WHERE id=?').bind(pathname.split('/').pop()).run();
     return json({ message: 'ลบสำเร็จ' });
   }
@@ -502,7 +522,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: results });
   }
   if (pathname === '/api/kpi/errors' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     if (!b.date || !b.employee_id || !b.category_id) return json({ error: 'ข้อมูลไม่ครบ' }, 400);
     const r = await DB.prepare(
@@ -515,7 +535,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: { id: r.meta.last_row_id }, message: 'บันทึกสำเร็จ' }, 201);
   }
   if (pathname.match(/^\/api\/kpi\/errors\/\d+$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const id = pathname.split('/').pop();
     const b = await getBody();
     const sets = [], vals = [];
@@ -529,19 +549,19 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'แก้ไขสำเร็จ' });
   }
   if (pathname.match(/^\/api\/kpi\/errors\/\d+$/) && method === 'DELETE') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     await DB.prepare('DELETE FROM kpi_errors WHERE id=?').bind(pathname.split('/').pop()).run();
     return json({ message: 'ลบสำเร็จ' });
   }
   if (pathname === '/api/kpi/details' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     await DB.prepare('INSERT INTO kpi_details (category_id,description,points,notes) VALUES (?,?,?,?)')
       .bind(b.category_id, b.description, b.points || 1, b.notes || null).run();
     return json({ message: 'เพิ่มสำเร็จ' }, 201);
   }
   if (pathname.match(/^\/api\/kpi\/details\/\d+$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const id = pathname.split('/').pop(), b = await getBody();
     const f = [], v = [];
     if (b.description !== undefined) { f.push('description=?'); v.push(b.description); }
@@ -553,12 +573,12 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'แก้ไขสำเร็จ' });
   }
   if (pathname.match(/^\/api\/kpi\/details\/\d+$/) && method === 'DELETE') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     await DB.prepare('DELETE FROM kpi_details WHERE id=?').bind(pathname.split('/').pop()).run();
     return json({ message: 'ลบสำเร็จ' });
   }
   if (pathname === '/api/settings' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     await DB.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value')
       .bind(b.key, b.value).run();
@@ -613,7 +633,7 @@ export async function handleAPI(request, env, url, currentUser) {
 
   // ==================== DELETE HISTORY ====================
   if (pathname.match(/^\/api\/history\/(leave|swap)\/\d+$/) && method === 'DELETE') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const [, kind, id] = pathname.match(/^\/api\/history\/(leave|swap)\/(\d+)$/);
     if (kind === 'leave') {
       await DB.prepare('DELETE FROM leaves WHERE id=?').bind(id).run();
@@ -639,7 +659,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: results });
   }
   if (pathname.match(/^\/api\/self-dayoff\/(\d+)\/(approve|reject)$/) && method === 'PUT') {
-    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!(canApproveReq)) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const [, id, action] = pathname.match(/^\/api\/self-dayoff\/(\d+)\/(approve|reject)$/);
     const req = await DB.prepare('SELECT * FROM self_dayoff_requests WHERE id=?').bind(id).first();
     if (!req) return json({ error: 'ไม่พบคำขอ' }, 404);
@@ -670,7 +690,7 @@ export async function handleAPI(request, env, url, currentUser) {
 
   // ==================== MONTHLY TELEGRAM SUMMARY ====================
   if (pathname === '/api/telegram/monthly-summary' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const mo = url.searchParams.get('month') || (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
     const yr = mo.split('-')[0];
     const monthIdx = parseInt(mo.split('-')[1]) - 1;
@@ -741,21 +761,21 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: results });
   }
   if (pathname === '/api/rewards' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const b = await getBody();
     await DB.prepare('INSERT INTO rewards (name, icon, cost, type) VALUES (?,?,?,?)')
       .bind(b.name, b.icon || '🎁', b.cost || 100, b.type || 'item').run();
     return json({ message: 'เพิ่มรางวัลสำเร็จ' });
   }
   if (pathname.match(/^\/api\/rewards\/\d+$/) && method === 'PUT') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const id = pathname.split('/')[3]; const b = await getBody();
     await DB.prepare('UPDATE rewards SET name=?,icon=?,cost=?,type=? WHERE id=?')
       .bind(b.name, b.icon, b.cost, b.type, id).run();
     return json({ message: 'แก้ไขรางวัลสำเร็จ' });
   }
   if (pathname.match(/^\/api\/rewards\/\d+$/) && method === 'DELETE') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const id = pathname.split('/')[3];
     await DB.prepare('UPDATE rewards SET is_active=0 WHERE id=?').bind(id).run();
     return json({ message: 'ลบรางวัลสำเร็จ' });
@@ -786,7 +806,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ data: results });
   }
   if (pathname.match(/^\/api\/rewards\/redemptions\/\d+\/(approve|reject)$/) && method === 'PUT') {
-    if (!(await canApprove())) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!(canApproveReq)) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const parts = pathname.split('/');
     const id = parts[4], action = parts[5];
     const rd = await DB.prepare('SELECT * FROM reward_redemptions WHERE id=?').bind(id).first();
@@ -804,7 +824,7 @@ export async function handleAPI(request, env, url, currentUser) {
 
   // ==================== TEST DATA ====================
   if (pathname === '/api/test-data/generate' && method === 'POST') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     const testEmps = [
       { name: 'สมชาย ทดสอบ', nickname: 'ชาย', avatar: '🧑‍💼', email: 'test_somchai@test.local' },
       { name: 'สมหญิง ทดสอบ', nickname: 'หญิง', avatar: '👩‍💼', email: 'test_somying@test.local' },
@@ -868,7 +888,7 @@ export async function handleAPI(request, env, url, currentUser) {
     return json({ message: 'สร้างข้อมูลทดสอบ ' + empIds.length + ' คน สำเร็จ' });
   }
   if (pathname === '/api/test-data/cleanup' && method === 'DELETE') {
-    if (!isO) return json({ error: 'ไม่มีสิทธิ์' }, 403);
+    if (!isAdmin) return json({ error: 'ไม่มีสิทธิ์' }, 403);
     // Find test employees
     const { results: testEmps } = await DB.prepare("SELECT id FROM employees WHERE email LIKE '%@test.local'").all();
     const ids = testEmps.map(e => e.id);
@@ -907,7 +927,7 @@ export async function handleAPI(request, env, url, currentUser) {
     // Swap requests for year
     const { results: swapReqs } = await DB.prepare("SELECT sr.*, e1.nickname as from_nick, e1.avatar as from_avatar, e2.nickname as to_nick, e2.avatar as to_avatar FROM swap_requests sr JOIN employees e1 ON sr.from_employee_id=e1.id JOIN employees e2 ON sr.to_employee_id=e2.id WHERE sr.date LIKE ? ORDER BY sr.date").bind(`${yr}%`).all();
     const settings = {}; st.results.forEach(r => { settings[r.key] = r.value; });
-    const isApprover = await canApprove();
+    const isApprover = canApproveReq;
     return json({ data: { employees: e.results, shifts: s.results, leaves: l.results, holidays: ho.results, settings, yearlyLeaves, yearlyLeaveDetails: yld, selfMoves, swapRequests: swapReqs, isApprover } });
   }
 
@@ -924,12 +944,15 @@ function dateRange(s, e) { const d = [], c = new Date(s), ed = new Date(e); whil
 // ตั้งค่า: npx wrangler secret put TG_BOT_TOKEN
 //         npx wrangler secret put TG_CHAT_ID
 let _tgEnv = null;
+let _tgSkip = false;
 function setTgEnv(env) { _tgEnv = env; }
+function setTgSkip(skip) { _tgSkip = skip; }
 async function tgSend(msg) {
   try {
+    if (_tgSkip) return; // skip for tester
     const token = _tgEnv?.TG_BOT_TOKEN;
     const chatId = _tgEnv?.TG_CHAT_ID;
-    if (!token || !chatId) return; // skip if not configured
+    if (!token || !chatId) return;
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -941,6 +964,9 @@ async function tgSend(msg) {
 // === Activity Log ===
 async function logActivity(DB, employeeId, action, detail) {
   try {
+    // Skip logging for testers
+    const emp = await DB.prepare('SELECT role FROM employees WHERE id=?').bind(employeeId).first();
+    if (emp?.role === 'tester') return;
     await DB.prepare('INSERT INTO activity_log (employee_id, action, detail) VALUES (?,?,?)').bind(employeeId, action, detail || null).run();
   } catch (e) { /* ignore if table doesn't exist */ }
 }
