@@ -1104,13 +1104,17 @@ function computeAchievements(empStats) {
 
 function renderBadges(badges) {
   if (!badges.length) return h('div', { style: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' } }, '— ยังไม่ได้ badge —');
+  // นับจำนวนซ้ำ
+  const counts = {};
+  badges.forEach(id => { counts[id] = (counts[id] || 0) + 1; });
   const wrap = h('div', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' } });
-  badges.forEach(id => {
+  Object.entries(counts).forEach(([id, cnt]) => {
     const a = getAchievements().find(x => x.id === id);
     if (!a) return;
     const tc = TIER_COLORS[a.tier];
-    const badge = h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, background: tc.bg, border: '1.5px solid ' + tc.border, color: tc.text, cursor: 'pointer', transition: 'all .2s' }, title: a.desc },
-      h('span', {}, a.icon), h('span', {}, a.name));
+    const badge = h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, background: tc.bg, border: '1.5px solid ' + tc.border, color: tc.text, cursor: 'pointer', transition: 'all .2s' }, title: a.desc + (cnt > 1 ? ' (' + cnt + ' เดือน)' : '') },
+      h('span', {}, a.icon),
+      cnt > 1 ? h('span', { style: { fontSize: '10px', fontWeight: 800 } }, '×' + cnt) : '');
     badge.onmouseenter = () => { badge.style.transform = 'scale(1.1)'; badge.style.boxShadow = '0 2px 8px ' + tc.border + '80'; };
     badge.onmouseleave = () => { badge.style.transform = 'scale(1)'; badge.style.boxShadow = 'none'; };
     wrap.appendChild(badge);
@@ -1123,11 +1127,17 @@ function renderBadges(badges) {
 function showAchGuide(achData) {
   const allAchs = getAchievements().filter(a => a.enabled !== false);
   const myId = U.id;
-  const myData = achData[myId] || { badges: [], totalPoints: 0 };
-  const myBadges = new Set(myData.badges || []);
+  const myData = achData[myId] || { badges: [], badgeDetails: [], totalPoints: 0 };
+  // นับจำนวนครั้งต่อ badge
+  const myBadgeCounts = {};
+  (myData.badges || []).forEach(id => { myBadgeCounts[id] = (myBadgeCounts[id] || 0) + 1; });
+  const myBadges = new Set(Object.keys(myBadgeCounts));
   const earnedCount = myBadges.size;
   const totalCount = allAchs.length;
   const pct = totalCount > 0 ? Math.round(earnedCount / totalCount * 100) : 0;
+
+  // Badge ที่เป็นรายเดือน (ซ้ำได้)
+  const MONTHLY_BADGES = new Set(['iron_will','early_bird','perfect_kpi','zero_damage','kpi_max2','low_damage','kpi_improve','comeback','no_swap','no_sick_month','team_no_leave','team_perfect','team_zero_err']);
 
   const overlay = h('div', { style: { position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(10px)' }, onClick: () => document.body.removeChild(overlay) });
   const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)', borderRadius: '24px', padding: '0', maxWidth: '860px', width: '95vw', maxHeight: '90vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }, onClick: e => e.stopPropagation() });
@@ -1187,7 +1197,9 @@ function showAchGuide(achData) {
     catAchs.forEach(a => {
       const tc = TIER_COLORS[a.tier];
       const earned = myBadges.has(a.id);
-      const count = Object.values(achData).filter(d => d.badges.includes(a.id)).length;
+      const myCnt = myBadgeCounts[a.id] || 0;
+      const isMonthly = MONTHLY_BADGES.has(a.id);
+      const count = new Set(Object.entries(achData).filter(([, d]) => d.badges.includes(a.id)).map(([id]) => id)).size;
 
       const bCard = h('div', { style: {
         background: earned ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.03)',
@@ -1199,8 +1211,10 @@ function showAchGuide(achData) {
       bCard.onmouseenter = () => { bCard.style.transform = 'translateY(-2px)'; bCard.style.boxShadow = earned ? '0 4px 20px rgba(34,197,94,0.15)' : '0 4px 20px rgba(255,255,255,0.05)'; };
       bCard.onmouseleave = () => { bCard.style.transform = 'translateY(0)'; bCard.style.boxShadow = 'none'; };
 
-      // Earned checkmark overlay
-      if (earned) {
+      // Earned checkmark or count
+      if (earned && isMonthly && myCnt > 1) {
+        bCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', background: '#16a34a', color: '#fff', minWidth: '22px', height: '22px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, padding: '0 6px', boxShadow: '0 2px 8px rgba(22,163,74,0.3)' } }, '×' + myCnt));
+      } else if (earned) {
         bCard.appendChild(h('div', { style: { position: 'absolute', top: '8px', right: '8px', background: '#16a34a', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(22,163,74,0.3)' } }, '✓'));
       }
 
@@ -1211,12 +1225,17 @@ function showAchGuide(achData) {
       const info = h('div', { style: { flex: 1, minWidth: 0 } });
       info.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' } },
         h('span', { style: { fontWeight: 700, fontSize: '13px', color: earned ? '#fff' : '#94a3b8' } }, a.name),
-        h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label)));
+        h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label),
+        isMonthly ? h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 600 } }, '🔄 รายเดือน') : ''));
       info.appendChild(h('div', { style: { fontSize: '11px', color: earned ? '#cbd5e1' : '#64748b', marginBottom: '6px', lineHeight: '1.4' } }, a.desc));
 
       // Bottom row
       const bottom = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' } });
-      bottom.appendChild(h('span', { style: { fontSize: '12px', fontWeight: 800, color: earned ? '#34d399' : tc.text, background: earned ? 'rgba(34,197,94,0.15)' : tc.bg, padding: '2px 8px', borderRadius: '8px' } }, earned ? '✅ +' + a.points + ' แต้ม' : '+' + a.points + ' แต้ม'));
+      if (earned && isMonthly) {
+        bottom.appendChild(h('span', { style: { fontSize: '12px', fontWeight: 800, color: '#34d399', background: 'rgba(34,197,94,0.15)', padding: '2px 8px', borderRadius: '8px' } }, '✅ ' + myCnt + ' เดือน (+' + (a.points * myCnt) + ' แต้ม)'));
+      } else {
+        bottom.appendChild(h('span', { style: { fontSize: '12px', fontWeight: 800, color: earned ? '#34d399' : tc.text, background: earned ? 'rgba(34,197,94,0.15)' : tc.bg, padding: '2px 8px', borderRadius: '8px' } }, earned ? '✅ +' + a.points + ' แต้ม' : '+' + a.points + ' แต้ม'));
+      }
       if (count > 0) bottom.appendChild(h('span', { style: { fontSize: '10px', color: '#64748b' } }, count + ' คนได้'));
       info.appendChild(bottom);
       bCard.appendChild(info);
