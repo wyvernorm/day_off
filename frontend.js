@@ -18,9 +18,10 @@
 //     Init          — load()
 // =============================================
 
-export function getLoginHTML(appUrl, errorMsg = '') {
+export function getLoginHTML(appUrl, errorMsg = '', appName = '') {
+  const title = appName || 'ระบบจัดการกะ & วันลา';
   return `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>📅 เข้าสู่ระบบ</title>
+<title>📅 ${title}</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -36,7 +37,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:linear-gradient(135deg,#
 </style></head><body>
 <div class="card">
   <div class="icon">📅</div>
-  <div class="title">ระบบจัดการกะ & วันลา</div>
+  <div class="title">${title}</div>
   <div class="sub">เข้าสู่ระบบด้วย Google Account</div>
   ${errorMsg ? '<div class="error">⚠️ ' + errorMsg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') + '</div>' : ''}
   <a href="/auth/login" class="google-btn">

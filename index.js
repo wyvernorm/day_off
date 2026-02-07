@@ -107,8 +107,10 @@ export default {
         }
 
         if (!employee) {
+          let appName = '';
+          try { const s = await env.DB.prepare("SELECT value FROM settings WHERE key='company_name'").first(); if (s) appName = s.value; } catch(e) {}
           const safeEmail = user.email.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-          return new Response(getLoginHTML(APP_URL, 'อีเมล ' + safeEmail + ' ไม่มีสิทธิ์เข้าใช้ระบบ — กรุณาติดต่อแอดมินเพื่อเพิ่มบัญชี'), {
+          return new Response(getLoginHTML(APP_URL, 'อีเมล ' + safeEmail + ' ไม่มีสิทธิ์เข้าใช้ระบบ — กรุณาติดต่อแอดมินเพื่อเพิ่มบัญชี', appName), {
             headers: { 'Content-Type': 'text/html; charset=utf-8' },
           });
         }
@@ -190,7 +192,9 @@ export default {
 
       // Main page — not logged in → login page
       if (!currentUser) {
-        return new Response(getLoginHTML(APP_URL), {
+        let appName = '';
+        try { const s = await env.DB.prepare("SELECT value FROM settings WHERE key='company_name'").first(); if (s) appName = s.value; } catch(e) {}
+        return new Response(getLoginHTML(APP_URL, '', appName), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
         });
       }
