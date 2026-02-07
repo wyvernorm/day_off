@@ -836,19 +836,31 @@ export async function handleAPI(request, env, url, currentUser) {
     if (!reward) return json({ error: 'ไม่พบรางวัล' }, 404);
     // Stock check
     if (reward.stock !== null && reward.stock !== -1 && reward.stock <= 0) return json({ error: 'รางวัลนี้หมดแล้ว' }, 400);
+    // Flash sale discount
+    let actualCost = reward.cost;
+    const flashSetting = await DB.prepare("SELECT value FROM settings WHERE key='flash_sale'").first();
+    if (flashSetting) {
+      try {
+        const fs = JSON.parse(flashSetting.value);
+        if (fs.active && fs.expires && new Date(fs.expires) > new Date()) {
+          actualCost = Math.ceil(reward.cost * (100 - (fs.discount || 50)) / 100);
+        }
+      } catch(e) {}
+    }
     const bal = await DB.prepare('SELECT COALESCE(SUM(amount),0) as balance FROM wallet_transactions WHERE employee_id=?').bind(currentUser.employee_id).first();
-    if ((bal?.balance || 0) < reward.cost) return json({ error: 'แต้มไม่พอ (มี ' + (bal?.balance||0) + ' ต้องการ ' + reward.cost + ')' }, 400);
+    if ((bal?.balance || 0) < actualCost) return json({ error: 'แต้มไม่พอ (มี ' + (bal?.balance||0) + ' ต้องการ ' + actualCost + ')' }, 400);
     // Deduct stock
     if (reward.stock !== null && reward.stock > 0) {
       await DB.prepare('UPDATE rewards SET stock=stock-1 WHERE id=?').bind(reward.id).run();
     }
     // Deduct points
+    const saleNote = actualCost < reward.cost ? ' ⚡SALE' : '';
     await DB.prepare("INSERT INTO wallet_transactions (employee_id, amount, type, ref_type, ref_id, description) VALUES (?,?,?,?,?,?)")
-      .bind(currentUser.employee_id, -reward.cost, 'spend', 'reward', String(reward.id), 'แลก: ' + reward.icon + ' ' + reward.name).run();
+      .bind(currentUser.employee_id, -actualCost, 'spend', 'reward', String(reward.id), 'แลก: ' + reward.icon + ' ' + reward.name + saleNote).run();
     await DB.prepare('INSERT INTO reward_redemptions (employee_id, reward_id, reward_name, cost) VALUES (?,?,?,?)')
-      .bind(currentUser.employee_id, reward.id, reward.icon + ' ' + reward.name, reward.cost).run();
-    await logActivity(DB, currentUser.employee_id, 'redeem_reward', reward.icon + ' ' + reward.name + ' (-' + reward.cost + ')');
-    return json({ message: 'แลกรางวัลสำเร็จ!' });
+      .bind(currentUser.employee_id, reward.id, reward.icon + ' ' + reward.name + saleNote, actualCost).run();
+    await logActivity(DB, currentUser.employee_id, 'redeem_reward', reward.icon + ' ' + reward.name + ' (-' + actualCost + saleNote + ')');
+    return json({ message: 'แลกรางวัลสำเร็จ!' + (saleNote ? ' ⚡ลด ' + (reward.cost - actualCost) + ' แต้ม!' : '') });
   }
   if (pathname === '/api/rewards/redemptions' && method === 'GET') {
     const empId = url.searchParams.get('employee_id');
