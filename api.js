@@ -980,26 +980,6 @@ export async function handleAPI(request, env, url, currentUser) {
   }
 
   // ==================== MONITOR STATS (cached + fallback) ====================
-  if (pathname === '/api/monitor-stats' && method === 'GET') {
-    const month = url.searchParams.get('month');
-    // Clear old cache if exists
-    try { await DB.prepare('DROP TABLE IF EXISTS monitor_cache').run(); } catch (e) {}
-    // Always fetch live
-    const apiUrl = 'https://admin-monitor.iplusview.workers.dev/api/public/monitor-stats?key=wyvernorm' + (month ? '&month=' + month : '&days=all');
-    try {
-      const resp = await fetch(apiUrl);
-      const text = await resp.text();
-      try {
-        const data = JSON.parse(text);
-        return json({ data, _debug: { status: resp.status, url: apiUrl } });
-      } catch (pe) {
-        return json({ data: { users: [], total_monitor_adds: 0 }, _debug: { error: 'parse_error', status: resp.status, body: text.substring(0, 200) } });
-      }
-    } catch (e) {
-      return json({ data: { users: [], total_monitor_adds: 0 }, _debug: { error: e.message || 'fetch_failed', url: apiUrl } });
-    }
-  }
-
   return json({ error: 'Not found' }, 404);
 }
 

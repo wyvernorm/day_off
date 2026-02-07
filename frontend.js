@@ -1437,19 +1437,17 @@ function showAchGuide(achData, targetId) {
         refreshBtn.disabled = true;
         const now2 = new Date();
         const curMp2 = D.y + '-' + String(now2.getMonth() + 1).padStart(2, '0');
-        api('/api/monitor-stats?month=' + curMp2).then(r => {
-          if (r.data) {
-            const oldTotal = D.monitorData[now2.getMonth()]?.total_monitor_adds || 0;
-            D.monitorData[now2.getMonth()] = r.data;
-            D.monitorLastFetch = Date.now();
-            const newTotal = r.data.total_monitor_adds || 0;
-            if (newTotal !== oldTotal) {
-              toast('📡 อัพเดท Monitor: ' + newTotal + ' ครั้ง (+' + (newTotal - oldTotal) + ')');
-            } else {
-              toast('📡 ข้อมูลล่าสุดแล้ว (' + newTotal + ' ครั้ง)');
-            }
-            render();
+        fetch('https://admin-monitor.iplusview.workers.dev/api/public/monitor-stats?key=wyvernorm&month=' + curMp2).then(r => r.json()).then(data => {
+          const oldTotal = D.monitorData[now2.getMonth()]?.total_monitor_adds || 0;
+          D.monitorData[now2.getMonth()] = data;
+          D.monitorLastFetch = Date.now();
+          const newTotal = data.total_monitor_adds || 0;
+          if (newTotal !== oldTotal) {
+            toast('📡 อัพเดท Monitor: ' + newTotal + ' ครั้ง (+' + (newTotal - oldTotal) + ')');
+          } else {
+            toast('📡 ข้อมูลล่าสุดแล้ว (' + newTotal + ' ครั้ง)');
           }
+          render();
         }).catch(() => { toast('❌ ดึงข้อมูลไม่สำเร็จ', true); refreshBtn.textContent = '🔄 รีเฟรช'; refreshBtn.disabled = false; });
       } }, '🔄 รีเฟรช');
       updRow.appendChild(refreshBtn);
@@ -1887,7 +1885,12 @@ function rSta() {
     for (let m = 0; m < 12; m++) {
       if (D.y < now.getFullYear() || (D.y === now.getFullYear() && m <= now.getMonth())) {
         const mp = D.y + '-' + String(m + 1).padStart(2, '0');
-        monitorPromises.push(api('/api/monitor-stats?month=' + mp).then(r => ({ month: m, data: r.data, _debug: r._debug })).catch(e => ({ month: m, data: { users: [] }, _debug: { error: 'frontend_catch', msg: e.message } })));
+        monitorPromises.push(
+          fetch('https://admin-monitor.iplusview.workers.dev/api/public/monitor-stats?key=wyvernorm&month=' + mp)
+            .then(r => r.json())
+            .then(data => ({ month: m, data }))
+            .catch(() => ({ month: m, data: { users: [] } }))
+        );
       }
     }
     Promise.all([
@@ -1910,13 +1913,13 @@ function rSta() {
       D.monitorLastFetch = Date.now();
       const now = new Date();
       const curMp = D.y + '-' + String(now.getMonth() + 1).padStart(2, '0');
-      api('/api/monitor-stats?month=' + curMp).then(r => {
-        if (r.data) {
+      fetch('https://admin-monitor.iplusview.workers.dev/api/public/monitor-stats?key=wyvernorm&month=' + curMp).then(r => r.json()).then(data => {
+        if (data) {
           const oldData = D.monitorData[now.getMonth()];
-          D.monitorData[now.getMonth()] = r.data;
+          D.monitorData[now.getMonth()] = data;
           // เช็คว่ามีเปลี่ยนแปลง
           const oldTotal = oldData?.total_monitor_adds || 0;
-          const newTotal = r.data.total_monitor_adds || 0;
+          const newTotal = data.total_monitor_adds || 0;
           if (newTotal !== oldTotal) {
             toast('📡 อัพเดท Monitor: ' + newTotal + ' ครั้งเดือนนี้ (+' + (newTotal - oldTotal) + ')');
             render();
@@ -3593,7 +3596,7 @@ function rWallet() {
       for (let m = 0; m < 12; m++) {
         if (D.y < now.getFullYear() || (D.y === now.getFullYear() && m <= now.getMonth())) {
           const mp = D.y + '-' + String(m + 1).padStart(2, '0');
-          ps.push(api('/api/monitor-stats?month=' + mp).then(r => ({ month: m, data: r.data })).catch(() => ({ month: m, data: { users: [] } })));
+          ps.push(fetch('https://admin-monitor.iplusview.workers.dev/api/public/monitor-stats?key=wyvernorm&month=' + mp).then(r => r.json()).then(data => ({ month: m, data })).catch(() => ({ month: m, data: { users: [] } })));
         }
       }
       return Promise.all(ps);
