@@ -2945,8 +2945,7 @@ function rWallet() {
   }
 
   const me = D.emp.find(e => e.id === U.id) || U;
-  const monthKey = D.y + '-' + String(D.m + 1).padStart(2, '0');
-  const claimedIds = new Set((D.achClaims || []).filter(c => c.month === monthKey).map(c => c.achievement_id));
+  const allClaimed = new Set((D.achClaims || []).map(c => c.achievement_id + '|' + c.month));
   const rate = parseInt(D.set.point_rate) || 1;
 
   // === BALANCE CARD ===
@@ -2985,8 +2984,23 @@ function rWallet() {
     empStatMe.push({ emp, sc, yl: D.yl[emp.id] || {} });
   });
   const achData = computeAchievements(empStatMe);
-  const myBadges = (achData[U.id] || { badges: [] }).badges;
-  const unclaimed = myBadges.filter(id => !claimedIds.has(id));
+  const myData = achData[U.id] || { badges: [], badgeDetails: [], totalPoints: 0 };
+  const myBadges = myData.badges;
+  const myDetails = myData.badgeDetails || [];
+
+  // หา badge ที่ยังไม่เคลม — ใช้ badgeDetails (badge+month) เทียบกับ claims
+  const unclaimed = [];
+  // Badge รายเดือน (มี month ใน badgeDetails)
+  myDetails.forEach(d => {
+    const key = d.id + '|' + D.y + '-' + d.month;
+    if (!allClaimed.has(key)) unclaimed.push({ id: d.id, month: D.y + '-' + d.month });
+  });
+  // Badge ครั้งเดียว (ไม่มีใน badgeDetails — เช่น diamond, streak, birthday, mvp)
+  const detailIds = new Set(myDetails.map(d => d.id));
+  myBadges.filter(id => !detailIds.has(id)).forEach(id => {
+    const claimMonth = D.y + '-00'; // special month key for once-badges
+    if (!allClaimed.has(id + '|' + claimMonth)) unclaimed.push({ id, month: claimMonth });
+  });
 
   if (unclaimed.length > 0) {
     const claimSection = h('div', { style: { background: 'linear-gradient(135deg, #fefce8, #fffbeb)', borderRadius: '16px', padding: '20px', marginBottom: '20px', border: '1px solid #fde047' } });
@@ -2997,26 +3011,29 @@ function rWallet() {
         h('div', { style: { fontSize: '11px', color: '#a16207' } }, 'กดเคลมเพื่อรับแต้มเข้ากระเป๋า'))));
 
     const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' } });
-    unclaimed.forEach(badgeId => {
+    unclaimed.forEach(({ id: badgeId, month: claimMonth }) => {
       const ach = getAchievements().find(a => a.id === badgeId);
       if (!ach) return;
       const tc = TIER_COLORS[ach.tier];
+      const monthLabel = claimMonth.endsWith('-00') ? 'ทั้งปี' : claimMonth.split('-')[1];
       const card = h('div', { style: { background: '#fff', borderRadius: '14px', padding: '16px', textAlign: 'center', border: '2px solid ' + tc.border, cursor: 'pointer', transition: 'all .2s', position: 'relative', overflow: 'hidden' } });
       card.appendChild(h('div', { style: { fontSize: '32px', marginBottom: '6px' } }, ach.icon));
       card.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', color: '#1e293b', marginBottom: '2px' } }, ach.name));
-      card.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '8px' } }, ach.desc));
+      card.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '4px' } }, ach.desc));
+      if (!claimMonth.endsWith('-00')) {
+        card.appendChild(h('div', { style: { fontSize: '10px', color: '#3b82f6', fontWeight: 600, marginBottom: '4px' } }, '📅 เดือน ' + monthLabel));
+      }
       card.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, color: tc.text, marginBottom: '8px' } }, '+' + ach.points + ' แต้ม'));
       const claimBtn = h('button', { style: { width: '100%', padding: '8px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, ' + tc.border + ', ' + tc.text + ')', color: '#fff', fontWeight: 700, fontSize: '12px', cursor: 'pointer', transition: 'all .15s' }, onClick: async (e) => {
         e.stopPropagation();
         claimBtn.disabled = true; claimBtn.textContent = '⏳...';
         try {
-          await api('/api/achievements/claim', 'POST', { achievement_id: badgeId, month: monthKey, points: ach.points, badge_name: ach.icon + ' ' + ach.name });
-          // Confetti animation
+          await api('/api/achievements/claim', 'POST', { achievement_id: badgeId, month: claimMonth, points: ach.points, badge_name: ach.icon + ' ' + ach.name });
           showConfetti(card);
           claimBtn.textContent = '✅ เคลมแล้ว!';
           claimBtn.style.background = '#10b981';
           D.walletBal = (D.walletBal || 0) + ach.points;
-          D.achClaims = [...(D.achClaims || []), { achievement_id: badgeId, month: monthKey }];
+          D.achClaims = [...(D.achClaims || []), { achievement_id: badgeId, month: claimMonth }];
           balNum.textContent = D.walletBal.toLocaleString();
           setTimeout(() => { card.style.opacity = '0.4'; card.style.transform = 'scale(0.95)'; }, 1500);
         } catch (er) { toast(er.message, true); claimBtn.textContent = '🎁 เคลม'; claimBtn.disabled = false; }
