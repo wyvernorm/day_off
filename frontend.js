@@ -1045,6 +1045,98 @@ function renderBadges(badges) {
 }
 
 // === EMPLOYEE ACHIEVEMENT DETAIL POPUP ===
+// === ACHIEVEMENT GUIDE PAGE ===
+function showAchGuide(achData) {
+  const allAchs = getAchievements().filter(a => a.enabled !== false);
+  const overlay = h('div', { style: { position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(10px)' }, onClick: () => document.body.removeChild(overlay) });
+  const card = h('div', { style: { background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)', borderRadius: '24px', padding: '0', maxWidth: '860px', width: '95vw', maxHeight: '90vh', overflowY: 'auto', color: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }, onClick: e => e.stopPropagation() });
+
+  // Header
+  const hdr = h('div', { style: { background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)', borderRadius: '24px 24px 0 0', padding: '28px 32px', position: 'relative', overflow: 'hidden' } });
+  hdr.appendChild(h('div', { style: { position: 'absolute', top: '-30px', right: '-30px', width: '150px', height: '150px', background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)', borderRadius: '50%' } }));
+  hdr.appendChild(h('div', { style: { position: 'relative', zIndex: 1 } },
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+      h('div', {},
+        h('div', { style: { fontSize: '32px', fontWeight: 800, color: '#1e293b', marginBottom: '4px' } }, '🏆 Achievement Guide'),
+        h('div', { style: { fontSize: '14px', color: '#78350f', fontWeight: 600 } }, '1 แต้ม = 1 บาท — ท้าทายตัวเองทุกเดือน!')),
+      h('button', { style: { background: 'rgba(0,0,0,0.15)', border: 'none', color: '#1e293b', width: '36px', height: '36px', borderRadius: '12px', fontSize: '18px', cursor: 'pointer', fontWeight: 700 }, onClick: () => document.body.removeChild(overlay) }, '✕'))));
+  card.appendChild(hdr);
+
+  const content = h('div', { style: { padding: '24px 32px 32px' } });
+
+  // Tier legend
+  const tierRow = h('div', { style: { display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' } });
+  [{ l: '🥉 ทองแดง', c: '#16a34a', b: 'rgba(22,163,74,0.1)', d: 'ง่าย — ทำได้ทุกเดือน' },
+   { l: '🥈 เงิน', c: '#2563eb', b: 'rgba(37,99,235,0.1)', d: 'ท้าทาย — ต้องพยายาม' },
+   { l: '🥇 ทอง', c: '#ca8a04', b: 'rgba(202,138,4,0.1)', d: 'ยากมาก — แต้มสูง!' }].forEach(t => {
+    tierRow.appendChild(h('div', { style: { flex: '1', minWidth: '150px', padding: '10px 14px', borderRadius: '12px', background: t.b, border: '1px solid ' + t.c + '30' } },
+      h('div', { style: { fontWeight: 700, fontSize: '13px', color: t.c } }, t.l),
+      h('div', { style: { fontSize: '11px', color: '#94a3b8', marginTop: '2px' } }, t.d)));
+  });
+  content.appendChild(tierRow);
+
+  // Render each category
+  const cats = [...new Set(allAchs.map(a => a.cat || 'special'))];
+  cats.forEach(cat => {
+    const catAchs = allAchs.filter(a => (a.cat || 'special') === cat);
+    const sec = h('div', { style: { marginBottom: '24px' } });
+
+    // Category header
+    sec.appendChild(h('div', { style: { fontSize: '16px', fontWeight: 800, marginBottom: '12px', paddingBottom: '8px', borderBottom: '2px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '8px' } },
+      h('span', {}, ACH_CATS[cat] || cat),
+      h('span', { style: { fontSize: '11px', color: '#64748b', fontWeight: 500 } }, catAchs.length + ' badges')));
+
+    // Badge cards grid
+    const grid = h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' } });
+    catAchs.forEach(a => {
+      const tc = TIER_COLORS[a.tier];
+      const count = Object.values(achData).filter(d => d.badges.includes(a.id)).length;
+      const bCard = h('div', { style: { background: 'rgba(255,255,255,0.04)', borderRadius: '14px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '12px', alignItems: 'flex-start', transition: 'all .15s' } });
+      bCard.onmouseenter = () => { bCard.style.background = 'rgba(255,255,255,0.08)'; bCard.style.transform = 'translateY(-1px)'; };
+      bCard.onmouseleave = () => { bCard.style.background = 'rgba(255,255,255,0.04)'; bCard.style.transform = 'translateY(0)'; };
+
+      // Icon
+      bCard.appendChild(h('div', { style: { fontSize: '28px', width: '40px', textAlign: 'center', flexShrink: 0 } }, a.icon));
+
+      // Info
+      const info = h('div', { style: { flex: 1, minWidth: 0 } });
+      info.appendChild(h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' } },
+        h('span', { style: { fontWeight: 700, fontSize: '13px' } }, a.name),
+        h('span', { style: { fontSize: '9px', padding: '2px 6px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label)));
+      info.appendChild(h('div', { style: { fontSize: '11px', color: '#94a3b8', marginBottom: '6px', lineHeight: '1.4' } }, a.desc));
+
+      // Points + count
+      const bottom = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } });
+      bottom.appendChild(h('span', { style: { fontSize: '13px', fontWeight: 800, color: tc.text, background: tc.bg, padding: '2px 8px', borderRadius: '8px' } }, '+' + a.points + ' แต้ม'));
+      if (count > 0) bottom.appendChild(h('span', { style: { fontSize: '10px', color: '#34d399', fontWeight: 600 } }, '✅ ' + count + ' คนได้'));
+      else bottom.appendChild(h('span', { style: { fontSize: '10px', color: '#475569' } }, '🔒 ยังไม่มีใคร'));
+      info.appendChild(bottom);
+      bCard.appendChild(info);
+      grid.appendChild(bCard);
+    });
+    sec.appendChild(grid);
+    content.appendChild(sec);
+  });
+
+  // Footer tips
+  const tips = h('div', { style: { background: 'rgba(251,191,36,0.06)', borderRadius: '14px', padding: '16px 20px', border: '1px solid rgba(251,191,36,0.15)', marginTop: '8px' } });
+  tips.appendChild(h('div', { style: { fontWeight: 700, fontSize: '14px', color: '#fbbf24', marginBottom: '8px' } }, '💡 เคล็ดลับ'));
+  const tipList = [
+    '🔥 ทำต่อเนื่องทุกเดือน → แต้มพุ่ง! (เช่น KPI 0 error 3 เดือน = 100 แต้ม)',
+    '🏰 ทีมร่วมมือกัน → ทุกคนได้แต้มทีม (ป้อมปราการ 6 เดือน = 2,000 แต้ม/คน!)',
+    '📈 เดือนก่อนพลาด? ไม่เป็นไร! เดือนนี้ทำดี → ได้ "ฟื้นจากเถ้าถ่าน" +15',
+    '👑 คะแนนสูงสุดของเดือน = เทพประจำเดือน +20 แต้ม',
+  ];
+  tipList.forEach(tip => {
+    tips.appendChild(h('div', { style: { fontSize: '12px', color: '#e2e8f0', marginBottom: '4px', paddingLeft: '4px' } }, tip));
+  });
+  content.appendChild(tips);
+
+  card.appendChild(content);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
 function showEmpAchDetail(r, rank, achData) {
   const allAchs = getAchievements().filter(a => a.enabled !== false);
   const earned = r.badges || [];
@@ -1281,35 +1373,11 @@ function rAchievementBoard(empStats, achData) {
   });
   body.appendChild(table);
 
-  // === BADGE CATALOG (collapsible by category) ===
-  const catalog = h('div', { style: { marginTop: '20px' } });
-  catalog.appendChild(h('div', { style: { fontSize: '13px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' } },
-    h('span', {}, '📖'), h('span', {}, 'รายการ Badge ทั้งหมด')));
-
-  const allAchs = getAchievements().filter(a => a.enabled !== false);
-  const cats = [...new Set(allAchs.map(a => a.cat || 'special'))];
-  cats.forEach(cat => {
-    const catAchs = allAchs.filter(a => (a.cat || 'special') === cat);
-    const catRow = h('div', { style: { marginBottom: '8px' } });
-    catRow.appendChild(h('div', { style: { fontSize: '11px', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' } }, ACH_CATS[cat] || cat));
-    const grid = h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } });
-    catAchs.forEach(a => {
-      const tc = TIER_COLORS[a.tier];
-      // Count how many employees have this badge
-      const count = Object.values(achData).filter(d => d.badges.includes(a.id)).length;
-      const pill = h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '10px', fontSize: '11px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'default', transition: 'all .15s' }, title: a.desc + ' (+' + a.points + 'pt)' },
-        h('span', { style: { fontSize: '14px' } }, a.icon),
-        h('span', { style: { fontWeight: 600 } }, a.name),
-        h('span', { style: { fontSize: '9px', padding: '1px 5px', borderRadius: '6px', background: tc.bg, color: tc.text, fontWeight: 700 } }, tc.label),
-        count > 0 ? h('span', { style: { fontSize: '9px', color: '#34d399', fontWeight: 700 } }, count + ' คน') : h('span', { style: { fontSize: '9px', color: '#475569' } }, 'ยังไม่มี'));
-      pill.onmouseenter = () => { pill.style.background = 'rgba(255,255,255,0.12)'; pill.style.transform = 'translateY(-1px)'; };
-      pill.onmouseleave = () => { pill.style.background = 'rgba(255,255,255,0.06)'; pill.style.transform = 'translateY(0)'; };
-      grid.appendChild(pill);
-    });
-    catRow.appendChild(grid);
-    catalog.appendChild(catRow);
-  });
-  body.appendChild(catalog);
+  // === BADGE GUIDE BUTTON ===
+  const guideBtn = h('button', { style: { marginTop: '20px', width: '100%', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.15)', background: 'linear-gradient(135deg, rgba(251,191,36,0.1), rgba(139,92,246,0.1))', color: '#fbbf24', fontSize: '14px', fontWeight: 700, cursor: 'pointer', transition: 'all .2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }, onClick: () => showAchGuide(achData) }, '📖 ดูรายละเอียด Badge ทั้งหมด');
+  guideBtn.onmouseenter = () => { guideBtn.style.background = 'linear-gradient(135deg, rgba(251,191,36,0.2), rgba(139,92,246,0.2))'; guideBtn.style.transform = 'translateY(-2px)'; };
+  guideBtn.onmouseleave = () => { guideBtn.style.background = 'linear-gradient(135deg, rgba(251,191,36,0.1), rgba(139,92,246,0.1))'; guideBtn.style.transform = 'translateY(0)'; };
+  body.appendChild(guideBtn);
 
   section.appendChild(body);
   return section;
