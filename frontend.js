@@ -876,6 +876,12 @@ const DEFAULT_ACHIEVEMENTS = [
   { id: 'team_no_leave', icon: '🤝', name: 'ทีมเดียวกัน(ไม่หยุด)', desc: 'ทุกคนไม่ลาทั้งเดือน', tier: 2, points: 50, cat: 'team' },
   { id: 'team_perfect', icon: '🏰', name: 'ป้อมปราการ', desc: 'ทุกคนไม่ลา+ไม่สลับ+ไม่ย้ายวันหยุด', tier: 3, points: 50, cat: 'team' },
   { id: 'team_zero_err', icon: '🌟', name: 'ทีมในฝัน', desc: 'ทุกคนในทีม 0 error ทั้งเดือน', tier: 3, points: 50, cat: 'team' },
+  // 🌟 ทีมในฝัน ต่อเนื่อง (progressive)
+  { id: 'team_err_streak_2', icon: '🌟🌟', name: 'ทีมในฝัน 2 เดือน', desc: 'ทุกคน 0 error 2 เดือนติด', tier: 3, points: 100, cat: 'team' },
+  { id: 'team_err_streak_3', icon: '💫', name: 'ทีมในฝัน 3 เดือน', desc: 'ทุกคน 0 error 3 เดือนติด', tier: 3, points: 100, cat: 'team' },
+  { id: 'team_err_streak_4', icon: '✨', name: 'ทีมในฝัน 4 เดือน', desc: 'ทุกคน 0 error 4 เดือนติด', tier: 3, points: 300, cat: 'team' },
+  { id: 'team_err_streak_5', icon: '🌠', name: 'ทีมในฝัน 5 เดือน', desc: 'ทุกคน 0 error 5 เดือนติด', tier: 3, points: 400, cat: 'team' },
+  { id: 'team_err_streak_6', icon: '🏆', name: 'ทีมในฝัน 6 เดือน', desc: 'ทุกคน 0 error 6 เดือนติด', tier: 3, points: 500, cat: 'team' },
   // 🏅 ทีมต่อเนื่อง (progressive)
   { id: 'team_streak_2', icon: '🔥', name: 'ทีมร้อนแรง 2 เดือน', desc: 'ป้อมปราการ 2 เดือนติด', tier: 3, points: 200, cat: 'team' },
   { id: 'team_streak_3', icon: '🔥🔥', name: 'ทีมลุกเป็นไฟ', desc: 'ป้อมปราการ 3 เดือนติด', tier: 3, points: 500, cat: 'team' },
@@ -1103,6 +1109,21 @@ function computeAchievements(empStats) {
       else if (teamConsec >= 2) giveTeamOnce('team_streak_2');
     }
 
+    // 🌟 ทีมในฝัน streak (0 error ต่อเนื่อง)
+    if (visibleEmps.length > 1 && pastMonths.length >= 2) {
+      let zeroErrConsec = 0;
+      for (let i = pastMonths.length - 1; i >= 0; i--) {
+        const mp = getMonthPrefix(D.y, pastMonths[i]);
+        if (!visibleEmps.every(({ emp: e }) => countKpiErrors(e.id, mp) === 0)) break;
+        zeroErrConsec++;
+      }
+      if (zeroErrConsec >= 6) giveTeamOnce('team_err_streak_6');
+      if (zeroErrConsec >= 5) giveTeamOnce('team_err_streak_5');
+      if (zeroErrConsec >= 4) giveTeamOnce('team_err_streak_4');
+      if (zeroErrConsec >= 3) giveTeamOnce('team_err_streak_3');
+      if (zeroErrConsec >= 2) giveTeamOnce('team_err_streak_2');
+    }
+
     // 🏥 ไม่ลาป่วยทั้งปี (ธ.ค.)
     if (achIds.has('no_sick_year') && pastMonths.includes(11)) {
       const yearlySick = (D.yld || []).filter(l => l.employee_id === emp.id && l.leave_type === 'sick' && l.status === 'approved').length;
@@ -1168,6 +1189,18 @@ function computeAchievements(empStats) {
       prog['team_streak_2'] = { current: tC, target: 2, unit: 'เดือน' };
       prog['team_streak_3'] = { current: tC, target: 3, unit: 'เดือน' };
       prog['team_streak_6'] = { current: tC, target: 6, unit: 'เดือน' };
+      // Team zero err streak progress
+      let teC = 0;
+      for (let i = pastMonths.length - 1; i >= 0; i--) {
+        const mp3 = getMonthPrefix(D.y, pastMonths[i]);
+        if (!visibleEmps.every(({ emp: e }) => countKpiErrors(e.id, mp3) === 0)) break;
+        teC++;
+      }
+      prog['team_err_streak_2'] = { current: teC, target: 2, unit: 'เดือน' };
+      prog['team_err_streak_3'] = { current: teC, target: 3, unit: 'เดือน' };
+      prog['team_err_streak_4'] = { current: teC, target: 4, unit: 'เดือน' };
+      prog['team_err_streak_5'] = { current: teC, target: 5, unit: 'เดือน' };
+      prog['team_err_streak_6'] = { current: teC, target: 6, unit: 'เดือน' };
     }
   });
 
@@ -1385,6 +1418,33 @@ function showAchGuide(achData, targetId) {
           h('div', { style: { fontSize: '10px', color: '#64748b', marginTop: '4px' } }, monTotal + '/' + nextTarget + ' (' + miPct + '%)')));
       }
       sec.appendChild(statBox);
+      // Last updated info + refresh
+      const lastFetch = D.monitorLastFetch ? new Date(D.monitorLastFetch) : null;
+      const updRow = h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', padding: '6px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' } });
+      updRow.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b' } },
+        lastFetch ? '🕐 อัพเดทล่าสุด: ' + lastFetch.toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : ''));
+      const refreshBtn = h('button', { style: { fontSize: '10px', padding: '3px 10px', borderRadius: '6px', border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)', color: '#818cf8', cursor: 'pointer', fontWeight: 700 }, onClick: () => {
+        refreshBtn.textContent = '⏳ กำลังโหลด...';
+        refreshBtn.disabled = true;
+        const now2 = new Date();
+        const curMp2 = D.y + '-' + String(now2.getMonth() + 1).padStart(2, '0');
+        api('/api/monitor-stats?month=' + curMp2).then(r => {
+          if (r.data) {
+            const oldTotal = D.monitorData[now2.getMonth()]?.total_monitor_adds || 0;
+            D.monitorData[now2.getMonth()] = r.data;
+            D.monitorLastFetch = Date.now();
+            const newTotal = r.data.total_monitor_adds || 0;
+            if (newTotal !== oldTotal) {
+              toast('📡 อัพเดท Monitor: ' + newTotal + ' ครั้ง (+' + (newTotal - oldTotal) + ')');
+            } else {
+              toast('📡 ข้อมูลล่าสุดแล้ว (' + newTotal + ' ครั้ง)');
+            }
+            render();
+          }
+        }).catch(() => { toast('❌ ดึงข้อมูลไม่สำเร็จ', true); refreshBtn.textContent = '🔄 รีเฟรช'; refreshBtn.disabled = false; });
+      } }, '🔄 รีเฟรช');
+      updRow.appendChild(refreshBtn);
+      sec.appendChild(updRow);
     }
 
     // Badge cards grid
@@ -1791,8 +1851,32 @@ function rSta() {
       D.kpiYear = kpiR.data || [];
       D.monitorData = {};
       monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; });
+      D.monitorLastFetch = Date.now();
       render();
     }).catch(() => { D.kpiYear = []; D.monitorData = {}; });
+  }
+
+  // Auto-refresh monitor ทุก 12 ชม. (เฉพาะเดือนปัจจุบัน)
+  if (D.monitorData && D.monitorLastFetch) {
+    const hoursSince = (Date.now() - D.monitorLastFetch) / (1000 * 60 * 60);
+    if (hoursSince >= 12) {
+      D.monitorLastFetch = Date.now();
+      const now = new Date();
+      const curMp = D.y + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      api('/api/monitor-stats?month=' + curMp).then(r => {
+        if (r.data) {
+          const oldData = D.monitorData[now.getMonth()];
+          D.monitorData[now.getMonth()] = r.data;
+          // เช็คว่ามีเปลี่ยนแปลง
+          const oldTotal = oldData?.total_monitor_adds || 0;
+          const newTotal = r.data.total_monitor_adds || 0;
+          if (newTotal !== oldTotal) {
+            toast('📡 อัพเดท Monitor: ' + newTotal + ' ครั้งเดือนนี้ (+' + (newTotal - oldTotal) + ')');
+            render();
+          }
+        }
+      }).catch(() => {});
+    }
   }
 
   const allEmps = ce();
@@ -3485,6 +3569,7 @@ function rWallet() {
       if (monResults && !D.monitorData) {
         D.monitorData = {};
         monResults.forEach(mr => { D.monitorData[mr.month] = mr.data; });
+        D.monitorLastFetch = Date.now();
       }
       render();
     }).catch(() => {});
