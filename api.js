@@ -815,6 +815,9 @@ export async function handleAPI(request, env, url, currentUser) {
 
   // ==================== REWARD REDEMPTIONS ====================
   if (pathname === '/api/rewards/redeem' && method === 'POST') {
+    // ตรวจสอบวัน — แลกได้เฉพาะ เสาร์-อาทิตย์
+    const todayDay = new Date().getDay();
+    if (todayDay !== 0 && todayDay !== 6) return json({ error: 'แลกรางวัลได้เฉพาะวันเสาร์-อาทิตย์เท่านั้น' }, 400);
     const b = await getBody();
     const reward = await DB.prepare('SELECT * FROM rewards WHERE id=? AND is_active=1').bind(b.reward_id).first();
     if (!reward) return json({ error: 'ไม่พบรางวัล' }, 404);

@@ -2932,14 +2932,17 @@ function rWallet() {
       rCard.appendChild(h('div', { style: { fontWeight: 700, fontSize: '13px', marginBottom: '4px' } }, reward.name));
       rCard.appendChild(h('div', { style: { fontSize: '14px', fontWeight: 800, color: canAfford ? '#16a34a' : '#dc2626', marginBottom: '8px' } }, reward.cost + ' แต้ม'));
       if (reward.type === 'cash') rCard.appendChild(h('div', { style: { fontSize: '10px', color: '#64748b', marginBottom: '6px' } }, '= ' + (reward.cost * rate) + ' บาท'));
-      const redeemBtn = h('button', { style: { width: '100%', padding: '7px', borderRadius: '8px', border: 'none', background: canAfford ? '#16a34a' : '#cbd5e1', color: '#fff', fontWeight: 700, fontSize: '11px', cursor: canAfford ? 'pointer' : 'not-allowed' }, onClick: canAfford ? async () => {
+      const todayDay = new Date().getDay(); // 0=อาทิตย์, 6=เสาร์
+      const isWeekend = todayDay === 0 || todayDay === 6;
+      const canRedeem = canAfford && isWeekend;
+      const redeemBtn = h('button', { style: { width: '100%', padding: '7px', borderRadius: '8px', border: 'none', background: canRedeem ? '#16a34a' : '#cbd5e1', color: '#fff', fontWeight: 700, fontSize: '11px', cursor: canRedeem ? 'pointer' : 'not-allowed' }, onClick: canRedeem ? async () => {
         if (!confirm('แลก ' + reward.icon + ' ' + reward.name + ' (' + reward.cost + ' แต้ม)?')) return;
         try {
           await api('/api/rewards/redeem', 'POST', { reward_id: reward.id });
           toast('🎁 แลกรางวัลสำเร็จ!');
           D.walletLoaded = false; render();
         } catch (er) { toast(er.message, true); }
-      } : null }, canAfford ? '🛒 แลกเลย' : '🔒 แต้มไม่พอ');
+      } : null }, canRedeem ? '🛒 แลกเลย' : !isWeekend ? '📅 แลกได้เฉพาะ ส.-อา.' : '🔒 แต้มไม่พอ');
       rCard.appendChild(redeemBtn);
       rGrid.appendChild(rCard);
     });
