@@ -1,96 +1,122 @@
 // ==========================================
 // 🎨 helpers.js
-// UI Helper Functions
+// UI Helper Functions - AI แก้ง่าย แค่ 150 บรรทัด!
 // ==========================================
 
+let _toastTimer;
+
 /**
- * Create HTML element
+ * Show toast notification
+ */
+export function toast(msg, err = false) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  
+  el.textContent = msg;
+  el.className = 'tst show' + (err ? ' err' : '');
+  
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => {
+    el.className = 'tst';
+  }, 2500);
+}
+
+/**
+ * Create HTML element (h = helper)
  */
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
+  
   Object.entries(attrs).forEach(([k, v]) => {
     if (k === 'class') el.className = v;
     else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
     else if (k.startsWith('on')) el.addEventListener(k.substring(2).toLowerCase(), v);
     else el.setAttribute(k, v);
   });
+  
   children.flat().forEach(c => {
-    if (typeof c === 'string' || typeof c === 'number') el.appendChild(document.createTextNode(c));
-    else if (c instanceof HTMLElement) el.appendChild(c);
+    if (typeof c === 'string' || typeof c === 'number') {
+      el.appendChild(document.createTextNode(c));
+    } else if (c instanceof HTMLElement) {
+      el.appendChild(c);
+    }
   });
+  
   return el;
 }
 
 /**
- * Create emoji element
+ * Date key (YYYY-MM-DD)
  */
-export function ce(emoji) {
-  return h('span', { style: { display: 'inline-block', fontSize: 'inherit' } }, emoji);
+export function dk(y, m, d) {
+  return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
 
 /**
- * Format date key (YYYY-MM-DD)
+ * Is today?
  */
-export function dk(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr + 'T00:00:00');
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+export function itd(y, m, d) {
+  const t = new Date();
+  return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
 }
 
 /**
- * Display date (dd/mm/yyyy)
+ * Get day of week (0=Sun, 6=Sat)
  */
-export function disp(dateStr) {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-');
-  return `${d}/${m}/${y}`;
-}
-
-/**
- * Display date in Thai format
- */
-export function dispThai(dateStr) {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-');
-  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  return `${parseInt(d)} ${months[parseInt(m)-1]} ${parseInt(y)+543}`;
+export function gdow(y, m, d) {
+  return new Date(y, m, d).getDay();
 }
 
 /**
  * Get days in month
  */
-export function getDaysInMonth(year, month) {
-  return new Date(year, month + 1, 0).getDate();
+export function gdim(y, m) {
+  return new Date(y, m + 1, 0).getDate();
 }
 
 /**
- * Get first day of month (0=Sun, 6=Sat)
+ * First day of month
  */
-export function getFirstDayOfMonth(year, month) {
-  return new Date(year, month, 1).getDay();
+export function fdm(y, m) {
+  return new Date(y, m, 1).getDay();
 }
 
 /**
- * Check if date is today
+ * Display name (nickname or name)
  */
-export function isToday(dateStr) {
-  const today = new Date();
-  const check = new Date(dateStr + 'T00:00:00');
-  return check.getDate() === today.getDate() &&
-         check.getMonth() === today.getMonth() &&
-         check.getFullYear() === today.getFullYear();
+export function dn(e) {
+  return e.nickname || e.name;
 }
 
 /**
- * Check if date is weekend
+ * Shift time display
  */
-export function isWeekend(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00');
-  const day = d.getDay();
-  return day === 0 || day === 6;
+export function stime(e) {
+  return (e.shift_start || '09:00') + '-' + (e.shift_end || '17:00');
+}
+
+/**
+ * Get employee's default off days
+ */
+export function offD(e) {
+  return (e.default_off_day || '6').split(',').map(Number);
+}
+
+/**
+ * Is employee off on this day?
+ */
+export function isOff(e, y, m, d) {
+  return offD(e).includes(gdow(y, m, d));
+}
+
+/**
+ * Format date Thai style
+ */
+export function dispThai(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  return `${parseInt(d)} ${months[parseInt(m) - 1]} ${parseInt(y) + 543}`;
 }
 
 /**
@@ -121,29 +147,4 @@ export function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
-}
-
-/**
- * Copy to clipboard
- */
-export async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (err) {
-    return false;
-  }
-}
-
-/**
- * Download file
- */
-export function downloadFile(content, filename, type = 'text/plain') {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
