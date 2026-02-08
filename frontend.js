@@ -4162,6 +4162,27 @@ function rRewardMgr() {
 load();
 </script>
 
+// === BOTTOM NAV UPDATE ===
+const _origRender = render;
+render = function() {
+  _origRender();
+  // Update bottom nav active state
+  document.querySelectorAll('.bottom-nav-item').forEach((btn, i) => {
+    const views = ['calendar', 'roster', 'stats', 'pending'];
+    btn.classList.toggle('active', D.v === views[i]);
+  });
+};
+
+// === SCROLL TO TOP ===
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('scrollToTop');
+  if (btn) {
+    if (window.scrollY > 300) { btn.classList.add('show'); }
+    else { btn.classList.remove('show'); }
+  }
+});
+</script>
+
 <!-- Bottom Navigation -->
 <nav class="bottom-nav">
   <div class="bottom-nav-items">
@@ -4172,10 +4193,7 @@ load();
   </div>
 </nav>
 
-<button class="scroll-to-top" id="scrollBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
-<script>
-window.addEventListener('scroll', () => { const btn = document.getElementById('scrollBtn'); if (window.scrollY > 300) { btn.classList.add('show'); } else { btn.classList.remove('show'); } });
-const origRender = render; render = function() { origRender(); document.querySelectorAll('.bottom-nav-item').forEach((btn, i) => { const views = ['calendar', 'roster', 'stats', 'pending']; btn.classList.toggle('active', D.v === views[i]); }); };
-</script>
-</body></html>`;
+<button class="scroll-to-top" id="scrollToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+</body></html>\`;
 }
