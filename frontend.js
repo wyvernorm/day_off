@@ -5072,7 +5072,6 @@ function rRewardMgr() {
 // === INIT ===
 load();
 </script>
-</body></html>`;
 
 <!-- Bottom Navigation -->
 <nav class="bottom-nav">
@@ -5100,12 +5099,19 @@ load();
 <script>
 window.addEventListener('scroll', () => {
   const btn = document.getElementById('scrollBtn');
-  if (window.scrollY > 300) {
-    btn.classList.add('show');
-  } else {
-    btn.classList.remove('show');
-  }
+  if (window.scrollY > 300) { btn.classList.add('show'); } 
+  else { btn.classList.remove('show'); }
 });
-</script>
 
+// Update bottom nav active state
+const origRender = render;
+render = function() {
+  origRender();
+  document.querySelectorAll('.bottom-nav-item').forEach((btn, i) => {
+    const views = ['calendar', 'roster', 'stats', 'pending'];
+    btn.classList.toggle('active', D.v === views[i]);
+  });
+};
+</script>
+</body></html>`;
 }
