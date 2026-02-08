@@ -1,0 +1,15 @@
+{
+  "name": "shift-manager-modular",
+  "version": "3.0.0",
+  "description": "Shift Manager - Truly Modular (AI-Friendly!)",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.63.0"
+  }
+}

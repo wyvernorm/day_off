@@ -1,0 +1,17 @@
+name = "shift-manager"
+main = "index.js"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "shift-manager-db"
+database_id = "08311d9e-6226-48c4-89af-8d19be91dc33"
+
+# Set these secrets via: npx wrangler secret put GOOGLE_CLIENT_ID
+# npx wrangler secret put GOOGLE_CLIENT_SECRET
+# npx wrangler secret put SESSION_SECRET
+# npx wrangler secret put TG_BOT_TOKEN
+# npx wrangler secret put TG_CHAT_ID
+
+[vars]
+APP_URL = "https://shift-manager.iplusview.workers.dev"
